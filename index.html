@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mando Dinámico</title>
+    <style>
+        body { background: #121212; color: #eee; font-family: sans-serif; text-align: center; padding: 20px; }
+        input { padding: 15px; font-size: 18px; border-radius: 8px; border: 1px solid #444; background: #222; color: white; width: 80%; margin-bottom: 20px;}
+        .btn { width: 45%; padding: 20px; margin: 5px; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; color: white; font-weight: bold;}
+        .full { width: 95%; }
+        .app-btn { background: #2980b9; border-left: 5px solid #3498db; } 
+        .sys { background: #8e44ad; }
+        #apps-container { display: flex; flex-wrap: wrap; justify-content: center; max-width: 500px; margin: 0 auto; }
+        #loading { margin: 20px; color: #f39c12; font-style: italic; }
+        #error-box { background: #c0392b; color: white; padding: 20px; display: none; }
+        #status { margin-top:20px; color:#888; font-size:0.8em; }
+    </style>
+</head>
+<body>
+    <h2>☁️ MANDO DINÁMICO</h2>
+    
+    <div id="error-box">⚠️ Debes usar el enlace secreto (#TU-BUZON)</div>
+
+    <div id="mando_zone" style="display:none">
+        <input type="password" id="pass" placeholder="Contraseña Maestra...">
+
+        <h3>🚀 Aplicaciones</h3>
+        <div id="loading">📡 Sincronizando con Pico...</div>
+        
+        <div id="apps-container"></div>
+
+        <h3>⚙️ Sistema</h3>
+        <button class="btn sys full" onclick="sys('CASA')">🏠 VOLVER A CASA</button>
+        <button class="btn sys full" style="margin-top:10px; background:#c0392b" onclick="sys('REBOOT')">🔄 REINICIAR</button>
+        
+        <div id="status">Listo</div>
+    </div>
+
+    <script>
+        // 1. LEER BUZÓN DE LA URL (#)
+        let BUZON = window.location.hash.substring(1); 
+
+        if (BUZON) {
+            document.getElementById("mando_zone").style.display = "block";
+            cargarMenu();
+        } else {
+            document.getElementById("error-box").style.display = "block";
+        }
+
+        // 2. DESCARGAR MENÚ DE DWEET
+        function cargarMenu() {
+            fetch(`https://dweet.io/get/latest/dweet/for/${BUZON}`)
+                .then(r => r.json())
+                .then(data => {
+                    // Buscamos "menu" en el contenido
+                    if(data.with && data.with.length > 0 && data.with[0].content.menu) {
+                        const menuStr = data.with[0].content.menu;
+                        crearBotones(menuStr.split(","));
+                    } else {
+                        document.getElementById("loading").innerText = "⚠️ Menú no disponible. ¿Pico encendida?";
+                    }
+                })
+                .catch(() => document.getElementById("loading").innerText = "❌ Error Conexión");
+        }
+
+        // 3. DIBUJAR BOTONES
+        function crearBotones(listaApps) {
+            const contenedor = document.getElementById("apps-container");
+            contenedor.innerHTML = ""; 
+            document.getElementById("loading").style.display = "none";
+
+            if(listaApps.length === 0) {
+                contenedor.innerHTML = "<p>Sin apps instaladas.</p>"; return;
+            }
+
+            listaApps.forEach(nombre => {
+                let btn = document.createElement("button");
+                btn.className = "btn app-btn full";
+                btn.innerHTML = `📲 <b>${nombre}</b> <span style='font-size:0.8em'>(Ejecutar)</span>`;
+                // Al pulsar envía el comando 'RUN'
+                btn.onclick = function() { enviar_raw('APP', nombre, 'RUN'); };
+                contenedor.appendChild(btn);
+            });
+        }
+
+        // 4. ENVIAR COMANDOS
+        function enviar_raw(tipo, target, arg) {
+            const clave = document.getElementById("pass").value;
+            if (!clave) { alert("Falta contraseña"); return; }
+            
+            document.getElementById("status").innerText = "Enviando...";
+            const msg = `${clave}:${tipo}:${target}:${arg}:${Date.now()}`;
+            
+            fetch(`https://dweet.io/dweet/for/${BUZON}?cmd=${msg}`, { mode: 'no-cors' })
+                .then(() => document.getElementById("status").innerText = "✅ Enviado")
+                .catch(() => document.getElementById("status").innerText = "❌ Error");
+        }
+
+        function sys(c) { enviar_raw('SYS', c, '0'); }
+    </script>
+</body>
+</html>
