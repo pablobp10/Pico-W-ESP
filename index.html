@@ -3,100 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mando Dinámico</title>
+    <title>Mando Cloud</title>
     <style>
         body { background: #121212; color: #eee; font-family: sans-serif; text-align: center; padding: 20px; }
         input { padding: 15px; font-size: 18px; border-radius: 8px; border: 1px solid #444; background: #222; color: white; width: 80%; margin-bottom: 20px;}
         .btn { width: 45%; padding: 20px; margin: 5px; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; color: white; font-weight: bold;}
         .full { width: 95%; }
-        .app-btn { background: #2980b9; border-left: 5px solid #3498db; } 
+        .app-btn { background: #27ae60; border-left: 5px solid #2ecc71; } 
         .sys { background: #8e44ad; }
         #apps-container { display: flex; flex-wrap: wrap; justify-content: center; max-width: 500px; margin: 0 auto; }
         #loading { margin: 20px; color: #f39c12; font-style: italic; }
         #error-box { background: #c0392b; color: white; padding: 20px; display: none; }
-        #status { margin-top:20px; color:#888; font-size:0.8em; }
     </style>
 </head>
 <body>
-    <h2>☁️ MANDO DINÁMICO</h2>
-    
-    <div id="error-box">⚠️ Debes usar el enlace secreto (#TU-BUZON)</div>
+    <h2>☁️ MANDO CLOUD</h2>
+    <div id="error-box">⚠️ FORMATO URL: #CHANNEL_ID:READ_KEY:WRITE_KEY</div>
 
     <div id="mando_zone" style="display:none">
         <input type="password" id="pass" placeholder="Contraseña Maestra...">
-
         <h3>🚀 Aplicaciones</h3>
-        <div id="loading">📡 Sincronizando con Pico...</div>
-        
+        <div id="loading">📡 Conectando a ThingSpeak...</div>
         <div id="apps-container"></div>
-
         <h3>⚙️ Sistema</h3>
         <button class="btn sys full" onclick="sys('CASA')">🏠 VOLVER A CASA</button>
         <button class="btn sys full" style="margin-top:10px; background:#c0392b" onclick="sys('REBOOT')">🔄 REINICIAR</button>
-        
-        <div id="status">Listo</div>
+        <div id="status" style="margin-top:20px; color:#888;">Listo</div>
     </div>
 
     <script>
-        // 1. LEER BUZÓN DE LA URL (#)
-        let BUZON = window.location.hash.substring(1); 
+        // LEER CREDENCIALES DE LA URL
+        let hash = window.location.hash.substring(1); 
+        let partes = hash.split(":");
+        let CHANNEL_ID = partes[0];
+        let READ_KEY = partes[1];
+        let WRITE_KEY = partes[2];
 
-        if (BUZON) {
+        if (CHANNEL_ID && READ_KEY && WRITE_KEY) {
             document.getElementById("mando_zone").style.display = "block";
             cargarMenu();
         } else {
             document.getElementById("error-box").style.display = "block";
         }
 
-        // 2. DESCARGAR MENÚ DE DWEET
         function cargarMenu() {
-            fetch(`https://dweet.cc/get/latest/dweet/for/${BUZON}`)
-                .then(r => r.json())
-                .then(data => {
-                    // Buscamos "menu" en el contenido
-                    if(data.with && data.with.length > 0 && data.with[0].content.menu) {
-                        const menuStr = data.with[0].content.menu;
+            fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/fields/1/last.txt?api_key=${READ_KEY}`)
+                .then(r => r.text())
+                .then(menuStr => {
+                    if(menuStr && menuStr.length > 2) {
                         crearBotones(menuStr.split(","));
                     } else {
-                        document.getElementById("loading").innerText = "⚠️ Menú no disponible. ¿Pico encendida?";
+                        document.getElementById("loading").innerText = "⚠️ Menú vacío en nube.";
                     }
                 })
                 .catch(() => document.getElementById("loading").innerText = "❌ Error Conexión");
         }
 
-        // 3. DIBUJAR BOTONES
         function crearBotones(listaApps) {
             const contenedor = document.getElementById("apps-container");
             contenedor.innerHTML = ""; 
             document.getElementById("loading").style.display = "none";
-
-            if(listaApps.length === 0) {
-                contenedor.innerHTML = "<p>Sin apps instaladas.</p>"; return;
-            }
-
             listaApps.forEach(nombre => {
                 let btn = document.createElement("button");
                 btn.className = "btn app-btn full";
-                btn.innerHTML = `📲 <b>${nombre}</b> <span style='font-size:0.8em'>(Ejecutar)</span>`;
-                // Al pulsar envía el comando 'RUN'
+                btn.innerHTML = `📲 <b>${nombre}</b>`;
                 btn.onclick = function() { enviar_raw('APP', nombre, 'RUN'); };
                 contenedor.appendChild(btn);
             });
         }
 
-        // 4. ENVIAR COMANDOS
         function enviar_raw(tipo, target, arg) {
             const clave = document.getElementById("pass").value;
             if (!clave) { alert("Falta contraseña"); return; }
             
-            document.getElementById("status").innerText = "Enviando...";
-            const msg = `${clave}:${tipo}:${target}:${arg}:${Date.now()}`;
+            document.getElementById("status").innerText = "Enviando... (Espera 15s)";
+            const ts = Date.now();
+            const msg = `${clave}:${tipo}:${target}:${arg}:${ts}`;
             
-            fetch(`https://dweet.cc/dweet/for/${BUZON}?cmd=${msg}`, { mode: 'no-cors' })
-                .then(() => document.getElementById("status").innerText = "✅ Enviado")
+            fetch(`https://api.thingspeak.com/update?api_key=${WRITE_KEY}&field2=${msg}`, { mode: 'no-cors' })
+                .then(() => {
+                    document.getElementById("status").innerText = "✅ Enviado";
+                    // ThingSpeak gratis requiere 15s entre mensajes
+                    setTimeout(() => document.getElementById("status").innerText = "Listo", 15000);
+                })
                 .catch(() => document.getElementById("status").innerText = "❌ Error");
         }
-
         function sys(c) { enviar_raw('SYS', c, '0'); }
     </script>
 </body>
