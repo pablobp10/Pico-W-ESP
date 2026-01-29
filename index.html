@@ -50,7 +50,7 @@
 
         // 2. DESCARGAR MENÚ DE DWEET
         function cargarMenu() {
-            fetch(`https://dweet.io/get/latest/dweet/for/${BUZON}`)
+            fetch(`https://dweet.cc/get/latest/dweet/for/${BUZON}`)
                 .then(r => r.json())
                 .then(data => {
                     // Buscamos "menu" en el contenido
@@ -92,7 +92,7 @@
             document.getElementById("status").innerText = "Enviando...";
             const msg = `${clave}:${tipo}:${target}:${arg}:${Date.now()}`;
             
-            fetch(`https://dweet.io/dweet/for/${BUZON}?cmd=${msg}`, { mode: 'no-cors' })
+            fetch(`https://dweet.cc/dweet/for/${BUZON}?cmd=${msg}`, { mode: 'no-cors' })
                 .then(() => document.getElementById("status").innerText = "✅ Enviado")
                 .catch(() => document.getElementById("status").innerText = "❌ Error");
         }
