@@ -1,16 +1,13 @@
-// Generamos un ID único para evitar eco
-const MY_ID = "User_" + Math.floor(Math.random() * 100000);
-
 export const MegafonoCard = {
     id: "Megafono",
-    // Tamaño 1x1 (Cuadrado)
+    // Tamaño 1x1
     html: `
         <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; width:100%">
             <div class="label" style="text-align:left; margin-bottom:5px">
                 <i class="fa-solid fa-bullhorn" style="color:#f97316"></i> MEGÁFONO
             </div>
             
-            <textarea id="mega-input" placeholder="Mensaje..." style="
+            <textarea id="mega-input" placeholder="Escribe..." style="
                 flex-grow: 1;
                 width: 100%;
                 margin-bottom: 5px;
@@ -38,23 +35,24 @@ export const MegafonoCard = {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
 
-        // Intento silencioso de cargar voces
+        // Cargar voces en segundo plano al iniciar
         if(window.speechSynthesis) {
-            try { window.speechSynthesis.getVoices(); } catch(e){}
+            window.speechSynthesis.getVoices();
         }
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. HABLAR LOCALMENTE (Esto debería funcionar siempre al hacer clic)
-            speakSafe(txt);
+            // 1. SONIDO INMEDIATO (Prioridad absoluta)
+            // Al estar dentro del 'onclick', el navegador NO lo bloquea.
+            hablarLocal(txt);
 
-            // 2. ENVIAR A MQTT
-            const payload = JSON.stringify({ txt: txt, sender: MY_ID });
-            core.pub('Megafono', payload, false);
+            // 2. Enviar por MQTT (Para que lo lean, aunque no suene en otros)
+            // Enviamos un objeto simple
+            core.pub('Megafono', JSON.stringify({ txt: txt }), false);
 
-            // 3. Animación botón
+            // 3. Efecto visual botón
             const originalIcon = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-check"></i>';
             btn.style.background = "#32d74b";
@@ -62,55 +60,36 @@ export const MegafonoCard = {
             setTimeout(() => {
                 btn.innerHTML = originalIcon;
                 btn.style.background = "#f97316";
-            }, 1500);
+            }, 1000);
         };
     },
-    onData: (val, app, core) => {
-        // Verificamos soporte sin lanzar errores
-        if(!val || !window.speechSynthesis) return;
-
-        let msg = "";
-        let sender = "";
-
-        try {
-            const data = JSON.parse(val);
-            msg = data.txt;
-            sender = data.sender;
-        } catch {
-            msg = val; 
-        }
-
-        // Si soy yo mismo, salir
-        if (sender === MY_ID) return;
-
-        // Intentar hablar (si el navegador bloquea por autoplay, simplemente no sonará)
-        speakSafe(msg);
-    }
+    // Dejamos onData vacío para que no intente reproducir lo de otros y falle
+    onData: (val) => {}
 };
 
-// Función auxiliar que NO da error nunca
-function speakSafe(text) {
-    // 1. Comprobamos si existe la API
-    if (!window.speechSynthesis) return;
-
-    try {
-        // 2. Cancelamos audios anteriores
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0; 
-
-        // 3. Selección de voz (Intentamos Español, si no, la que haya)
-        const voices = window.speechSynthesis.getVoices();
-        let voice = voices.find(v => v.lang.includes("es")); // Cualquier español
-        if (voice) utterance.voice = voice;
-
-        // 4. Manejador de errores interno (para que no salten alertas)
-        utterance.onerror = (e) => { console.log("Audio bloqueado o fallido", e); };
-
-        window.speechSynthesis.speak(utterance);
-    } catch (e) {
-        // Si todo falla, no hacemos nada (silencio)
-        console.log("Error crítico audio:", e);
+// Función de voz simple y directa
+function hablarLocal(texto) {
+    if (!window.speechSynthesis) {
+        alert("Tu navegador no tiene voz.");
+        return;
     }
+
+    // Cancelar cualquier cosa que estuviera sonando
+    window.speechSynthesis.cancel();
+
+    const frase = new SpeechSynthesisUtterance(texto);
+    frase.lang = 'es-ES'; // Español
+    frase.rate = 1;       // Velocidad normal
+    frase.volume = 1;     // Volumen máximo
+
+    // Intentar buscar una voz en español
+    const voces = window.speechSynthesis.getVoices();
+    // Prioridad: Google Español > Cualquier Español
+    const voz = voces.find(v => v.name.includes('Google') && v.lang.includes('es')) || 
+                voces.find(v => v.lang.includes('es'));
+    
+    if (voz) frase.voice = voz;
+
+    // ¡HABLAR YA!
+    window.speechSynthesis.speak(frase);
 }
