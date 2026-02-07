@@ -1,0 +1,292 @@
+/* style.css - Pico OS Final v4 */
+
+:root {
+    --bg: #f2f2f7; --card-bg: #ffffff;
+    --text-main: #1c1c1e; --text-sec: #8e8e93;
+    --primary: #007aff; --border: #e5e5ea;
+    --shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] {
+    --bg: #000000; --card-bg: #1c1c1e;
+    --text-main: #ffffff; --text-sec: #98989d;
+    --primary: #0a84ff; --border: #2c2c2e;
+    --shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    background: var(--bg); color: var(--text-main); margin: 0; 
+    display: flex; flex-direction: column; align-items: center; 
+    min-height: 100vh; padding-bottom: 60px; transition: background 0.3s;
+}
+
+/* HEADER */
+header { 
+    width: 100%; background: var(--card-bg); padding: 0 20px; height: 60px;
+    border-bottom: 1px solid var(--border); display: flex; 
+    justify-content: space-between; align-items: center; 
+    box-sizing: border-box; position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 20px; }
+h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; }
+
+/* SELECTOR BROKER */
+.broker-selector { position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 0; }
+#broker-select { 
+    appearance: none; -webkit-appearance: none; background: transparent; border: none; 
+    color: var(--text-sec); font-size: 0.9rem; font-weight: 500; font-family: inherit; 
+    cursor: pointer; outline: none; padding-right: 14px; text-align: right;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%20292.4%20292.4%22%3E%3Cpath%20fill%3D%22%238e8e93%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat; background-position: right center; background-size: 8px;
+}
+#broker-select:hover { color: var(--text-main); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 1px; }
+.dot.red { background: #ff453a; box-shadow: 0 0 6px #ff453a; }
+.dot.green { background: #32d74b; box-shadow: 0 0 6px #32d74b; }
+.dot.orange { background: #ff9f0a; }
+
+.pico-status { display: flex; align-items: center; }
+.pico-info-pill { display: flex; align-items: center; gap: 10px; background: var(--bg); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.75rem; color: var(--text-sec); animation: fadeIn 0.3s; }
+
+.header-right { display: flex; align-items: center; }
+.header-controls button { border: none; background: none; font-size: 1.1rem; color: var(--text-sec); padding: 8px; cursor: pointer; transition: 0.2s; }
+.header-controls button:hover { color: var(--primary); }
+
+/* GRID */
+.grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+    /* Altura base de fila 160px */
+    grid-auto-rows: 160px;
+    gap: 15px; width: 96%; max-width: 1400px; 
+    margin-top: 20px; grid-auto-flow: dense; 
+    align-items: start;
+}
+
+/* TARJETAS */
+.card { 
+    background: var(--card-bg); border-radius: 20px; padding: 15px; 
+    text-align: center; box-shadow: var(--shadow); position: relative; 
+    overflow: hidden; border: 1px solid var(--border); 
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: all 0.2s ease; box-sizing: border-box;
+    /* Por defecto ocupan 1 celda (160px alto) */
+    grid-row: span 1;
+    height: 100%; 
+}
+
+/* TAMAÑOS */
+.card.wide { grid-column: span 2; }
+.card.tall { grid-row: span 2; }
+.card.super-wide { grid-column: span 3; }
+
+/* --- CORRECCIONES V4 --- */
+
+/* 1. MODO FIESTA (Prioridad Alta) */
+body.fiesta-rojo { background-color: #ff453a !important; }
+body.fiesta-azul { background-color: #0a84ff !important; }
+body.fiesta-verde { background-color: #32d74b !important; }
+
+/* 2. CLASE PARA CUANDO LA GRÁFICA ESTÁ ACTIVA (3x2) */
+.card.super-wide.graph-active {
+    grid-row: span 2; /* Fuerza altura de 2 filas (320px + gap) */
+}
+
+/* 3. GRÁFICA ESCALADA */
+#ts-iframe { 
+    /* Ocupa todo el ancho */
+    width: calc(100% + 30px); 
+    /* Ocupa todo el alto disponible restante */
+    flex-grow: 1;
+    border: none; 
+    margin: 10px -15px -15px -15px; 
+    background: var(--bg); 
+    display: none; 
+    border-radius: 0 0 20px 20px;
+}
+#ts-iframe.active { display: block; }
+
+/* Menú Broker */
+.broker-wrapper { position: relative; display: flex; align-items: center; gap: 6px; background: var(--bg); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; user-select: none; font-size: 0.8rem; font-weight: 600; transition: 0.2s; }
+.broker-wrapper:hover { opacity: 0.8; }
+.custom-dropdown { display: none; position: absolute; top: 120%; left: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); min-width: 140px; overflow: hidden; z-index: 1000; flex-direction: column; }
+.custom-dropdown.open { display: flex; }
+.dropdown-item { padding: 10px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; font-size:0.8rem; color:var(--text-main); }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: var(--primary); color: white; }
+
+/* Responsive */
+@media (max-width: 600px) { 
+    .card.wide, .card.super-wide { grid-column: span 1; grid-row: span 1; }
+    .card.tall { grid-row: span 1; height: auto; min-height: 160px; }
+    .card.super-wide.graph-active { grid-row: span 2; }
+}
+
+/* UI Elements */
+.val-text { font-size: 1.8rem; font-weight: 800; margin: 5px 0; color: var(--text-main); letter-spacing: -1px; }
+.label { font-size: 0.7rem; color: var(--text-sec); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+.icon { font-size: 2.2rem; margin-bottom: 10px; color: #8e8e93; }
+
+/* Botones y Switches */
+.btn-action { width: 100%; padding: 10px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: auto; color: white; background: var(--primary); font-size: 0.85rem;}
+.btn-on { background: #32d74b; } .btn-off { background: #ff453a; }
+.on .icon { color: #32d74b; filter: drop-shadow(0 0 12px rgba(50, 215, 75, 0.3)); }
+.switch-group { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.mini-switch-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-sec); }
+.toggle-switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #aeaeb2; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+input:checked + .slider { background-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(14px); }
+
+/* Calculadora & Login */
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; width: 100%; height: 100%; margin-top: 5px; }
+.calc-btn { background: var(--bg); border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; color: var(--text-main); font-weight: 600; padding: 0; }
+#calc-display { width: 100%; background: transparent; text-align: right; font-size: 1.2rem; font-weight: 300; color: var(--text-main); margin-bottom: 2px; }
+#login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+.login-box { background: var(--card-bg); padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 90%; max-width: 320px; text-align: center; }
+input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text-main); box-sizing: border-box; }
+.edit-mode .card { cursor: grab; border: 2px dashed var(--primary); animation: shake 0.3s infinite alternate; opacity: 0.6; }
+@keyframes shake { from { transform: rotate(-1deg); } to { transform: rotate(1deg); } }
+textarea { width: 100%; height: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; resize: none; background: var(--bg); color: var(--text-main); font-family: inherit; box-sizing: border-box; }
+.admin-only { display: none !important; }
+
+/* --- LISTA DE LA COMPRA --- */
+.shopping-list {
+    flex-grow: 1;
+    width: 100%;
+    overflow-y: auto; /* Scroll si hay muchas cosas */
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 5px; /* Espacio para el scroll */
+}
+
+/* Scrollbar invisible pero funcional (estética limpia) */
+.shopping-list::-webkit-scrollbar { width: 4px; }
+.shopping-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+.shop-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: 0.2s;
+    text-align: left;
+}
+
+.shop-item input[type="checkbox"] {
+    width: 20px; height: 20px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    margin: 0;
+}
+
+.shop-item span {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: 0.2s;
+}
+
+/* Efecto Tachado */
+.shop-item.done span {
+    text-decoration: line-through;
+    color: var(--text-sec);
+    opacity: 0.6;
+}
+
+.shop-item .btn-del {
+    color: #ff453a;
+    background: none; border: none;
+    cursor: pointer; padding: 4px;
+    opacity: 0.5; transition: 0.2s;
+}
+.shop-item .btn-del:hover { opacity: 1; transform: scale(1.1); }
+
+/* Input Añadir */
+.add-row { display: flex; width: 100%; gap: 5px; margin-top: auto; padding-top:10px; border-top:1px solid var(--border); }
+#shop-input { flex-grow: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-main); }
+#btn-add { background: var(--primary); color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 1.2rem; }
+
+/* --- RELOJ VERTICAL --- */
+.clock-vertical-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around; /* Reparte el espacio verticalmente */
+    height: 100%;
+    width: 100%;
+    padding: 10px 0;
+}
+.clock-city-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.clock-city-name {
+    font-size: 0.75rem;
+    color: var(--text-sec);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.clock-city-time {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums; /* Evita que los números bailen */
+    line-height: 1;
+}
+
+/* HEADER IZQUIERDA */
+.header-left { display: flex; align-items: center; gap: 15px; }
+
+/* ESTADO PICO (Animación de despliegue) */
+.pico-status { display: flex; align-items: center; margin-left: 5px; }.pico-status { 
+    display: flex; 
+    align-items: center; 
+    height: 100%; /* Para centrarse verticalmente en el header */
+}
+
+.pico-info-pill { 
+    display: flex; align-items: center; gap: 10px; 
+    background: var(--bg); padding: 5px 12px; border-radius: 20px; 
+    border: 1px solid var(--border); font-size: 0.75rem; color: var(--text-sec);
+    
+    /* ANIMACIÓN DE DESPLIEGUE SUAVE */
+    animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transform-origin: left center;
+    white-space: nowrap; /* Evita que el texto salte de línea */
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: scaleX(0.8) translateX(-10px); }
+    to { opacity: 1; transform: scaleX(1) translateX(0); }
+}
+
+/* LISTA DE LA COMPRA */
+.shopping-list { flex-grow: 1; width: 100%; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+.shopping-list::-webkit-scrollbar { width: 4px; }
+.shopping-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+.shop-item { display: flex; align-items: center; gap: 10px; background: var(--bg); padding: 8px 12px; border-radius: 8px; transition: 0.2s; text-align: left; }
+.shop-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; }
+.shop-item span { flex-grow: 1; font-size: 0.9rem; font-weight: 500; color: var(--text-main); transition: 0.2s; }
+.shop-item.done span { text-decoration: line-through; color: var(--text-sec); opacity: 0.6; }
+.shop-item .btn-del { color: #ff453a; background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.5; transition: 0.2s; }
+.shop-item .btn-del:hover { opacity: 1; transform: scale(1.1); }
+.add-row { display: flex; width: 100%; gap: 5px; margin-top: auto; padding-top:10px; border-top:1px solid var(--border); }
+#shop-input { flex-grow: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-main); }
+#btn-add { background: var(--primary); color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 1.2rem; }
+
+/* RELOJ VERTICAL */
+.clock-vertical-container { display: flex; flex-direction: column; justify-content: space-around; height: 100%; width: 100%; padding: 5px 0; }
+.clock-city-block { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.clock-city-name { font-size: 0.75rem; color: var(--text-sec); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.clock-city-time { font-size: 1.8rem; font-weight: 300; color: var(--text-main); font-variant-numeric: tabular-nums; line-height: 1; }

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Pico OS</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🔐 Pico OS</h2>
+            <input type="text" id="user-input" placeholder="Usuario">
+            <input type="password" id="pass-input" placeholder="Contraseña">
+            <button class="btn-action" id="btn-login" style="margin-top:15px">ENTRAR</button>
+            <p id="error-msg" style="color:red; display:none; margin-top:10px; font-size:0.9rem"></p>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <h1>Pico OS</h1>
+            
+            <div class="broker-wrapper" id="broker-trigger">
+                <span id="mqtt-dot" class="dot red"></span>
+                <span id="current-broker-name">Offline</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; opacity:0.5"></i>
+                
+                <div class="custom-dropdown" id="broker-menu">
+                    </div>
+            </div>
+
+            <div id="pico-status-container" class="pico-status" style="margin-left: 15px; cursor:default">
+                <span class="dot red"></span>
+                <span style="font-size:0.9rem; font-weight:500; color:var(--text-sec); margin-left:6px">Pico</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="header-controls">
+                <button id="btn-edit"><i class="fa-solid fa-pen"></i></button>
+                <button id="btn-theme"><i class="fa-solid fa-moon"></i></button>
+                <button id="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <div class="grid" id="dashboard-grid"></div>
+
+    <script type="module">
+        import { Core } from './core.js';
+        window.App = new Core();
+    </script>
+</body>
+</html>
