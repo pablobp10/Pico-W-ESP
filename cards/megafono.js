@@ -1,19 +1,35 @@
+// Generamos un ID único para esta sesión de navegador
+const MY_ID = "User_" + Math.floor(Math.random() * 100000);
+
 export const MegafonoCard = {
     id: "Megafono",
+    // Tamaño 1x1
     html: `
-        <div style="display:flex; flex-direction:column; height:100%; width:100%">
+        <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; width:100%">
             <div class="label" style="text-align:left; margin-bottom:5px">
                 <i class="fa-solid fa-bullhorn" style="color:#f97316"></i> MEGÁFONO
             </div>
             
             <textarea id="mega-input" placeholder="Escribe algo..." style="
                 flex-grow: 1;
-                margin-bottom: 10px;
-                font-size: 1.1rem;
-                padding: 10px;
+                width: 100%;
+                margin-bottom: 5px;
+                font-size: 0.9rem;
+                padding: 8px;
+                resize: none;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: var(--bg);
+                color: var(--text-main);
+                box-sizing: border-box;
             "></textarea>
 
-            <button id="btn-speak" class="btn-action" style="background:#f97316; margin-top:0">
+            <button id="btn-speak" class="btn-action" style="
+                background:#f97316; 
+                margin-top:0; 
+                padding: 8px; 
+                font-size:0.8rem;
+            ">
                 <i class="fa-solid fa-play"></i> HABLAR
             </button>
         </div>
@@ -22,86 +38,88 @@ export const MegafonoCard = {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
 
-        // PRE-CARGAR VOCES (Truco para Android/iOS)
-        // Al cargar la página, pedimos las voces para que estén listas cuando pulses.
+        // TRUCO: Forzar carga de voces en Android/iOS al iniciar
         if('speechSynthesis' in window) {
-            window.speechSynthesis.getVoices(); 
+            // Intentamos cargar las voces nada más abrir la web
+            window.speechSynthesis.getVoices();
+            // Y nos suscribimos por si tardan en llegar
+            window.speechSynthesis.onvoiceschanged = () => {
+                console.log("Voces cargadas");
+            };
         }
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. HABLAR LOCALMENTE (INMEDIATO)
-            // Al hacerlo dentro del 'onclick', el navegador SIEMPRE lo permite.
+            // 1. HABLAR LOCALMENTE (Esto DEBE sonar porque has pulsado tú)
             speakText(txt);
 
             // 2. ENVIAR A LOS DEMÁS
-            // Enviamos un JSON con un ID único para no repetirnos a nosotros mismos
-            const payload = JSON.stringify({ 
-                txt: txt, 
-                sender: core.mqtt.clientId // Usamos el ID de nuestro cliente MQTT
-            });
+            const payload = JSON.stringify({ txt: txt, sender: MY_ID });
             core.pub('Megafono', payload, false);
 
             // 3. Feedback visual
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> ENVIADO';
-            btn.style.background = "#32d74b";
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            btn.style.background = "#32d74b"; // Verde
+            
             setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.style.background = "#f97316";
-            }, 2000);
+                btn.innerHTML = originalHTML;
+                btn.style.background = "#f97316"; // Naranja
+            }, 1500);
         };
     },
     onData: (val, app, core) => {
-        // Si no hay datos o speech no soportado, salir
         if(!val || !('speechSynthesis' in window)) return;
 
         let msg = "";
         let sender = "";
 
-        // Intentamos parsear si viene como JSON (formato nuevo)
         try {
             const data = JSON.parse(val);
             msg = data.txt;
             sender = data.sender;
         } catch {
-            // Si es texto plano (formato antiguo), lo usamos tal cual
             msg = val; 
         }
 
-        // EVITAR EL ECO:
-        // Si el mensaje lo envié YO (mi sender ID), no lo vuelvo a decir 
-        // porque ya lo dije en el 'onclick'.
-        if (sender === core.mqtt.clientId) return;
+        // Si el ID del mensaje es MI ID, no hago nada (ya hablé al pulsar el botón)
+        if (sender === MY_ID) return;
 
-        // Si lo envió OTRO, intentamos hablar (puede fallar si el móvil está dormido)
+        // Si es de otro, intento hablar
+        // NOTA: En móviles, esto solo sonará si la pantalla está encendida y el navegador activo
         speakText(msg);
     }
 };
 
 // Función de Voz Mejorada
 function speakText(text) {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) {
+        alert("Tu navegador no soporta audio");
+        return;
+    }
 
-    // Cancelar audio anterior
+    // Cancelar cualquier audio anterior que se haya quedado colgado
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-ES';
-    utterance.rate = 1.0;
+    utterance.rate = 1.0; 
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0; // Volumen al máximo
 
-    // Selección de voz robusta
+    // Selección de voz INTELIGENTE
     const voices = window.speechSynthesis.getVoices();
-    // Prioridad: Google Español > Cualquier Español > La primera que haya
-    const voice = voices.find(v => v.lang.includes('es') && v.name.includes('Google')) || 
-                  voices.find(v => v.lang.includes('es'));
     
+    // 1. Buscamos voz de Google en Español (suelen ser las mejores en Android)
+    let voice = voices.find(v => v.name.includes("Google") && v.lang.includes("es"));
+    
+    // 2. Si no, cualquier voz en español
+    if (!voice) voice = voices.find(v => v.lang.includes("es"));
+    
+    // 3. Si no hay español, usamos la por defecto del sistema
     if (voice) utterance.voice = voice;
 
-    // IMPORTANTE: Imprimir error si falla
-    utterance.onerror = (e) => console.error("Error TTS:", e);
-
+    // Ejecutar
     window.speechSynthesis.speak(utterance);
 }
