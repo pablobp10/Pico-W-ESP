@@ -53,59 +53,84 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 .header-controls button { border: none; background: none; font-size: 1.1rem; color: var(--text-sec); padding: 8px; cursor: pointer; transition: 0.2s; }
 .header-controls button:hover { color: var(--primary); }
 
-/* GRID */
+/* --- GRID (SISTEMA DE REJILLA) --- */
 .grid { 
     display: grid; 
-    /* Las columnas se ajustan solas */
+    /* EN PC: Columnas automáticas (tantas como quepan) */
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
-    /* Altura base de fila */
+    /* Altura de fila FIJA: Esto evita la superposición */
     grid-auto-rows: 160px;
     gap: 15px; 
-    
-    /* CAMBIOS AQUÍ: */
-    width: 98%;        /* Ocupa casi toda la pantalla */
-    max-width: none;   /* ELIMINAMOS EL LÍMITE DE 1400px */
-    
+    width: 98%; 
+    max-width: none;
     margin-top: 20px; 
+    /* DENSE: Rellena huecos vacíos automáticamente */
     grid-auto-flow: dense; 
-    align-items: start;
+    align-items: stretch; /* Estirar para ocupar la celda entera */
 }
 
-/* TARJETAS */
+/* --- TARJETAS BASE --- */
 .card { 
     background: var(--card-bg); border-radius: 20px; padding: 15px; 
     text-align: center; box-shadow: var(--shadow); position: relative; 
     overflow: hidden; border: 1px solid var(--border); 
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     transition: all 0.2s ease; box-sizing: border-box;
-    /* Por defecto ocupan 1 celda (160px alto) */
+    
+    /* Por defecto: 1 fila, 1 columna (Cuadrado) */
+    grid-column: span 1;
     grid-row: span 1;
     height: 100%; 
 }
 
-/* TAMAÑOS */
-.card.wide { grid-column: span 2; }
-.card.tall { grid-row: span 2; }
-.card.super-wide { grid-column: span 3; }
+/* --- TAMAÑOS EN PC (Escritorio) --- */
+.card.wide { grid-column: span 2; }       /* 2 ancho x 1 alto */
+.card.tall { grid-row: span 2; }          /* 1 ancho x 2 alto */
+.card.super-wide { grid-column: span 3; } /* 3 ancho x 1 alto */
 
-/* --- CORRECCIONES V4 --- */
+/* Cuando la gráfica se activa en PC (Super ancha y alta) */
+.card.super-wide.graph-active { grid-row: span 3; } 
 
-/* 1. MODO FIESTA (Prioridad Alta) */
-body.fiesta-rojo { background-color: #ff453a !important; }
-body.fiesta-azul { background-color: #0a84ff !important; }
-body.fiesta-verde { background-color: #32d74b !important; }
 
-/* 2. CLASE PARA CUANDO LA GRÁFICA ESTÁ ACTIVA (3x2) */
-.card.super-wide.graph-active {
-    grid-row: span 2; /* Fuerza altura de 2 filas (320px + gap) */
+/* --- MÓVIL / ANDROID (La parte importante) --- */
+@media (max-width: 600px) { 
+    .grid {
+        /* EN MÓVIL: Forzamos 2 columnas exactas */
+        grid-template-columns: 1fr 1fr;
+        grid-auto-rows: 160px; /* Mantenemos altura de bloque */
+    }
+
+    /* Tarjetas Altas (Calculadora, Lista, Reloj) */
+    /* Se quedan en 1 columna de ancho, pero 2 de alto */
+    .card.tall { 
+        grid-column: span 1; 
+        grid-row: span 2; 
+    }
+
+    /* Tarjetas Anchas (Notas, Sensores) */
+    /* Ocupan TODO el ancho del móvil (2 columnas) */
+    .card.wide, 
+    .card.super-wide { 
+        grid-column: span 2; 
+        grid-row: span 1; 
+    }
+
+    /* --- TARJETA SENSORES CON GRÁFICA --- */
+    /* Cuando activas el botón, crece hacia abajo */
+    .card.super-wide.graph-active { 
+        grid-column: span 2; /* Ancho completo */
+        grid-row: span 2;    /* Doble altura (Cuadrado gigante) */
+    }
 }
 
-/* 3. GRÁFICA ESCALADA */
+
+/* --- CORRECCIÓN GRÁFICA (SCALING) --- */
+/* Esto asegura que la gráfica se vea entera dentro de la tarjeta */
 #ts-iframe { 
-    /* Ocupa todo el ancho */
-    width: calc(100% + 30px); 
-    /* Ocupa todo el alto disponible restante */
-    flex-grow: 1;
+    width: calc(100% + 30px); /* Compensar padding */
+    /* Flex-grow hace que ocupe todo el espacio sobrante verticalmente */
+    flex-grow: 1; 
+    min-height: 0; /* Truco para que flexbox no desborde */
     border: none; 
     margin: 10px -15px -15px -15px; 
     background: var(--bg); 
