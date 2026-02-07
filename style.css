@@ -56,11 +56,18 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 /* GRID */
 .grid { 
     display: grid; 
+    /* Las columnas se ajustan solas */
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
-    /* Altura base de fila 160px */
+    /* Altura base de fila */
     grid-auto-rows: 160px;
-    gap: 15px; width: 96%; max-width: 1400px; 
-    margin-top: 20px; grid-auto-flow: dense; 
+    gap: 15px; 
+    
+    /* CAMBIOS AQUÍ: */
+    width: 98%;        /* Ocupa casi toda la pantalla */
+    max-width: none;   /* ELIMINAMOS EL LÍMITE DE 1400px */
+    
+    margin-top: 20px; 
+    grid-auto-flow: dense; 
     align-items: start;
 }
 
