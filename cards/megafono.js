@@ -19,70 +19,89 @@ export const MegafonoCard = {
             ">
                 <i class="fa-solid fa-play"></i> HABLAR
             </button>
+            
+            <div id="status-log" style="font-size:0.6rem; color:red; display:none">Error</div>
         </div>
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
+        const log = document.getElementById('status-log');
 
-        // Intentar precargar voces nativas (por si acaso)
-        if(window.speechSynthesis) window.speechSynthesis.getVoices();
+        // PREPARAR EL CONTEXTO DE AUDIO (Esto es como encender el amplificador)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        try {
+            audioCtx = new AudioContext();
+        } catch(e) {
+            alert("Tu navegador es muy antiguo y no soporta Web Audio.");
+        }
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. DISPARAR AUDIO (Sin esperas, sin lógica compleja)
-            forzarAudio(txt);
+            // 1. DESBLOQUEO DE AUDIO (Crucial en Android)
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
 
-            // 2. ENVIAR MQTT
+            // 2. GENERAR UN PITIDO (BEEP) MATEMÁTICO
+            // Esto no descarga nada, lo genera el chip.
+            try {
+                hacerBeep(audioCtx);
+            } catch(e) {
+                log.style.display = "block";
+                log.innerText = "Fallo Sintetizador: " + e.message;
+            }
+
+            // 3. INTENTAR VOZ (Después del beep)
+            setTimeout(() => {
+                intentarVoz(txt);
+            }, 300); // 300ms después del beep
+
+            // 4. MQTT y Visuales
             core.pub('Megafono', JSON.stringify({ txt: txt }), false);
-
-            // 3. Feedback Visual
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
             btn.style.background = "#32d74b";
-            setTimeout(() => { btn.style.background = "#f97316"; }, 500);
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+                btn.style.background = "#f97316";
+            }, 1000);
         };
     },
     onData: (val) => {} 
 };
 
-function forzarAudio(texto) {
-    // 1. INTENTO NATIVO (Solo si estamos seguros de que funciona)
-    const speech = window.speechSynthesis;
-    // Si hay API y TIENE voces cargadas
-    if (speech && speech.getVoices().length > 0) {
-        speech.cancel();
-        const frase = new SpeechSynthesisUtterance(texto);
-        frase.lang = 'es-ES';
-        // Buscamos voz en español
-        const voz = speech.getVoices().find(v => v.lang.includes('es'));
-        if (voz) frase.voice = voz;
-        
-        // Si falla la nativa, disparamos el MP3
-        frase.onerror = () => reproducirMP3(texto);
-        
-        speech.speak(frase);
-    } else {
-        // 2. SI NO HAY NATIVA -> MP3 DIRECTO
-        reproducirMP3(texto);
-    }
+// --- FUNCIÓN QUE GENERA SONIDO PURO ---
+function hacerBeep(ctx) {
+    if (!ctx) return;
+    
+    // Crear un oscilador (generador de ondas)
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = 'sine'; // Onda senoidal (suave)
+    oscillator.frequency.setValueAtTime(440, ctx.currentTime); // 440Hz (Nota La)
+    
+    // Conectar: Oscilador -> Volumen -> Altavoces
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Arrancar y parar
+    oscillator.start();
+    
+    // Bajar volumen suavemente para que no haga "pop"
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+    oscillator.stop(ctx.currentTime + 0.5);
 }
 
-function reproducirMP3(texto) {
-    // Usamos el cliente 'gtx' de Google (Alta disponibilidad)
-    const url = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=es&dt=t&q=${encodeURIComponent(texto)}`;
-    
-    // CREAMOS EL AUDIO EN EL ACTO (New Audio)
-    // Esto se salta muchas restricciones del DOM
+function intentarVoz(texto) {
+    // Usamos el cliente más antiguo y compatible de Google (tw-ob)
+    // Sin AudioContext, usando HTML5 Audio básico
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=${encodeURIComponent(texto)}`;
     const audio = new Audio(url);
-    audio.playbackRate = 1.0;
-    
-    const promesa = audio.play();
-    
-    if (promesa !== undefined) {
-        promesa.catch(e => {
-            console.error("Bloqueo de Audio:", e);
-            alert("Error: Revisa el volumen multimedia o el 'Ahorro de Datos'.");
-        });
-    }
+    audio.play().catch(e => console.error("Fallo voz:", e));
 }
