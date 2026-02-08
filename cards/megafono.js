@@ -19,91 +19,70 @@ export const MegafonoCard = {
             ">
                 <i class="fa-solid fa-play"></i> HABLAR
             </button>
-            
-            <audio id="backup-player" style="display:none"></audio>
         </div>
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
-        const player = document.getElementById('backup-player');
 
-        // Intentar cargar voces nativas al inicio
+        // Intentar precargar voces nativas (por si acaso)
         if(window.speechSynthesis) window.speechSynthesis.getVoices();
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. INICIAR SECUENCIA HÍBRIDA
-            intentarHablar(txt, player);
+            // 1. DISPARAR AUDIO (Sin esperas, sin lógica compleja)
+            forzarAudio(txt);
 
             // 2. ENVIAR MQTT
             core.pub('Megafono', JSON.stringify({ txt: txt }), false);
 
             // 3. Feedback Visual
-            const originalIcon = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
             btn.style.background = "#32d74b";
-            setTimeout(() => {
-                btn.innerHTML = originalIcon;
-                btn.style.background = "#f97316";
-            }, 1000);
+            setTimeout(() => { btn.style.background = "#f97316"; }, 500);
         };
     },
     onData: (val) => {} 
 };
 
-// --- LÓGICA DE CASCADA ---
-
-function intentarHablar(texto, player) {
+function forzarAudio(texto) {
+    // 1. INTENTO NATIVO (Solo si estamos seguros de que funciona)
     const speech = window.speechSynthesis;
-    let voces = [];
-    
-    // 1. CHEQUEO: ¿Existe la API?
-    if (speech) voces = speech.getVoices();
-
-    // 2. DECISIÓN: Si no hay API o la lista de voces está vacía (Bug Opera)
-    // Saltamos DIRECTAMENTE al MP3
-    if (!speech || voces.length === 0) {
-        console.log("⚠️ Sin soporte nativo. Usando StreamElements.");
-        usarStreamElements(texto, player);
-        return;
+    // Si hay API y TIENE voces cargadas
+    if (speech && speech.getVoices().length > 0) {
+        speech.cancel();
+        const frase = new SpeechSynthesisUtterance(texto);
+        frase.lang = 'es-ES';
+        // Buscamos voz en español
+        const voz = speech.getVoices().find(v => v.lang.includes('es'));
+        if (voz) frase.voice = voz;
+        
+        // Si falla la nativa, disparamos el MP3
+        frase.onerror = () => reproducirMP3(texto);
+        
+        speech.speak(frase);
+    } else {
+        // 2. SI NO HAY NATIVA -> MP3 DIRECTO
+        reproducirMP3(texto);
     }
-
-    // 3. INTENTO NATIVO
-    console.log("🗣️ Intentando voz nativa...");
-    speech.cancel(); 
-    
-    const frase = new SpeechSynthesisUtterance(texto);
-    frase.lang = 'es-ES';
-
-    // Buscar voz en español
-    const vozEs = voces.find(v => v.lang.includes('es'));
-    if (vozEs) frase.voice = vozEs;
-
-    // 4. RED DE SEGURIDAD: Si la nativa falla, activa el Plan B
-    frase.onerror = (e) => {
-        console.error("❌ Falló la voz nativa. Cambiando a MP3...", e);
-        usarStreamElements(texto, player);
-    };
-
-    speech.speak(frase);
 }
 
-function usarStreamElements(texto, player) {
-    // API de StreamElements (Voz: Enrique). Es muy compatible.
-    const url = `https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text=${encodeURIComponent(texto)}`;
+function reproducirMP3(texto) {
+    // Usamos el cliente 'gtx' de Google (Alta disponibilidad)
+    const url = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=es&dt=t&q=${encodeURIComponent(texto)}`;
     
-    player.src = url;
-    player.volume = 1.0;
+    // CREAMOS EL AUDIO EN EL ACTO (New Audio)
+    // Esto se salta muchas restricciones del DOM
+    const audio = new Audio(url);
+    audio.playbackRate = 1.0;
     
-    const playPromise = player.play();
+    const promesa = audio.play();
     
-    if (playPromise !== undefined) {
-        playPromise.catch(error => {
-            console.error("Fallo total de audio:", error);
-            // Si esto falla, es que el navegador tiene el audio bloqueado totalmente.
+    if (promesa !== undefined) {
+        promesa.catch(e => {
+            console.error("Bloqueo de Audio:", e);
+            alert("Error: Revisa el volumen multimedia o el 'Ahorro de Datos'.");
         });
     }
 }
