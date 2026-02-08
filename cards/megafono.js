@@ -20,88 +20,133 @@ export const MegafonoCard = {
                 <i class="fa-solid fa-play"></i> HABLAR
             </button>
             
-            <div id="status-log" style="font-size:0.6rem; color:red; display:none">Error</div>
+            <div id="audio-log" style="font-size:0.6rem; color:red; display:none; text-align:left;"></div>
         </div>
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
-        const log = document.getElementById('status-log');
+        const logDiv = document.getElementById('audio-log');
 
-        // PREPARAR EL CONTEXTO DE AUDIO (Esto es como encender el amplificador)
+        // Inicializar AudioContext (Para el Beep)
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        
-        try {
-            audioCtx = new AudioContext();
-        } catch(e) {
-            alert("Tu navegador es muy antiguo y no soporta Web Audio.");
-        }
+        try { audioCtx = new AudioContext(); } catch(e){}
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. DESBLOQUEO DE AUDIO (Crucial en Android)
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            // 2. GENERAR UN PITIDO (BEEP) MATEMÁTICO
-            // Esto no descarga nada, lo genera el chip.
-            try {
-                hacerBeep(audioCtx);
-            } catch(e) {
-                log.style.display = "block";
-                log.innerText = "Fallo Sintetizador: " + e.message;
-            }
-
-            // 3. INTENTAR VOZ (Después del beep)
-            setTimeout(() => {
-                intentarVoz(txt);
-            }, 300); // 300ms después del beep
-
-            // 4. MQTT y Visuales
-            core.pub('Megafono', JSON.stringify({ txt: txt }), false);
+            // 1. Feedback Visual
             const originalIcon = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             btn.style.background = "#32d74b";
-            setTimeout(() => {
-                btn.innerHTML = originalIcon;
-                btn.style.background = "#f97316";
-            }, 1000);
+
+            // 2. HACER BEEP (Confirmación de hardware)
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                beep(audioCtx);
+            }
+
+            // 3. INTENTAR HABLAR (Secuencia de servidores)
+            logDiv.style.display = "none";
+            logDiv.innerText = "";
+            
+            playMultiServer(txt, (exito, msg) => {
+                // Restaurar botón cuando termine o falle
+                setTimeout(() => {
+                    btn.innerHTML = originalIcon;
+                    btn.style.background = "#f97316";
+                    if(!exito) {
+                        logDiv.style.display = "block";
+                        logDiv.innerText = msg;
+                    }
+                }, 500);
+            });
+
+            // 4. Enviar MQTT
+            core.pub('Megafono', JSON.stringify({ txt: txt }), false);
         };
     },
     onData: (val) => {} 
 };
 
-// --- FUNCIÓN QUE GENERA SONIDO PURO ---
-function hacerBeep(ctx) {
-    if (!ctx) return;
-    
-    // Crear un oscilador (generador de ondas)
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
+// --- VARIABLE GLOBAL PARA QUE NO SE CORTE EL AUDIO ---
+window.currentAudio = null; 
 
-    oscillator.type = 'sine'; // Onda senoidal (suave)
-    oscillator.frequency.setValueAtTime(440, ctx.currentTime); // 440Hz (Nota La)
-    
-    // Conectar: Oscilador -> Volumen -> Altavoces
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
+function playMultiServer(texto, callback) {
+    // Lista de URLs para probar (en orden de probabilidad de éxito)
+    const encoded = encodeURIComponent(texto);
+    const servers = [
+        // 1. StreamElements (El más permisivo con CORS)
+        `https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text=${encoded}`,
+        // 2. Google GTX (Usado por Android)
+        `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=es&dt=t&q=${encoded}`,
+        // 3. Google Tw-Ob (Legacy)
+        `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=${encoded}`
+    ];
 
-    // Arrancar y parar
-    oscillator.start();
-    
-    // Bajar volumen suavemente para que no haga "pop"
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
-    oscillator.stop(ctx.currentTime + 0.5);
+    let intento = 0;
+
+    function probarSiguiente() {
+        if (intento >= servers.length) {
+            callback(false, "Fallo total: Ningún servidor responde.");
+            return;
+        }
+
+        const url = servers[intento];
+        console.log(`Intentando servidor ${intento + 1}...`);
+
+        // DETALLE IMPORTANTE: Usamos la variable global window.currentAudio
+        if (window.currentAudio) {
+            window.currentAudio.pause();
+            window.currentAudio = null;
+        }
+
+        window.currentAudio = new Audio(url);
+        window.currentAudio.volume = 1.0;
+
+        // Promesa de reproducción
+        const playPromise = window.currentAudio.play();
+
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log("Audio reproduciendo con éxito.");
+                    callback(true, "OK");
+                })
+                .catch(error => {
+                    console.warn(`Fallo servidor ${intento + 1}:`, error);
+                    intento++;
+                    probarSiguiente(); // RECURSIVIDAD: Prueba el siguiente
+                });
+        } else {
+            // Si el navegador no soporta promesas de audio (muy raro hoy en día)
+            intento++;
+            probarSiguiente();
+        }
+        
+        // Manejador de errores de carga (404, 403, Red)
+        window.currentAudio.onerror = (e) => {
+            console.warn(`Error de carga en servidor ${intento + 1}`);
+            intento++;
+            probarSiguiente();
+        };
+    }
+
+    // Iniciar la cadena
+    probarSiguiente();
 }
 
-function intentarVoz(texto) {
-    // Usamos el cliente más antiguo y compatible de Google (tw-ob)
-    // Sin AudioContext, usando HTML5 Audio básico
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=${encodeURIComponent(texto)}`;
-    const audio = new Audio(url);
-    audio.play().catch(e => console.error("Fallo voz:", e));
+function beep(ctx) {
+    // Generador de tono puro (sin archivos)
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.type = 'sine';
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.15);
 }
