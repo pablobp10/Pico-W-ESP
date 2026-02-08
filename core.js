@@ -11,13 +11,16 @@ import { FindCard } from './cards/buscar.js';
 import { RelojCard } from './cards/reloj.js';
 import { SeguridadCard } from './cards/seguridad.js';
 import { AlmaCard } from './cards/almacenamiento.js';
+import { ColorCard } from './cards/color.js';
+import { MedidorCard } from './cards/medidor.js';
+import { QrCard } from './cards/qr.js';
 
 export class Core {
     constructor() {
         this.cards = [
             TiempoCard, ListaCard, MegafonoCard, LedCard, SensoresCard,
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
-            RelojCard, SeguridadCard, AlmaCard
+            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard
         ];
 
         this.conf = null;
