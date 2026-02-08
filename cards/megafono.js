@@ -20,20 +20,23 @@ export const MegafonoCard = {
                 <i class="fa-solid fa-play"></i> HABLAR
             </button>
             
-            <audio id="google-player" style="display:none"></audio>
+            <audio id="backup-player" style="display:none"></audio>
         </div>
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-speak');
         const input = document.getElementById('mega-input');
-        const player = document.getElementById('google-player');
+        const player = document.getElementById('backup-player');
+
+        // Intentar cargar voces nativas al inicio
+        if(window.speechSynthesis) window.speechSynthesis.getVoices();
 
         btn.onclick = () => {
             const txt = input.value.trim();
             if(!txt) return;
 
-            // 1. REPRODUCIR AUDIO (Vía Google GTX)
-            reproducirGoogle(txt, player);
+            // 1. INICIAR SECUENCIA HÍBRIDA
+            intentarHablar(txt, player);
 
             // 2. ENVIAR MQTT
             core.pub('Megafono', JSON.stringify({ txt: txt }), false);
@@ -51,27 +54,56 @@ export const MegafonoCard = {
     onData: (val) => {} 
 };
 
-function reproducirGoogle(texto, player) {
-    // CAMBIO CLAVE: Usamos 'client=gtx' en lugar de 'tw-ob'
-    // 'gtx' es el cliente que usa la extensión de Chrome y Android, es mucho más permisivo.
-    const url = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=es&q=${encodeURIComponent(texto)}`;
+// --- LÓGICA DE CASCADA ---
+
+function intentarHablar(texto, player) {
+    const speech = window.speechSynthesis;
+    let voces = [];
+    
+    // 1. CHEQUEO: ¿Existe la API?
+    if (speech) voces = speech.getVoices();
+
+    // 2. DECISIÓN: Si no hay API o la lista de voces está vacía (Bug Opera)
+    // Saltamos DIRECTAMENTE al MP3
+    if (!speech || voces.length === 0) {
+        console.log("⚠️ Sin soporte nativo. Usando StreamElements.");
+        usarStreamElements(texto, player);
+        return;
+    }
+
+    // 3. INTENTO NATIVO
+    console.log("🗣️ Intentando voz nativa...");
+    speech.cancel(); 
+    
+    const frase = new SpeechSynthesisUtterance(texto);
+    frase.lang = 'es-ES';
+
+    // Buscar voz en español
+    const vozEs = voces.find(v => v.lang.includes('es'));
+    if (vozEs) frase.voice = vozEs;
+
+    // 4. RED DE SEGURIDAD: Si la nativa falla, activa el Plan B
+    frase.onerror = (e) => {
+        console.error("❌ Falló la voz nativa. Cambiando a MP3...", e);
+        usarStreamElements(texto, player);
+    };
+
+    speech.speak(frase);
+}
+
+function usarStreamElements(texto, player) {
+    // API de StreamElements (Voz: Enrique). Es muy compatible.
+    const url = `https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text=${encodeURIComponent(texto)}`;
     
     player.src = url;
     player.volume = 1.0;
     
-    // Promesa para capturar errores de red
     const playPromise = player.play();
     
     if (playPromise !== undefined) {
         playPromise.catch(error => {
-            console.error("Error reproduciendo:", error);
-            // Si falla, intentamos el servidor de respaldo (dict-chrome-ex)
-            if(player.src.includes('client=gtx')) {
-                console.log("Reintentando con servidor secundario...");
-                const urlBackup = `https://translate.google.com/translate_tts?ie=UTF-8&client=dict-chrome-ex&tl=es&q=${encodeURIComponent(texto)}`;
-                player.src = urlBackup;
-                player.play();
-            }
+            console.error("Fallo total de audio:", error);
+            // Si esto falla, es que el navegador tiene el audio bloqueado totalmente.
         });
     }
 }
