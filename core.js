@@ -189,24 +189,41 @@ export class Core {
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
         const st = val ? (val.sistema || val) : "OFFLINE";
-        const online = st === "ONLINE" || st === "KEEPALIVE";
+        const isOnline = st === "ONLINE"; 
+
         container.innerHTML = "";
 
-        if (online) {
-            const pill = document.createElement('div');
-            pill.className = "pico-info-pill";
-            pill.innerHTML = `
-                <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
-                <span style="font-weight:600; color:var(--text-main)">Online</span>
-                <span style="opacity:0.5">|</span>
-                <span><i class="fa-solid fa-wifi"></i> ${val.rssi || '--'}</span>
-                <span><i class="fa-solid fa-bolt"></i> ${val.vcc || '--'}V</span>
+        if (isOnline) {
+            // Conversiones
+            let ramTxt = val.ram ? (val.ram/1024).toFixed(0)+"KB" : "--";
+            let tempTxt = val.temp ? val.temp + "°C" : "";
+            let rssi = val.rssi || -100;
+
+            // Color del WiFi según fuerza
+            let wifiColor = "#ff453a"; // Rojo (Malo)
+            if(rssi > -70) wifiColor = "#ff9f0a"; // Naranja (Medio)
+            if(rssi > -50) wifiColor = "#32d74b"; // Verde (Bueno)
+
+            container.innerHTML = `
+                <div class="pico-info-pill">
+                    <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
+                    <span style="font-weight:600; color:var(--text-main); margin-right:8px">Online</span>
+                    
+                    ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:8px; margin-right:8px" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
+                    
+                    <span style="border-left:1px solid var(--border); padding-left:8px; color:${wifiColor}" title="Señal: ${rssi} dBm">
+                        <i class="fa-solid fa-wifi"></i>
+                    </span>
+                    
+                    <span style="font-size:0.7rem; opacity:0.5; margin-left:5px">${ramTxt}</span>
+                </div>
             `;
-            container.appendChild(pill);
         } else {
             container.innerHTML = `
-                <span class="dot red"></span>
-                <span style="font-size:0.9rem; font-weight:500; color:var(--text-sec); margin-left:6px">Pico</span>
+                <div class="pico-info-pill" style="border-color:var(--text-sec); opacity:0.7">
+                    <span class="dot red"></span>
+                    <span style="font-weight:600; color:var(--text-sec);">Offline</span>
+                </div>
             `;
         }
     }
