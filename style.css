@@ -147,6 +147,25 @@ input:checked + .slider:before { transform: translateX(14px); }
 }
 #ts-iframe.active { display: block; }
 
+/* Ajustes para Móviles */
+@media (max-width: 600px) {
+    /* Ocultar el título "Pico OS" para ganar espacio */
+    header h1 {
+        display: none;
+    }
+
+    /* Ajustar márgenes para que los botones no se peguen al borde */
+    .header-left {
+        gap: 5px;
+    }
+    
+    /* Hacer la píldora de estado un poco más compacta */
+    .pico-info-pill {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+}
+
 /* MODULOS ESPECÍFICOS */
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; height: 100%; margin-top: 5px; }
 .calc-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 1.1rem; cursor: pointer; color: var(--text-main); font-weight: 500; }
