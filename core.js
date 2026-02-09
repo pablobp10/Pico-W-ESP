@@ -189,33 +189,50 @@ export class Core {
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
         const st = val ? (val.sistema || val) : "OFFLINE";
-        const isOnline = st === "ONLINE"; 
+        const isOnline = st === "ONLINE" || st === "KEEPALIVE"; 
 
         container.innerHTML = "";
 
         if (isOnline) {
-            // Conversiones
-            let ramTxt = val.ram ? (val.ram/1024).toFixed(0)+"KB" : "--";
+            // --- 1. CÁLCULO DE RAM (%) ---
+            // La Pico tiene ~264KB totales. val.ram es lo que queda LIBRE.
+            const totalRam = 264 * 1024; // 270336 bytes
+            let freeRam = val.ram || 0;
+            let usedRam = totalRam - freeRam;
+            let ramPercent = Math.round((usedRam / totalRam) * 100);
+            
+            // Limites de seguridad (0-100%)
+            if(ramPercent < 0) ramPercent = 0;
+            if(ramPercent > 100) ramPercent = 100;
+
+            // Color RAM: Gris (Normal), Naranja (>60%), Rojo (>85%)
+            let ramColor = "var(--text-sec)";
+            if(ramPercent > 60) ramColor = "#ff9f0a";
+            if(ramPercent > 85) ramColor = "#ff453a";
+
+            // --- 2. OTROS DATOS ---
             let tempTxt = val.temp ? val.temp + "°C" : "";
             let rssi = val.rssi || -100;
 
-            // Color del WiFi según fuerza
-            let wifiColor = "#ff453a"; // Rojo (Malo)
-            if(rssi > -70) wifiColor = "#ff9f0a"; // Naranja (Medio)
-            if(rssi > -50) wifiColor = "#32d74b"; // Verde (Bueno)
+            // Color del WiFi
+            let wifiColor = "#ff453a"; // Rojo
+            if(rssi > -70) wifiColor = "#ff9f0a"; // Naranja
+            if(rssi > -50) wifiColor = "#32d74b"; // Verde
 
             container.innerHTML = `
                 <div class="pico-info-pill">
                     <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
-                    <span style="font-weight:600; color:var(--text-main); margin-right:8px">Online</span>
+                    <span style="font-weight:600; color:var(--text-main); margin-right:5px">Online</span>
                     
-                    ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:8px; margin-right:8px" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
+                    ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:6px; margin-right:6px; font-size:0.8rem" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
                     
-                    <span style="border-left:1px solid var(--border); padding-left:8px; color:${wifiColor}" title="Señal: ${rssi} dBm">
+                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Señal: ${rssi} dBm">
                         <i class="fa-solid fa-wifi"></i>
                     </span>
                     
-                    <span style="font-size:0.7rem; opacity:0.5; margin-left:5px">${ramTxt}</span>
+                    <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">
+                        ${ramPercent}%
+                    </span>
                 </div>
             `;
         } else {
