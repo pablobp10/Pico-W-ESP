@@ -1,6 +1,5 @@
 export const AlmaCard = {
     id: "Almacenamiento", // Debe coincidir con el nombre de la App en Python
-    size: "wide",         // Ocupa 2 huecos para verse mejor
     html: `
         <div class="app-card" style="height:100%; display:flex; flex-direction:column; justify-content:center">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
