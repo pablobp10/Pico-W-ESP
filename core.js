@@ -35,8 +35,7 @@ export class Core {
         };
         
         this.brokers = [
-            { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" }, 
-            { h: "test.mosquitto.org", p: 8081, name: "Mosquitto" },
+            { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" },
             { h: "broker.emqx.io", p: 8084, name: "EMQX" }, 
             { h: "public.mqtthq.com", p: 8084, name: "MQTTHQ" }
         ];
