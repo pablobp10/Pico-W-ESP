@@ -165,7 +165,8 @@ export class Core {
             let val = msg.payloadString;
             try { val = JSON.parse(val); } catch(e){}
 
-            if (app === "sistema" || (val && val.sistema)) {
+            // AÑADIR app === "sistema_hb" AQUÍ
+            if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) {
                 this.updatePicoStatus(val);
             }
 
@@ -190,30 +191,33 @@ export class Core {
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
         const st = val ? (val.sistema || val) : "OFFLINE";
-        const isOnline = st === "ONLINE" || st === "KEEPALIVE"; 
+        
+        // El Heartbeat V21 se considera online si trae datos
+        const isOnline = st === "ONLINE" || st === "KEEPALIVE" || val.t !== undefined; 
 
         container.innerHTML = "";
 
         if (isOnline) {
-            // --- 1. CÁLCULO DE RAM (%) ---
-            // La Pico tiene ~264KB totales. val.ram es lo que queda LIBRE.
-            const totalRam = 264 * 1024; // 270336 bytes
-            let freeRam = val.ram || 0;
+            const totalRam = 264 * 1024; 
+            
+            // CAMBIO AQUÍ: Buscar val.r (V21) o val.ram (V19)
+            let freeRam = val.r !== undefined ? val.r : (val.ram || 0);
+            
             let usedRam = totalRam - freeRam;
             let ramPercent = Math.round((usedRam / totalRam) * 100);
             
-            // Limites de seguridad (0-100%)
             if(ramPercent < 0) ramPercent = 0;
             if(ramPercent > 100) ramPercent = 100;
 
-            // Color RAM: Gris (Normal), Naranja (>60%), Rojo (>85%)
             let ramColor = "var(--text-sec)";
             if(ramPercent > 60) ramColor = "#ff9f0a";
             if(ramPercent > 85) ramColor = "#ff453a";
 
-            // --- 2. OTROS DATOS ---
-            let tempTxt = val.temp ? val.temp + "°C" : "";
-            let rssi = val.rssi || -100;
+            // CAMBIO AQUÍ: Buscar val.t (V21) o val.temp (V19)
+            let tempValor = val.t !== undefined ? val.t : val.temp;
+            let tempTxt = tempValor ? tempValor + "°C" : "";
+            
+            let rssi = val.rssi || -60; 
 
             // Color del WiFi
             let wifiColor = "#ff453a"; // Rojo
