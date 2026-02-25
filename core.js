@@ -180,10 +180,22 @@ export class Core {
         this.mqtt.connect({
             useSSL: true, timeout: 3,
             onSuccess: () => {
-                dot.className = "dot green";
+                if (dot) dot.className = "dot green";
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
-                this.cmd('Led', 'get');
+                
+                // 1. Enviamos el apretón de manos con el TOTP para validar el pasaporte
+                if (this.totp_guardado) {
+                    const authPayload = JSON.stringify({ totp: this.totp_guardado, tk: this.session_token });
+                    const authMsg = new Paho.MQTT.Message(authPayload);
+                    authMsg.destinationName = this.conf.topic + "comando/Auth";
+                    this.mqtt.send(authMsg);
+                    this.totp_guardado = null; // Lo borramos de la web inmediatamente
+                }
+
+                // 2. Pedimos el estado inicial
+                setTimeout(() => this.cmd('Led', 'get'), 500); 
             },
+
             onFailure: () => { dot.className = "dot red"; setTimeout(() => this.conectar(), 3000); }
         });
     }
@@ -256,21 +268,49 @@ export class Core {
     login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
-        if(!this.llave[u]) return document.getElementById('error-msg').innerText="Usuario incorrecto";
+        const totp = document.getElementById('totp-input').value.trim();
+        
+        if(!this.llave[u] || totp.length !== 6) {
+            return document.getElementById('error-msg').innerText = "Credenciales o código inválido";
+        }
+        
         try {
             const k = CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(p));
-            const b = CryptoJS.AES.decrypt({ciphertext:CryptoJS.enc.Base64.parse(this.llave[u])}, k, {mode:CryptoJS.mode.ECB, padding:CryptoJS.pad.Pkcs7});
+            const b = CryptoJS.AES.decrypt({ciphertext: CryptoJS.enc.Base64.parse(this.llave[u])}, k, {mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7});
             const txt = b.toString(CryptoJS.enc.Utf8);
+            
             if(txt.includes("topic")) {
                 this.conf = JSON.parse(txt);
                 this.rol = this.conf.rol;
-                sessionStorage.setItem("u", u); sessionStorage.setItem("p", p);
-                document.getElementById('login-screen').style.display='none';
-                if(this.rol==='admin') document.querySelectorAll('.admin-only').forEach(e=>e.style.setProperty('display','block','important'));
+                
+                // Generamos un Pasaporte Temporal aleatorio (32 caracteres)
+                this.session_token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+                this.totp_guardado = totp; // Lo guardamos un segundo para enviarlo
+                
+                document.getElementById('login-screen').style.display = 'none';
+                if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+                
                 this.conectar();
             } else throw 0;
-        } catch { document.getElementById('error-msg').innerText="Contraseña incorrecta"; document.getElementById('error-msg').style.display='block'; }
+        } catch { 
+            document.getElementById('error-msg').innerText = "Contraseña incorrecta"; 
+            document.getElementById('error-msg').style.display = 'block'; 
+        }
     }
+
+    // El emisor ahora empaqueta el pasaporte de forma invisible
+    cmd(app, c) { 
+        if(this.mqtt && this.mqtt.isConnected()) { 
+            const payload = JSON.stringify({ 
+                c: String(c), 
+                tk: this.session_token 
+            });
+            const m = new Paho.MQTT.Message(payload); 
+            m.destinationName = this.conf.topic + "comando/" + app; 
+            this.mqtt.send(m); 
+        }
+    }
+
 
     toggleEdit() {
         this.editMode = !this.editMode;
