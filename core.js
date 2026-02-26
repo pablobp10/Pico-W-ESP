@@ -239,17 +239,23 @@ export class Core {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         
-        if(!this.llave[u]) {
-            return document.getElementById('error-msg').innerText = "Usuario no encontrado";
-        }
+        if(!this.llave[u]) return document.getElementById('error-msg').innerText = "Usuario no encontrado";
         
         try {
             const k = CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(p));
-            const b = CryptoJS.AES.decrypt({ciphertext: CryptoJS.enc.Base64.parse(this.llave[u])}, k, {mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7});
+            const rawData = CryptoJS.enc.Base64.parse(this.llave[u]);
+            
+            // 🛡️ Extracción de AES-CBC (Primeros 16 bytes = IV, el resto = Cifrado)
+            const iv = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
+            const ciphertext = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
+            
+            const b = CryptoJS.AES.decrypt({ciphertext: ciphertext}, k, {
+                iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
+            });
             const txt = b.toString(CryptoJS.enc.Utf8);
             
             if(txt.includes("topic")) {
-                this.conf = JSON.parse(txt);
+                this.conf = JSON.parse(txt); // Aquí ahora viene el 'tk' (WEB_TOKEN)
                 this.rol = this.conf.rol;
                 
                 document.getElementById('login-screen').style.display = 'none';
@@ -260,36 +266,29 @@ export class Core {
         } catch { 
             const errorMsg = document.getElementById('error-msg');
             const loginBox = document.querySelector('.login-box');
-            
             errorMsg.innerText = "Contraseña incorrecta"; 
             errorMsg.style.display = 'block'; 
-            
             loginBox.classList.remove('error-shake');
             void loginBox.offsetWidth;
             loginBox.classList.add('error-shake');
         }
     }
-
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
-        if(this.mqtt && this.mqtt.isConnected()) { 
-            const comandoLimpio = String(c).toLowerCase();
-            const payload = JSON.stringify({ c: comandoLimpio });
+        if(this.mqtt && this.mqtt.isConnected() && this.conf.tk) { 
+            const comando = String(c).toLowerCase();
+            // 🛡️ NONCE: Sello de tiempo único para evitar Ataques de Replay
+            const nonce = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+            
+            // 🛡️ FIRMA: (Comando + Nonce + TokenSecreto) -> SHA256
+            const dataToSign = comando + nonce + this.conf.tk;
+            const firma = CryptoJS.SHA256(dataToSign).toString(CryptoJS.enc.Hex).substring(0, 16);
+            
+            const payload = JSON.stringify({ c: comando, n: nonce, f: firma });
             const m = new Paho.MQTT.Message(payload); 
             m.destinationName = this.conf.topic + "comando/" + app; 
             this.mqtt.send(m); 
-            console.log("Comando enviado a", app, ":", comandoLimpio);
-        } else {
-            console.warn("No se puede enviar: MQTT offline");
-        }
-    }
-
-    pub(app, v, r) { 
-        if(this.mqtt?.isConnected()) { 
-            const m=new Paho.MQTT.Message(String(v)); 
-            m.destinationName=this.conf.topic+"estado/"+app; 
-            m.retained=r; 
-            this.mqtt.send(m); 
+            console.log("Comando Blindado Enviado:", app, comando);
         }
     }
 
