@@ -183,15 +183,6 @@ export class Core {
                 if (dot) dot.className = "dot green";
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
                 
-                // 1. Enviamos el apretón de manos con el TOTP para validar el pasaporte
-                if (this.totp_guardado) {
-                    const authPayload = JSON.stringify({ totp: this.totp_guardado, tk: this.session_token });
-                    const authMsg = new Paho.MQTT.Message(authPayload);
-                    authMsg.destinationName = this.conf.topic + "comando/Auth";
-                    this.mqtt.send(authMsg);
-                    this.totp_guardado = null; // Lo borramos de la web inmediatamente
-                }
-
                 // 2. Pedimos el estado inicial
                 setTimeout(() => this.cmd('Led', 'get'), 500); 
             },
@@ -262,30 +253,14 @@ export class Core {
             `;
         }
     }
-
-    cmd(app, c) { 
-        if(this.mqtt && this.mqtt.isConnected() && this.session_token) { 
-            const payload = JSON.stringify({ 
-                c: String(c), 
-                tk: this.session_token 
-            });
-            const m = new Paho.MQTT.Message(payload); 
-            m.destinationName = this.conf.topic + "comando/" + app; 
-            this.mqtt.send(m); 
-            console.log("Comando enviado con Pasaporte VIP:", app, c);
-        } else {
-            console.warn("No se puede enviar: Sesión no iniciada o MQTT offline");
-        }
-    }
     pub(app, v, r) { if(this.mqtt?.isConnected()) { const m=new Paho.MQTT.Message(String(v)); m.destinationName=this.conf.topic+"estado/"+app; m.retained=r; this.mqtt.send(m); }}
 
     login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
-        const totp = document.getElementById('totp-input').value.trim();
         
-        if(!this.llave[u] || totp.length !== 6) {
-            return document.getElementById('error-msg').innerText = "Credenciales o código inválido";
+        if(!this.llave[u]) {
+            return document.getElementById('error-msg').innerText = "Usuario no encontrado";
         }
         
         try {
@@ -297,25 +272,22 @@ export class Core {
                 this.conf = JSON.parse(txt);
                 this.rol = this.conf.rol;
                 
-                // Generamos un Pasaporte Temporal aleatorio (32 caracteres)
-                this.session_token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
-                this.totp_guardado = totp; // Lo guardamos un segundo para enviarlo
-                
+                // Desaparece la pantalla de login
                 document.getElementById('login-screen').style.display = 'none';
                 if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
                 
+                // Conectamos directamente a MQTT
                 this.conectar();
             } else throw 0;
         } catch { 
             const errorMsg = document.getElementById('error-msg');
             const loginBox = document.querySelector('.login-box');
             
-            errorMsg.innerText = "Contraseña o código incorrecto"; 
+            errorMsg.innerText = "Contraseña incorrecta"; 
             errorMsg.style.display = 'block'; 
             
-            // Disparar el temblor físico
             loginBox.classList.remove('error-shake');
-            void loginBox.offsetWidth; // Forzar reinicio de animación
+            void loginBox.offsetWidth; // Forzar reinicio
             loginBox.classList.add('error-shake');
         }
     }
@@ -323,13 +295,14 @@ export class Core {
     // El emisor ahora empaqueta el pasaporte de forma invisible
     cmd(app, c) { 
         if(this.mqtt && this.mqtt.isConnected()) { 
-            const payload = JSON.stringify({ 
-                c: String(c), 
-                tk: this.session_token 
-            });
+            // Enviamos el comando en un JSON limpio: {"c": "on"}
+            const payload = JSON.stringify({ c: String(c) });
             const m = new Paho.MQTT.Message(payload); 
             m.destinationName = this.conf.topic + "comando/" + app; 
             this.mqtt.send(m); 
+            console.log("Comando directo enviado a", app, ":", c);
+        } else {
+            console.warn("No se puede enviar: MQTT offline");
         }
     }
 
