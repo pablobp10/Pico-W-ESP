@@ -202,22 +202,24 @@ export class Core {
 
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
-        const st = val ? (val.sistema || val) : "OFFLINE";
+        if (!container) return;
         
-        // El Heartbeat V21 se considera online si trae datos
+        const st = val ? (val.sistema || val) : "OFFLINE";
         const isOnline = st === "ONLINE" || st === "KEEPALIVE" || val.t !== undefined; 
 
         container.innerHTML = "";
 
         if (isOnline) {
-            const totalRam = 264 * 1024; 
+            // 🧠 Cálculo Inteligente Híbrido
+            let ramPercent = 0;
+            if (val.r_pct !== undefined) {
+                ramPercent = val.r_pct; // Lee V21 directamente
+            } else if (val.ram !== undefined) {
+                const totalRam = 264 * 1024;
+                ramPercent = Math.round(((totalRam - val.ram) / totalRam) * 100); // Calcula V19
+            }
             
-            // CAMBIO AQUÍ: Buscar val.r (V21) o val.ram (V19)
-            let freeRam = val.r !== undefined ? val.r : (val.ram || 0);
-            
-            let usedRam = totalRam - freeRam;
-            let ramPercent = Math.round((usedRam / totalRam) * 100);
-            
+            // Limitadores de seguridad
             if(ramPercent < 0) ramPercent = 0;
             if(ramPercent > 100) ramPercent = 100;
 
@@ -225,7 +227,6 @@ export class Core {
             if(ramPercent > 60) ramColor = "#ff9f0a";
             if(ramPercent > 85) ramColor = "#ff453a";
 
-            // CAMBIO AQUÍ: Buscar val.t (V21) o val.temp (V19)
             let tempValor = val.t !== undefined ? val.t : val.temp;
             let tempTxt = tempValor ? tempValor + "°C" : "";
             
@@ -293,8 +294,16 @@ export class Core {
                 this.conectar();
             } else throw 0;
         } catch { 
-            document.getElementById('error-msg').innerText = "Contraseña incorrecta"; 
-            document.getElementById('error-msg').style.display = 'block'; 
+            const errorMsg = document.getElementById('error-msg');
+            const loginBox = document.querySelector('.login-box');
+            
+            errorMsg.innerText = "Contraseña o código incorrecto"; 
+            errorMsg.style.display = 'block'; 
+            
+            // Disparar el temblor físico
+            loginBox.classList.remove('error-shake');
+            void loginBox.offsetWidth; // Forzar reinicio de animación
+            loginBox.classList.add('error-shake');
         }
     }
 
