@@ -50,14 +50,12 @@ export class Core {
         this.renderGrid();
         this.setupBrokerMenu();
         
-        // Listeners de los botones (ahora dentro del menú)
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
         
-        // --- LOGICA DEL MENÚ AJUSTES ---
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -65,14 +63,11 @@ export class Core {
         settingsTrigger.onclick = (e) => {
             e.stopPropagation();
             const isOpen = settingsMenu.classList.contains('open');
-            // Cerrar otros
             brokerMenu.classList.remove('open');
-            // Toggle este
             if(isOpen) settingsMenu.classList.remove('open');
             else settingsMenu.classList.add('open');
         };
 
-        // Click fuera cierra TODO
         window.onclick = (e) => {
             if(!document.getElementById('broker-trigger').contains(e.target)) {
                 brokerMenu.classList.remove('open');
@@ -90,12 +85,11 @@ export class Core {
         }
     }
 
-    // --- MENU BROKER ---
     setupBrokerMenu() {
         const menu = document.getElementById('broker-menu');
         const current = document.getElementById('current-broker-name');
         const trigger = document.getElementById('broker-trigger');
-        const settingsMenu = document.getElementById('settings-menu'); // Referencia para cerrarlo
+        const settingsMenu = document.getElementById('settings-menu');
         
         current.innerText = this.brokers[this.brIdx].name;
         menu.innerHTML = "";
@@ -116,8 +110,8 @@ export class Core {
         });
 
         trigger.onclick = (e) => {
-            e.stopPropagation(); // Evitar cierre inmediato
-            settingsMenu.classList.remove('open'); // Cerrar el de ajustes si está abierto
+            e.stopPropagation(); 
+            settingsMenu.classList.remove('open'); 
             menu.classList.toggle('open');
         };
     }
@@ -145,7 +139,6 @@ export class Core {
         });
     }
 
-    // --- MQTT ---
     conectar() {
         const b = this.brokers[this.brIdx];
         const dot = document.getElementById('mqtt-dot');
@@ -165,7 +158,6 @@ export class Core {
             let val = msg.payloadString;
             try { val = JSON.parse(val); } catch(e){}
 
-            // AÑADIR app === "sistema_hb" AQUÍ
             if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) {
                 this.updatePicoStatus(val);
             }
@@ -183,10 +175,9 @@ export class Core {
                 if (dot) dot.className = "dot green";
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
                 
-                // 2. Pedimos el estado inicial
+                // Pedimos el estado inicial sin burocracia Auth
                 setTimeout(() => this.cmd('Led', 'get'), 500); 
             },
-
             onFailure: () => { dot.className = "dot red"; setTimeout(() => this.conectar(), 3000); }
         });
     }
@@ -201,16 +192,15 @@ export class Core {
         container.innerHTML = "";
 
         if (isOnline) {
-            // 🧠 Cálculo Inteligente Híbrido
             let ramPercent = 0;
+            // Detección automática de versión (V21 usa r_pct, V19 usa ram)
             if (val.r_pct !== undefined) {
-                ramPercent = val.r_pct; // Lee V21 directamente
+                ramPercent = val.r_pct;
             } else if (val.ram !== undefined) {
                 const totalRam = 264 * 1024;
-                ramPercent = Math.round(((totalRam - val.ram) / totalRam) * 100); // Calcula V19
+                ramPercent = Math.round(((totalRam - val.ram) / totalRam) * 100);
             }
             
-            // Limitadores de seguridad
             if(ramPercent < 0) ramPercent = 0;
             if(ramPercent > 100) ramPercent = 100;
 
@@ -222,26 +212,17 @@ export class Core {
             let tempTxt = tempValor ? tempValor + "°C" : "";
             
             let rssi = val.rssi || -60; 
-
-            // Color del WiFi
-            let wifiColor = "#ff453a"; // Rojo
-            if(rssi > -70) wifiColor = "#ff9f0a"; // Naranja
-            if(rssi > -50) wifiColor = "#32d74b"; // Verde
+            let wifiColor = "#ff453a"; 
+            if(rssi > -70) wifiColor = "#ff9f0a"; 
+            if(rssi > -50) wifiColor = "#32d74b"; 
 
             container.innerHTML = `
                 <div class="pico-info-pill">
                     <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
                     <span style="font-weight:600; color:var(--text-main); margin-right:5px">Online</span>
-                    
                     ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:6px; margin-right:6px; font-size:0.8rem" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
-                    
-                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Señal: ${rssi} dBm">
-                        <i class="fa-solid fa-wifi"></i>
-                    </span>
-                    
-                    <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">
-                        ${ramPercent}%
-                    </span>
+                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Señal: ${rssi} dBm"><i class="fa-solid fa-wifi"></i></span>
+                    <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">${ramPercent}%</span>
                 </div>
             `;
         } else {
@@ -253,7 +234,6 @@ export class Core {
             `;
         }
     }
-    pub(app, v, r) { if(this.mqtt?.isConnected()) { const m=new Paho.MQTT.Message(String(v)); m.destinationName=this.conf.topic+"estado/"+app; m.retained=r; this.mqtt.send(m); }}
 
     login() {
         const u = document.getElementById('user-input').value.trim();
@@ -272,11 +252,9 @@ export class Core {
                 this.conf = JSON.parse(txt);
                 this.rol = this.conf.rol;
                 
-                // Desaparece la pantalla de login
                 document.getElementById('login-screen').style.display = 'none';
                 if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
                 
-                // Conectamos directamente a MQTT
                 this.conectar();
             } else throw 0;
         } catch { 
@@ -287,25 +265,33 @@ export class Core {
             errorMsg.style.display = 'block'; 
             
             loginBox.classList.remove('error-shake');
-            void loginBox.offsetWidth; // Forzar reinicio
+            void loginBox.offsetWidth;
             loginBox.classList.add('error-shake');
         }
     }
 
-    // El emisor ahora empaqueta el pasaporte de forma invisible
+    // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
         if(this.mqtt && this.mqtt.isConnected()) { 
-            // Enviamos el comando en un JSON limpio: {"c": "on"}
-            const payload = JSON.stringify({ c: String(c) });
+            const comandoLimpio = String(c).toLowerCase();
+            const payload = JSON.stringify({ c: comandoLimpio });
             const m = new Paho.MQTT.Message(payload); 
             m.destinationName = this.conf.topic + "comando/" + app; 
             this.mqtt.send(m); 
-            console.log("Comando directo enviado a", app, ":", c);
+            console.log("Comando enviado a", app, ":", comandoLimpio);
         } else {
             console.warn("No se puede enviar: MQTT offline");
         }
     }
 
+    pub(app, v, r) { 
+        if(this.mqtt?.isConnected()) { 
+            const m=new Paho.MQTT.Message(String(v)); 
+            m.destinationName=this.conf.topic+"estado/"+app; 
+            m.retained=r; 
+            this.mqtt.send(m); 
+        }
+    }
 
     toggleEdit() {
         this.editMode = !this.editMode;
@@ -313,7 +299,7 @@ export class Core {
         const btn = document.getElementById('btn-edit');
         if(this.editMode) {
             grid.classList.add('edit-mode'); 
-            btn.innerHTML = `<i class="fa-solid fa-check" style="color:var(--primary); width:20px"></i> Ok`; // Feedback visual en el menú
+            btn.innerHTML = `<i class="fa-solid fa-check" style="color:var(--primary); width:20px"></i> Ok`; 
             this.sortable = new Sortable(grid, { animation:150, onEnd: ()=>{
                 const order = [];
                 document.querySelectorAll('.card').forEach(c=>order.push(c.dataset.id));
@@ -321,7 +307,7 @@ export class Core {
             }});
         } else {
             grid.classList.remove('edit-mode'); 
-            btn.innerHTML = `<i class="fa-solid fa-pen" style="width:20px"></i> Editar`; // Restaurar texto
+            btn.innerHTML = `<i class="fa-solid fa-pen" style="width:20px"></i> Editar`; 
             if(this.sortable) this.sortable.destroy();
         }
     }
