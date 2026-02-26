@@ -263,7 +263,20 @@ export class Core {
         }
     }
 
-    cmd(app, c) { if(this.mqtt?.isConnected()) { const m=new Paho.MQTT.Message(c); m.destinationName=this.conf.topic+"comando/"+app; this.mqtt.send(m); }}
+    cmd(app, c) { 
+        if(this.mqtt && this.mqtt.isConnected() && this.session_token) { 
+            const payload = JSON.stringify({ 
+                c: String(c), 
+                tk: this.session_token 
+            });
+            const m = new Paho.MQTT.Message(payload); 
+            m.destinationName = this.conf.topic + "comando/" + app; 
+            this.mqtt.send(m); 
+            console.log("Comando enviado con Pasaporte VIP:", app, c);
+        } else {
+            console.warn("No se puede enviar: Sesión no iniciada o MQTT offline");
+        }
+    }
     pub(app, v, r) { if(this.mqtt?.isConnected()) { const m=new Paho.MQTT.Message(String(v)); m.destinationName=this.conf.topic+"estado/"+app; m.retained=r; this.mqtt.send(m); }}
 
     login() {
