@@ -156,22 +156,76 @@ export class Core {
             const topic = msg.destinationName;
             const app = topic.split("/").pop();
             let val = msg.payloadString;
-
-            // Intenta convertir a JSON. Si falla, se queda como texto normal.
+            
+            // 🛡️ TRADUCTOR V22: Convertimos el texto bruto a diccionario JSON
             try { val = JSON.parse(val); } catch(e){}
 
-            // 1. Filtrar el latido (Heartbeat V19 y V21)
+            // 💓 BÚSQUEDA DE LATIDO: Ahora escucha tanto a "sistema" (V19) como a "sistema_hb" (V22)
             if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) {
                 this.updatePicoStatus(val);
             }
 
-            // 2. Enviar los datos a las tarjetas
+            // 🚀 ENVÍO A TARJETAS (como el LED)
             this.cards.forEach(c => {
                 if(c.id === app || (c.subs && c.subs.includes(app))) {
                     if(c.onData) c.onData(val, app, this);
                 }
             });
         };
+
+    updatePicoStatus(val) {
+        const container = document.getElementById('pico-status-container');
+        if (!container) return;
+        
+        // Comprueba si está vivo leyendo datos de V19 o V22
+        const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined)); 
+
+        container.innerHTML = "";
+
+        if (isOnline) {
+            let ramPercent = 0;
+            // 🧠 Traductor de RAM (r_pct es V22, ram es V19)
+            if (val && val.r_pct !== undefined) {
+                ramPercent = val.r_pct; 
+            } else if (val && val.ram !== undefined) {
+                const totalRam = 264 * 1024;
+                ramPercent = Math.round(((totalRam - val.ram) / totalRam) * 100);
+            }
+            
+            if(ramPercent < 0) ramPercent = 0;
+            if(ramPercent > 100) ramPercent = 100;
+
+            let ramColor = "var(--text-sec)";
+            if(ramPercent > 60) ramColor = "#ff9f0a";
+            if(ramPercent > 85) ramColor = "#ff453a";
+
+            // 🧠 Traductor de Temperatura (t es V22, temp es V19)
+            let tempValor = (val && val.t !== undefined) ? val.t : (val && val.temp);
+            let tempTxt = tempValor ? tempValor + "°C" : "";
+            
+            let rssi = (val && val.rssi) ? val.rssi : -60; 
+            let wifiColor = "#ff453a"; 
+            if(rssi > -70) wifiColor = "#ff9f0a"; 
+            if(rssi > -50) wifiColor = "#32d74b"; 
+
+            container.innerHTML = `
+                <div class="pico-info-pill">
+                    <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
+                    <span style="font-weight:600; color:var(--text-main); margin-right:5px">Online</span>
+                    ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:6px; margin-right:6px; font-size:0.8rem" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
+                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Señal: ${rssi} dBm"><i class="fa-solid fa-wifi"></i></span>
+                    <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">${ramPercent}%</span>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="pico-info-pill" style="border-color:var(--text-sec); opacity:0.7">
+                    <span class="dot red"></span>
+                    <span style="font-weight:600; color:var(--text-sec);">Offline</span>
+                </div>
+            `;
+        }
+    }
         this.mqtt.connect({
             useSSL: true, timeout: 3,
             onSuccess: () => {
