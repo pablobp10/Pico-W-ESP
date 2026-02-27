@@ -156,19 +156,22 @@ export class Core {
             const topic = msg.destinationName;
             const app = topic.split("/").pop();
             let val = msg.payloadString;
+
+            // Intenta convertir a JSON. Si falla, se queda como texto normal.
             try { val = JSON.parse(val); } catch(e){}
 
+            // 1. Filtrar el latido (Heartbeat V19 y V21)
             if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) {
                 this.updatePicoStatus(val);
             }
 
+            // 2. Enviar los datos a las tarjetas
             this.cards.forEach(c => {
                 if(c.id === app || (c.subs && c.subs.includes(app))) {
                     if(c.onData) c.onData(val, app, this);
                 }
             });
         };
-
         this.mqtt.connect({
             useSSL: true, timeout: 3,
             onSuccess: () => {
