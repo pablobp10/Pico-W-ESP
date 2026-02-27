@@ -257,7 +257,8 @@ export class Core {
             if(txt.includes("topic")) {
                 this.conf = JSON.parse(txt); // Aquí ahora viene el 'tk' (WEB_TOKEN)
                 this.rol = this.conf.rol;
-                
+                sessionStorage.setItem("u", u); 
+                sessionStorage.setItem("p", p);
                 document.getElementById('login-screen').style.display = 'none';
                 if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
                 
@@ -292,6 +293,16 @@ export class Core {
         }
     }
 
+    // Función para que las tarjetas publiquen estados fijos
+    pub(app, v, r) { 
+        if(this.mqtt?.isConnected()) { 
+            const m = new Paho.MQTT.Message(String(v)); 
+            m.destinationName = this.conf.topic + "estado/" + app; 
+            m.retained = r; 
+            this.mqtt.send(m); 
+        }
+    }
+    
     toggleEdit() {
         this.editMode = !this.editMode;
         const grid = document.getElementById('dashboard-grid');
