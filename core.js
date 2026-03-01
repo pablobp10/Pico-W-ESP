@@ -282,21 +282,33 @@ export class Core {
 
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
-        if(this.mqtt && this.mqtt.isConnected() && this.conf.tk) { 
-            const comando = String(c).toLowerCase();
-            // 🛡️ NONCE: Sello de tiempo único para evitar Ataques de Replay
-            const nonce = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-            
-            // 🛡️ FIRMA: (Comando + Nonce + TokenSecreto) -> SHA256
-            const dataToSign = comando + nonce + this.conf.tk;
-            const firma = CryptoJS.SHA256(dataToSign).toString(CryptoJS.enc.Hex).substring(0, 16);
-            
-            const payload = JSON.stringify({ c: comando, n: nonce, f: firma });
-            const m = new Paho.MQTT.Message(payload); 
-            m.destinationName = this.conf.topic + "comando/" + app; 
-            this.mqtt.send(m); 
-            console.log("Comando Blindado Enviado:", app, comando);
+        if(!this.mqtt || !this.mqtt.isConnected()) {
+            console.log("❌ MQTT no conectado aún."); 
+            return;
         }
+        
+        // Busca la llave secreta (sea la nueva 'tk' o la vieja 'wk')
+        const token = this.conf.tk || this.conf.wk;
+        
+        if(!token) { 
+            alert("⚠️ Error: Falla la llave de seguridad. Vuelve a generar 'this.llave' con generador.py");
+            return; 
+        }
+        
+        const comando = String(c).toLowerCase();
+        // 🛡️ NONCE: Sello de tiempo único para evitar Ataques de Replay
+        const nonce = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+        
+        // 🛡️ FIRMA: (Comando + Nonce + TokenSecreto) -> SHA256
+        const dataToSign = comando + nonce + token;
+        const firma = CryptoJS.SHA256(dataToSign).toString(CryptoJS.enc.Hex).substring(0, 16);
+        
+        const payload = JSON.stringify({ c: comando, n: nonce, f: firma });
+        const m = new Paho.MQTT.Message(payload); 
+        m.destinationName = this.conf.topic + "comando/" + app; 
+        this.mqtt.send(m); 
+        
+        console.log("🚀 Comando Blindado Enviado a:", m.destinationName, "Payload:", payload);
     }
 
     // Función para que las tarjetas publiquen estados fijos
