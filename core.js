@@ -31,8 +31,8 @@ export class Core {
         
         this.llave = {
             "pablo": "kN+hf/XSn0EIKBF6MvlmOM3Fey9EGmlKAX0yGBYq+tVoSFizGZts766xX1R7AFRKVrLITUUCTMRQd9vt44qTHdE50WbjETI3pqwauRzshvr0vil85D9isbqjUr8SWkl4OWPVSOFHacvxIwtltnliNg==",
-"invitado": "NyXu8S58v+Q3xnDroYH7+MyffhCT0aZuvdFYA+rNrqxLibKi+sLU1dygX52kts1FqA0/GsTp9v/pEQR1dcdUFFebgQiJ+pog5zAhJkuSu3f6eOx3yzDPDTI/sUN29tJ0ysycox2LMOv2nIXaDdn00Q==",
-"admin": "TVvNksSUIigBVr6//QhXqSZG3QJKkesvCO/JSQ5c0KmLEwAF8dVuHxeyGQlynj6roqm0r/MSpzRL1o7naSh1d5w+x5FIx0nhSAgb0yPx8+SSeur1E7Lz1A6u8BzpdA81w48BawH87HWo/pjkWP3ENw=="
+            "invitado": "NyXu8S58v+Q3xnDroYH7+MyffhCT0aZuvdFYA+rNrqxLibKi+sLU1dygX52kts1FqA0/GsTp9v/pEQR1dcdUFFebgQiJ+pog5zAhJkuSu3f6eOx3yzDPDTI/sUN29tJ0ysycox2LMOv2nIXaDdn00Q==",
+            "admin": "TVvNksSUIigBVr6//QhXqSZG3QJKkesvCO/JSQ5c0KmLEwAF8dVuHxeyGQlynj6roqm0r/MSpzRL1o7naSh1d5w+x5FIx0nhSAgb0yPx8+SSeur1E7Lz1A6u8BzpdA81w48BawH87HWo/pjkWP3ENw=="
         };
         
         this.brokers = [
@@ -287,15 +287,16 @@ export class Core {
             return;
         }
         
-        // Busca la llave secreta (sea la nueva 'tk' o la vieja 'wk')
+        // 🧠 EL ARREGLO: Buscamos 'tk' (nueva V22) o 'wk' (vieja V19)
         const token = this.conf.tk || this.conf.wk;
         
         if(!token) { 
-            alert("⚠️ Error: Falla la llave de seguridad. Vuelve a generar 'this.llave' con generador.py");
+            console.error("⚠️ Error crítico: No hay llave de seguridad en this.conf");
             return; 
         }
         
         const comando = String(c).toLowerCase();
+        
         // 🛡️ NONCE: Sello de tiempo único para evitar Ataques de Replay
         const nonce = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
         
@@ -308,7 +309,7 @@ export class Core {
         m.destinationName = this.conf.topic + "comando/" + app; 
         this.mqtt.send(m); 
         
-        console.log("🚀 Comando Blindado Enviado a:", m.destinationName, "Payload:", payload);
+        console.log("🚀 COMANDO ENVIADO A LA PICO ->", m.destinationName, payload);
     }
 
     // Función para que las tarjetas publiquen estados fijos
