@@ -208,9 +208,19 @@ export class Core {
         // Comprueba si está vivo leyendo datos de V19 o V22
         const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined)); 
 
+        // Si hay latido, limpiamos el temporizador
+        clearTimeout(this.picoWatchdog);
+        
         container.innerHTML = "";
 
         if (isOnline) {
+            // Configuramos una bomba de relojería a 45 segundos.
+            // Como la Pico late cada 15s, si pasan 45s es que ha muerto o perdido el WiFi.
+            this.picoWatchdog = setTimeout(() => {
+                console.log("⏱️ Timeout: La Pico ha dejado de latir.");
+                this.updatePicoStatus("OFFLINE"); // Forzamos el estado a desconectado
+            }, 45000);
+            
             let ramPercent = 0;
             // 🧠 Traductor de RAM (r_pct es V22, ram es V19)
             if (val && val.r_pct !== undefined) {
@@ -400,13 +410,15 @@ export class Core {
         this.vibra("doble");
     }
 
-    // 🌐 Control de Red Offline/Online
     setNetworkStatus(isOnline) {
         if(isOnline) {
-            document.body.classList.remove('offline-mode');
-            if(this._wasOffline) { this.notificar("Conexión Recuperada", "🌐"); this._wasOffline = false; }
+            if(this._wasOffline) { 
+                this.notificar("Conexión Recuperada", "🌐"); 
+                this._wasOffline = false; 
+            }
         } else {
-            document.body.classList.add('offline-mode');
+            // Solo lanzamos un toast de aviso suave y vibramos, pero la web sigue 100% usable
+            this.notificar("Sin conexión al Broker", "⚠️");
             this.vibra("error");
             this._wasOffline = true;
         }
