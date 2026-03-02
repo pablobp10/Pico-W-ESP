@@ -441,45 +441,66 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
 .card.multiplayer-active { border: 2px solid #0a84ff !important; animation: presence-pulse 2s infinite; }
 
 /* ==========================================================
-   INTERFAZ DE PLANOS Y MACROS
+   INTERFAZ DE PLANOS Y MACROS (Estilo Premium)
    ========================================================== */
 
 /* Fondo tipo Plano de Arquitecto (Blueprint Grid) */
+.plano-container { 
+    display: flex; flex-direction: column; flex-grow: 1; 
+    width: 100%; height: 100%; overflow: hidden; 
+}
+
 .plano-workspace {
-    width: 100%; height: calc(100% - 50px);
-    background-color: #1a1a1c;
+    flex-grow: 1; /* Ocupa todo el espacio restante automáticamente */
+    width: 100%; min-height: 50vh; /* Forzamos un alto mínimo */
+    background-color: #121214; /* Negro casi puro */
+    /* Dibujamos la cuadrícula con CSS puro */
     background-image: 
-        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-    background-size: 20px 20px; /* Tamaño de la cuadrícula */
+        linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 25px 25px; 
     position: relative; overflow: hidden;
 }
 
 /* Pines arrastrables en el plano */
 .plano-pin {
-    position: absolute; background: rgba(10, 132, 255, 0.2); 
+    position: absolute; background: rgba(10, 132, 255, 0.15); 
     border: 1px solid var(--primary); color: white;
-    padding: 8px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    padding: 10px 18px; border-radius: 30px; font-size: 0.85rem; font-weight: 600;
     cursor: grab; user-select: none; touch-action: none;
-    backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    transition: background 0.2s; display: flex; align-items: center; gap: 8px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: background 0.2s, transform 0.1s; display: flex; align-items: center; gap: 8px;
 }
-.plano-pin:active { cursor: grabbing; background: rgba(10, 132, 255, 0.5); }
-.plano-toolbar { height: 50px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--border); }
+.plano-pin:active { cursor: grabbing; background: rgba(10, 132, 255, 0.4); transform: scale(1.05); }
+.plano-toolbar { height: 60px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--border); }
 
 /* Interfaz de Macros */
 .macro-builder {
-    background: var(--card-bg); padding: 20px; border-radius: 16px;
+    background: var(--card-bg); padding: 25px; border-radius: 20px;
     border: 1px solid var(--border); box-shadow: var(--shadow);
 }
-.macro-builder h3 { margin-top: 0; color: var(--text-main); }
+.macro-builder h3 { margin-top: 0; color: var(--text-main); font-weight: 800; }
+
+/* ⬇️ LA MAGIA: Desplegables Premium */
 .macro-select {
-    padding: 10px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--bg); color: var(--text-main); font-family: inherit;
-    font-size: 0.9rem; outline: none; flex-grow: 1;
+    -webkit-appearance: none; appearance: none; /* Quitamos el estilo feo del navegador */
+    padding: 12px 40px 12px 16px; 
+    border-radius: 12px; border: 1px solid var(--border);
+    /* Inyectamos una flecha SVG personalizada de color gris */
+    background: var(--bg) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%238e8e93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>') no-repeat right 12px center;
+    color: var(--text-main); font-family: inherit; font-size: 0.9rem; font-weight: 600;
+    outline: none; cursor: pointer; transition: all 0.2s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); flex-grow: 1;
 }
+.macro-select:hover { border-color: var(--primary); }
+.macro-select:focus { 
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2); 
+    border-color: var(--primary); 
+}
+
 .macro-item {
     display: flex; justify-content: space-between; align-items: center;
-    background: var(--card-bg); padding: 12px 15px; border-radius: 12px;
-    border: 1px solid var(--border); margin-bottom: 8px;
+    background: var(--card-bg); padding: 15px 20px; border-radius: 16px;
+    border: 1px solid var(--border); margin-bottom: 10px; box-shadow: var(--shadow);
 }
