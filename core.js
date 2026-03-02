@@ -39,7 +39,7 @@ export class Core {
             { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" },
             { h: "broker.emqx.io", p: 8084, name: "EMQX" }, 
             { h: "public.mqtthq.com", p: 8084, name: "MQTTHQ" },
-            { h: "test.mosquito.org", p: 8081, name: "Mosquitto" }
+            { h: "test.mosquitto.org", p: 8081, name: "Mosquitto" }
         ];
         this.brIdx = 0;
 
@@ -51,7 +51,12 @@ export class Core {
         this.renderGrid();
         this.setupBrokerMenu();
         this.filtroActual = 'all';
-    
+        this.initAtajosTeclado();
+        this.initParallax();
+        this.initSwipeGestures();
+        this.initSidebar();
+        this.initMultijugador();
+        
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
@@ -67,7 +72,7 @@ export class Core {
             this.vibra('tick');
             this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada
         });
-    
+    });
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -96,6 +101,10 @@ export class Core {
             this.login(); 
         }
 
+        // Activar el Cerebro IA
+        document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
+        document.getElementById('ai-input').onkeypress = (e) => { if(e.key==='Enter') this.procesarComandoIA(); };
+        
         // Activar control offline del navegador
         window.addEventListener('online', () => this.setNetworkStatus(true));
         window.addEventListener('offline', () => this.setNetworkStatus(false));
@@ -145,7 +154,7 @@ export class Core {
             });
         }
         
-        tarjetasFiltradas.cards.forEach((card, index) => {
+        tarjetasFiltradas.forEach((card, index) => {
             const div = document.createElement('div');
             div.className = `card cascade-in ${card.size || ''}`;
             div.style.animationDelay = `${index * 50}ms`; 
@@ -348,6 +357,46 @@ export class Core {
         console.log("🚀 COMANDO ENVIADO A LA PICO ->", m.destinationName, payload);
     }
 
+    async procesarComandoIA() {
+        const input = document.getElementById('ai-input');
+        const orden = input.value.trim();
+        if(!orden) return;
+
+        input.value = ""; // Limpiamos la barra
+        this.notificar("Procesando tu orden...", "🧠");
+        this.vibra("tick");
+
+        // 🤖 CONEXIÓN AL CEREBRO EXTERNO (Ollama Local API)
+        // Está configurado para conectar con tu PC de forma local y gratuita
+        try {
+            /* // TODO: Descomentar esto cuando instales Ollama en tu PC
+            const respuesta = await fetch('http://127.0.0.1:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: "llama3", 
+                    prompt: `Eres un asistente domótico. Traduce esto a JSON: "${orden}". 
+                             Ejemplo: {"Led": "on", "Pomodoro": 25}`,
+                    stream: false
+                })
+            });
+            const datos = await respuesta.json();
+            const comandos = JSON.parse(datos.response);
+            
+            // Ejecutar los comandos mágicamente
+            for (const [app, accion] of Object.entries(comandos)) {
+                this.cmd(app, accion);
+            }
+            */
+            console.log("Comando guardado para la IA:", orden);
+            setTimeout(() => this.notificar("IA en espera de conexión local", "⚙️"), 1000);
+            
+        } catch (error) {
+            this.notificar("Error conectando con el Cerebro", "❌");
+            console.error(error);
+        }
+    }
+    
     // Función para que las tarjetas publiquen estados fijos
     pub(app, v, r) { 
         if(this.mqtt?.isConnected()) { 
@@ -435,6 +484,293 @@ export class Core {
             this.notificar("Sin conexión al Broker", "⚠️");
             this.vibra("error");
             this._wasOffline = true;
+        }
+    }
+
+    // ==========================================================
+    // 🧪 LABORATORIO DE TECNOLOGÍAS EXPERIMENTALES (Inactivas)
+    // ==========================================================
+
+    initProyectosSecretos() {
+        // 1. Sonar Ultrasónico (Web Audio API)
+        this.config.sonarActivado = false;
+        // TODO: Inyectar oscilador a 20kHz y analizar efecto Doppler con el micrófono.
+
+        // 2. Visión Artificial (Webcam AI)
+        this.config.webcamAiActivada = false;
+        // TODO: Cargar modelo de TensorFlow.js (coco-ssd) en background para detectar "Person".
+
+        // 3. Handoff (Sincronización Multi-pantalla)
+        this.config.handoffActivado = false;
+        // TODO: Suscribir a un topic oculto "sync/#". Al recibir un cambio de scroll, replicarlo aquí.
+    }
+
+    // 4. El "Time-Travel" (Botón Deshacer)
+    // Esta función interceptará las órdenes de this.cmd() en el futuro
+    ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
+        // Leemos la configuración de la tarjeta. Ejemplo: LedCard.undo = true
+        const tarjeta = this.cards.find(c => c.id === app);
+        
+        if (tarjeta && tarjeta.undo) {
+            this.notificar(`Cancelando orden a ${app}...`, "⏳");
+            // TODO: Crear toast con botón flotante que destruya el MQTT si se pulsa antes de tiempoGracia
+        } else {
+            // Si la tarjeta no tiene el Deshacer activado, dispara directo
+            this.cmd(app, comando);
+        }
+    }
+
+    // ==========================================================
+    // 🪄 MOTOR DE TECNOLOGÍAS AVANZADAS (V22)
+    // ==========================================================
+
+    // 1. ATAJOS DE TECLADO GLOBALES (Mapeo)
+    initAtajosTeclado() {
+        window.addEventListener('keydown', (e) => {
+            // No activar si el usuario está escribiendo en el chat de IA o en un input
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Mapeo por defecto (Esto se podrá personalizar luego en ajustes)
+            if(e.key.toLowerCase() === 'l') {
+                this.vibra("tick");
+                const st = document.getElementById('val-Led')?.innerText;
+                if(st) this.ejecutarConDeshacer('Led', st === "ON" ? "off" : "on");
+            }
+            if(e.key === 'h') this.toggleHUD(); // Activar/Desactivar Consola Hacker
+        });
+    }
+
+    // 2. CONSOLA HUD (Matrix Mode)
+    toggleHUD() {
+        let hud = document.getElementById('hud-console');
+        if(!hud) {
+            // Crear el HUD si no existe
+            hud = document.createElement('div');
+            hud.id = 'hud-console';
+            document.body.appendChild(hud);
+            this.logHUD("SISTEMA CIBERFÍSICO V22 INICIADO. INTERCEPTANDO TRÁFICO MQTT...");
+        }
+        hud.classList.toggle('active');
+    }
+
+    logHUD(msg, tipo = "info") {
+        const hud = document.getElementById('hud-console');
+        if(!hud) return;
+        const linea = document.createElement('div');
+        linea.className = `hud-msg ${tipo === 'error' ? 'hud-err' : tipo === 'out' ? 'hud-out' : ''}`;
+        const timestamp = new Date().toLocaleTimeString();
+        linea.innerText = `[${timestamp}] > ${msg}`;
+        hud.appendChild(linea);
+        hud.scrollTop = hud.scrollHeight; // Auto-scroll
+    }
+
+    // 3. PARALLAX 3D (Sensor espacial para tarjetas)
+    initParallax() {
+        // Para PC (Ratón)
+        document.addEventListener('mousemove', (e) => {
+            if(this.editMode) return;
+            document.querySelectorAll('.card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                // Inclinación sutil según la posición del ratón
+                card.style.transform = `perspective(1000px) rotateX(${-y / 30}deg) rotateY(${x / 30}deg)`;
+            });
+        });
+        // Para Móvil (Giroscopio)
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (e) => {
+                if(this.editMode) return;
+                const tiltX = Math.min(Math.max(e.beta - 45, -20), 20); // Inclinación frontal
+                const tiltY = Math.min(Math.max(e.gamma, -20), 20);    // Inclinación lateral
+                document.querySelectorAll('.card').forEach(card => {
+                    card.style.transform = `perspective(1000px) rotateX(${-tiltX}deg) rotateY(${tiltY}deg)`;
+                });
+            });
+        }
+    }
+
+    // 4. TIME-TRAVEL: BOTÓN DESHACER (Red de seguridad)
+    ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
+        // Buscar la tarjeta y ver si tiene el 'undo' activado
+        const tarjeta = this.cards.find(c => c.id === app);
+        
+        if (tarjeta && tarjeta.undo) {
+            const toastId = Math.random().toString(36).substr(2,9);
+            const container = document.getElementById('toast-area');
+            const toast = document.createElement('div');
+            toast.className = "toast";
+            toast.style.position = "relative";
+            toast.style.overflow = "hidden";
+            
+            toast.innerHTML = `
+                ⏳ <span style="margin-left:8px">Orden a ${app} en espera...</span>
+                <button class="toast-undo-btn" id="undo-${toastId}">DESHACER</button>
+                <div class="toast-progress"></div>
+            `;
+            container.appendChild(toast);
+
+            // Temporizador de la bomba
+            const timerId = setTimeout(() => {
+                this.cmd(app, comando); // Si pasa el tiempo, enviamos
+                toast.remove();
+            }, tiempoGracia);
+
+            // Si pulsamos Deshacer
+            document.getElementById(`undo-${toastId}`).onclick = () => {
+                clearTimeout(timerId); // Desactivamos la bomba
+                toast.remove();
+                this.notificar(`Acción en ${app} cancelada`, "🛑");
+            };
+        } else {
+            // Si la tarjeta no tiene Deshacer, envía la orden directamente
+            this.cmd(app, comando);
+        }
+    }
+
+    // 5. GESTOS SWIPE (Deslizar para revelar Ajustes/PiP)
+    initSwipeGestures() {
+        let touchStartX = 0;
+        document.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+        document.addEventListener('touchend', e => {
+            const touchEndX = e.changedTouches[0].screenX;
+            const targetCard = e.target.closest('.card');
+            if(!targetCard) return;
+
+            // Deslizar a la izquierda (Revelar overlay)
+            if (touchStartX - touchEndX > 50) targetCard.classList.add('swipe-open');
+            // Deslizar a la derecha (Ocultar overlay)
+            if (touchEndX - touchStartX > 50) targetCard.classList.remove('swipe-open');
+        });
+    }
+
+    // 6. PICTURE-IN-PICTURE (Ventanas flotantes desacopladas)
+    async abrirPiP(app) {
+        if (!('documentPictureInPicture' in window)) {
+            return this.notificar("Tu navegador no soporta PiP", "❌");
+        }
+        const tarjeta = this.cards.find(c => c.id === app);
+        if(!tarjeta || !tarjeta.pip) return;
+
+        try {
+            // Abrimos ventana flotante del sistema operativo
+            const pipWindow = await documentPictureInPicture.requestWindow({ width: 250, height: 250 });
+            
+            // Inyectamos el CSS principal
+            const style = document.createElement('style');
+            style.textContent = `
+                body { background: #1c1c1e; color: white; display: flex; align-items: center; justify-content: center; font-family: sans-serif; height: 100vh; margin: 0; }
+                .val-text { font-size: 3rem; font-weight: bold; }
+            `;
+            pipWindow.document.head.appendChild(style);
+            
+            // Inyectamos una versión mini de la tarjeta
+            pipWindow.document.body.innerHTML = `
+                <div style="text-align:center">
+                    <div style="color:#8e8e93">${app.toUpperCase()}</div>
+                    <div class="val-text" id="pip-val">...</div>
+                </div>
+            `;
+            
+            // Escuchamos el MQTT para actualizar la ventana flotante en tiempo real
+            this.notificar(`${app} extraído a PiP`, "🪟");
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    // ==========================================================
+    // 🚀 MÓDULOS DE GRADO INDUSTRIAL (Menú Lateral)
+    // ==========================================================
+
+    initSidebar() {
+        const trigger = document.querySelector('.pico-os-title');
+        const menu = document.getElementById('side-menu');
+
+        // Para PC: Desplegar al pasar el ratón
+        trigger.addEventListener('mouseenter', () => menu.classList.add('open'));
+        menu.addEventListener('mouseleave', () => menu.classList.remove('open'));
+
+        // Para Móvil: Desplegar al tocar
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('open');
+            this.vibra("tick");
+        });
+
+        // Cerrar al hacer clic en cualquier parte fuera del menú
+        document.addEventListener('click', (e) => {
+            if(!menu.contains(e.target) && !trigger.contains(e.target)) {
+                menu.classList.remove('open');
+            }
+        });
+
+        // Eventos de los botones del menú lateral
+        document.getElementById('btn-nav-plano').onclick = () => {
+            document.getElementById('plano-view').style.display = 'flex';
+            menu.classList.remove('open');
+        };
+        document.getElementById('btn-nav-macros').onclick = () => {
+            document.getElementById('macros-view').style.display = 'flex';
+            menu.classList.remove('open');
+        };
+        document.getElementById('btn-nav-nfc').onclick = () => this.leerNFC();
+        document.getElementById('btn-nav-radar').onclick = () => this.iniciarRadarBluetooth();
+    }
+
+    // --- FUNCIÓN 1: PRESENCIA MULTIJUGADOR ---
+    initMultijugador() {
+        // En un entorno real, suscribiríamos a "PicoWESP.../presencia/#"
+        // Simulamos que otro usuario (ej. tu móvil) toca la tarjeta "Calculadora"
+        // TODO: Conectar esto al onMessageArrived real
+        window.simularPresencia = (appId) => {
+            const card = document.getElementById(`card-${appId}`);
+            if(!card) return;
+            card.classList.add('multiplayer-active');
+            this.notificar(`Otro usuario está usando ${appId}`, "👥");
+            setTimeout(() => card.classList.remove('multiplayer-active'), 3000);
+        };
+    }
+
+    // --- FUNCIÓN 2: LECTOR DE ETIQUETAS NFC ---
+    async leerNFC() {
+        if (!("NDEFReader" in window)) {
+            return this.notificar("Tu dispositivo no tiene chip NFC o no es compatible (usa Chrome en Android)", "❌");
+        }
+        try {
+            const ndef = new NDEFReader();
+            await ndef.scan();
+            this.notificar("Acerca el móvil a una etiqueta NFC...", "📡");
+            this.vibra("doble");
+            
+            ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                this.vibra("tick");
+                this.notificar(`Etiqueta NFC detectada: ${serialNumber}`, "✅");
+                // Aquí podrías disparar una Macro. Ej: si serial == '12:34:56', apaga la luz.
+                this.logHUD(`Lectura NFC: ${serialNumber}`);
+            });
+        } catch (error) {
+            this.notificar("Error al encender el lector NFC", "❌");
+            console.error(error);
+        }
+    }
+
+    // --- FUNCIÓN 3: RADAR DE PROXIMIDAD BLUETOOTH ---
+    async iniciarRadarBluetooth() {
+        if (!navigator.bluetooth) {
+            return this.notificar("Bluetooth Web no soportado en este navegador", "❌");
+        }
+        try {
+            this.notificar("Escaneando balizas cercanas...", "🔎");
+            const device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true
+            });
+            this.vibra("tick");
+            this.notificar(`Dispositivo detectado: ${device.name || 'Desconocido'}`, "✅");
+            // TODO: Leer el RSSI (Fuerza de señal) continuamente para calcular la distancia.
+        } catch(e) {
+            // El usuario canceló o hubo un error
+            console.log("Radar Bluetooth cancelado");
         }
     }
 }
