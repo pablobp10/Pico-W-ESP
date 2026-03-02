@@ -135,7 +135,6 @@ export class Core {
         
         this.cards.forEach((card, index) => {
             const div = document.createElement('div');
-            // Añadimos cascade-in y definimos la variable --order para el retraso de la animación
             div.className = `card cascade-in ${card.size || ''}`;
             div.style.animationDelay = `${index * 50}ms`; 
             div.style.setProperty('--order', index);
@@ -144,8 +143,8 @@ export class Core {
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
             
-            // 🛡️ Inyectamos el Grip Handle de forma invisible en cada tarjeta
-            div.innerHTML = `<div class="sortable-handle"><i class="fa-solid fa-grip-lines"></i></div>` + card.html;
+            // 🧹 Volvemos a inyectar el HTML limpio, sin el icono extra
+            div.innerHTML = card.html;
             
             grid.appendChild(div);
             if(card.onInit) card.onInit(this);
@@ -355,9 +354,12 @@ export class Core {
             grid.classList.add('edit-mode'); 
             btn.innerHTML = `<i class="fa-solid fa-check" style="color:var(--primary); width:20px"></i> Ok`; 
             this.vibra("tick");
+            
             this.sortable = new Sortable(grid, { 
                 animation: 250, 
-                handle: '.sortable-handle', // 🛡️ Solo arrastrable desde el icono
+                // 🧠 LA MAGIA: Arrastre instantáneo en PC, pero exige mantener calcado 200ms en móvil
+                delay: 200,
+                delayOnTouchOnly: true,
                 ghostClass: 'sortable-ghost',
                 onEnd: ()=>{
                     const order = [];
