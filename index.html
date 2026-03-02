@@ -82,49 +82,60 @@
 
     <div id="plano-view" class="fullscreen-overlay glass-element" style="display: none;">
         <div class="overlay-header">
-            <h2>Plano Interactivo</h2>
+            <h2>Constructor Espacial 2D</h2>
             <button class="close-btn" onclick="document.getElementById('plano-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="plano-container">
+            
+            <div class="builder-toolbar">
+                <button class="build-tool active" data-type="floor">⬜ Suelo</button>
+                <button class="build-tool" data-type="wall">⬛ Pared</button>
+                <button class="build-tool" data-type="door">🚪 Puerta</button>
+                <button class="build-tool" data-type="window">🪟 Ventana</button>
+                <button class="build-tool" data-type="erase">🧽 Borrar</button>
+                <div style="flex-grow:1"></div>
+                <button class="btn-action" id="btn-clear-grid" style="width: auto; margin:0; background: #ff453a; padding: 8px 15px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+
             <div id="plano-workspace" class="plano-workspace">
-                <div class="plano-pin" id="pin-led" style="top: 30%; left: 40%;"><i class="fa-solid fa-lightbulb"></i> LED Principal</div>
+                <div id="plano-grid" class="plano-grid"></div>
+                
+                <div class="plano-pin" id="pin-led" style="top: 30%; left: 40%;"><i class="fa-solid fa-lightbulb"></i> LED</div>
                 <div class="plano-pin" id="pin-temp" style="top: 60%; left: 60%;"><i class="fa-solid fa-temperature-half"></i> Sensores</div>
             </div>
-            <div class="plano-toolbar">
-                <p style="margin:0; font-size:0.8rem; color:var(--text-sec)">Arrastra los pines para ubicarlos en tu habitación física.</p>
-            </div>
+            
         </div>
     </div>
 
     <div id="macros-view" class="fullscreen-overlay glass-element" style="display: none;">
         <div class="overlay-header">
-            <h2>Motor de Reglas Locales</h2>
+            <h2>Compilador Semántico (IA)</h2>
             <button class="close-btn" onclick="document.getElementById('macros-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="plano-container" style="padding: 20px; overflow-y: auto;">
             
             <div class="macro-builder">
-                <h3>Crear Nueva Regla</h3>
-                <div class="macro-flex-group">
-                    <span style="font-weight: bold; color: var(--primary);">SI</span>
-                    <select id="macro-if" class="macro-select">
-                        <option value="key_l">Pulso la tecla L</option>
-                        <option value="key_p">Pulso la tecla P</option>
-                        <option value="nfc_1">Leo la Etiqueta NFC 1</option>
-                    </select>
-                    <span style="font-weight: bold; color: var(--primary);">ENTONCES</span>
-                    <select id="macro-then" class="macro-select">
-                        <option value="Led_toggle">Alternar LED</option>
-                        <option value="Led_on">Encender LED</option>
-                        <option value="Pomodoro_start">Iniciar Pomodoro</option>
-                    </select>
-                    <button id="btn-save-macro" class="btn-action" style="width: auto; margin: 0; padding: 10px 20px;">Guardar</button>
+                <h3>Crear Nuevo Atajo</h3>
+                <div class="macro-flex-group" style="align-items: stretch;">
+                    
+                    <div style="flex: 1; min-width: 250px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px;">
+                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold;">Disparador (Atajo)</span>
+                        <button id="btn-record-key" class="btn-action" style="background: var(--card-bg); color: var(--primary); border: 1px solid var(--primary); margin: 0;">Presiona para Grabar</button>
+                        <span id="recorded-key-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">Sin asignar</span>
+                    </div>
+
+                    <div style="flex: 2; min-width: 250px; display: flex; flex-direction: column; gap: 10px;">
+                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold; margin-left: 5px;">Acción (Lenguaje Natural)</span>
+                        <textarea id="macro-ai-prompt" placeholder="Ej: Apaga la luz principal, enciende el radar y activa el pomodoro a 25 mins..." style="flex-grow: 1; min-height: 80px; resize: none; border-radius: 8px; border: 1px solid var(--border); padding: 10px; background: var(--bg); color: var(--text-main); font-family: inherit;"></textarea>
+                        <button id="btn-compile-macro" class="btn-action" style="margin: 0;"><i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar</button>
+                    </div>
+
                 </div>
             </div>
 
-            <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Reglas Activas</h3>
+            <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Atajos Activos</h3>
             <ul id="macro-list" class="shopping-list">
-                <div style="text-align:center; color:var(--text-sec); margin-top:20px; font-size:0.9rem;">No hay reglas creadas.</div>
+                <div id="macro-empty-msg" style="text-align:center; color:var(--text-sec); margin-top:20px; font-size:0.9rem;">No hay atajos compilados.</div>
             </ul>
         </div>
     </div>
