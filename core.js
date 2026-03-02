@@ -783,4 +783,101 @@ export class Core {
             console.log("Radar Bluetooth cancelado");
         }
     }
+
+    // ==========================================================
+    // 🧠 LOGICA DE PLANOS Y MACROS
+    // ==========================================================
+
+    initModosExpertos() {
+        this.initPlanoDraggable();
+        this.initGestorMacros();
+    }
+
+    // Lógica para arrastrar los pines libremente por el plano
+    initPlanoDraggable() {
+        const workspace = document.getElementById('plano-workspace');
+        if(!workspace) return;
+        
+        let draggedElement = null;
+        let offsetX = 0, offsetY = 0;
+
+        const startDrag = (e) => {
+            if (!e.target.classList.contains('plano-pin')) return;
+            draggedElement = e.target;
+            
+            // Soporte para ratón y táctil
+            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            
+            const rect = draggedElement.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+        };
+
+        const onDrag = (e) => {
+            if (!draggedElement) return;
+            e.preventDefault(); // Evita scroll en móviles al arrastrar
+            
+            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            
+            const workspaceRect = workspace.getBoundingClientRect();
+            
+            // Calculamos nueva posición relativa al área de trabajo
+            let newLeft = clientX - workspaceRect.left - offsetX;
+            let newTop = clientY - workspaceRect.top - offsetY;
+
+            // Límites para que no se salgan de la pantalla
+            newLeft = Math.max(0, Math.min(newLeft, workspaceRect.width - draggedElement.offsetWidth));
+            newTop = Math.max(0, Math.min(newTop, workspaceRect.height - draggedElement.offsetHeight));
+
+            // Aplicamos posición en porcentajes para que sea responsive al girar el móvil
+            draggedElement.style.left = `${(newLeft / workspaceRect.width) * 100}%`;
+            draggedElement.style.top = `${(newTop / workspaceRect.height) * 100}%`;
+        };
+
+        const endDrag = () => {
+            if(draggedElement) {
+                this.vibra("tick");
+                // TODO: Aquí guardaríamos draggedElement.style.left/top en el localStorage
+                draggedElement = null;
+            }
+        };
+
+        workspace.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        workspace.addEventListener('touchstart', startDrag, {passive: false});
+        document.addEventListener('touchmove', onDrag, {passive: false});
+        document.addEventListener('touchend', endDrag);
+    }
+
+    // Lógica visual para añadir Macros a la lista
+    initGestorMacros() {
+        const btnSave = document.getElementById('btn-save-macro');
+        const list = document.getElementById('macro-list');
+        if(!btnSave || !list) return;
+
+        btnSave.onclick = () => {
+            const cond = document.getElementById('macro-if');
+            const acc = document.getElementById('macro-then');
+            
+            // Limpiar mensaje de "vacío" si es la primera
+            if(list.innerHTML.includes("No hay reglas")) list.innerHTML = "";
+
+            const li = document.createElement('li');
+            li.className = "macro-item cascade-in";
+            li.innerHTML = `
+                <div>
+                    <span style="font-weight:bold; color:var(--text-main)">SI</span> ${cond.options[cond.selectedIndex].text} <br>
+                    <span style="font-weight:bold; color:var(--primary)">ENTONCES</span> ${acc.options[acc.selectedIndex].text}
+                </div>
+                <button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>
+            `;
+            list.appendChild(li);
+            this.vibra("tick");
+            this.notificar("Regla guardada en local", "⚙️");
+        };
+    }
 }
