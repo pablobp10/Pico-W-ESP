@@ -10,7 +10,6 @@ export const LedCard = {
         </div>
     `,
     onInit: (core) => {
-        // 1. FORZAR ESTADO POR DEFECTO A "OFF" NADA MÁS ENTRAR
         const btn = document.getElementById('btn-Led');
         const card = document.getElementById('card-Led');
         
@@ -19,44 +18,38 @@ export const LedCard = {
         btn.innerText = "ENCENDER"; 
         btn.className = "btn-action btn-on";
 
-        // 2. PREGUNTAR AL MASTER EL ESTADO REAL ("get")
-        // Si el master no contesta, nos quedamos en el OFF por defecto de arriba
-        setTimeout(() => {
-            core.cmd('Led', 'get');
-        }, 500); // Pequeño margen para asegurar que el túnel MQTT esté abierto
+        setTimeout(() => core.cmd('Led', 'get'), 500); 
 
-        // 3. ASIGNAR LA ACCIÓN AL BOTÓN
         btn.onclick = () => {
+            // ⬇️ LA MAGIA UX: Ponemos el botón a "pensar" y lo bloqueamos temporalmente
+            btn.classList.add('is-pending');
+            core.vibra("tick"); // Feedback táctil
+            
             const st = document.getElementById('val-Led').innerText;
             core.cmd('Led', st === "ON" ? "off" : "on"); 
         };
     },
-    onData: (val) => {
-        console.log("🔌 [LED] Datos recibidos:", val); 
-        
+    onData: (val, app, core) => {
         let isOn = false;
-        
-        // Entiende V19 (texto plano)
-        if (val === true || val === "1" || val === "ON" || val === "on") {
-            isOn = true;
-        }
-        // Entiende V22 (JSON firmado: {"led": true, "firma_v21": "..."})
+        if (val === true || val === "1" || val === "ON" || val === "on") isOn = true;
         else if (typeof val === 'object' && val !== null) {
-            if (val.led === true || val.led === "1" || val.led === "ON" || val.led === "on") {
-                isOn = true;
-            }
+            if (val.led === true || val.led === "1" || val.led === "ON" || val.led === "on") isOn = true;
         }
         
-        // Pinta la realidad
         document.getElementById('val-Led').innerText = isOn ? "ON" : "OFF";
         const btn = document.getElementById('btn-Led');
         const card = document.getElementById('card-Led');
         
+        // ⬇️ LA RESPUESTA: Quitamos el estado de carga al recibir la confirmación
+        btn.classList.remove('is-pending');
+        
         if(isOn) { 
+            if(!card.classList.contains('on')) core.vibra("doble"); // Vibra si realmente cambió
             card.classList.add('on'); 
             btn.innerText = "APAGAR"; 
             btn.className = "btn-action btn-off"; 
         } else { 
+            if(card.classList.contains('on')) core.vibra("doble");
             card.classList.remove('on'); 
             btn.innerText = "ENCENDER"; 
             btn.className = "btn-action btn-on"; 
