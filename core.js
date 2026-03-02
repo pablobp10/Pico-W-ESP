@@ -38,7 +38,8 @@ export class Core {
         this.brokers = [
             { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" },
             { h: "broker.emqx.io", p: 8084, name: "EMQX" }, 
-            { h: "public.mqtthq.com", p: 8084, name: "MQTTHQ" }
+            { h: "public.mqtthq.com", p: 8084, name: "MQTTHQ" },
+            { h: "test.mosquito.org", p: 8081, name: "Mosquitto" }
         ];
         this.brIdx = 0;
 
@@ -83,6 +84,10 @@ export class Core {
             document.getElementById('pass-input').value = p; 
             this.login(); 
         }
+
+        // Activar control offline del navegador
+        window.addEventListener('online', () => this.setNetworkStatus(true));
+        window.addEventListener('offline', () => this.setNetworkStatus(false));
     }
 
     setupBrokerMenu() {
@@ -127,13 +132,21 @@ export class Core {
                 return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
             });
         }
-        this.cards.forEach(card => {
+        
+        this.cards.forEach((card, index) => {
             const div = document.createElement('div');
-            div.className = `card ${card.size || ''}`;
+            // Añadimos cascade-in y definimos la variable --order para el retraso de la animación
+            div.className = `card cascade-in ${card.size || ''}`;
+            div.style.animationDelay = `${index * 50}ms`; 
+            div.style.setProperty('--order', index);
+            
             if(card.adminOnly) div.classList.add('admin-only');
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
-            div.innerHTML = card.html;
+            
+            // 🛡️ Inyectamos el Grip Handle de forma invisible en cada tarjeta
+            div.innerHTML = `<div class="sortable-handle"><i class="fa-solid fa-grip-lines"></i></div>` + card.html;
+            
             grid.appendChild(div);
             if(card.onInit) card.onInit(this);
         });
@@ -148,6 +161,7 @@ export class Core {
         this.mqtt = new Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
         
         this.mqtt.onConnectionLost = (e) => {
+            this.setNetworkStatus(false);
             dot.className = "dot red";
             setTimeout(() => { this.brIdx = (this.brIdx+1)%this.brokers.length; this.conectar(); }, 3000);
         };
@@ -176,6 +190,7 @@ export class Core {
         this.mqtt.connect({
             useSSL: true, timeout: 3,
             onSuccess: () => {
+                this.setNetworkStatus(true);
                 if (dot) dot.className = "dot green";
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
                 
@@ -329,15 +344,23 @@ export class Core {
         if(this.editMode) {
             grid.classList.add('edit-mode'); 
             btn.innerHTML = `<i class="fa-solid fa-check" style="color:var(--primary); width:20px"></i> Ok`; 
-            this.sortable = new Sortable(grid, { animation:150, onEnd: ()=>{
-                const order = [];
-                document.querySelectorAll('.card').forEach(c=>order.push(c.dataset.id));
-                localStorage.setItem('gridOrder', JSON.stringify(order));
-            }});
+            this.vibra("tick");
+            this.sortable = new Sortable(grid, { 
+                animation: 250, 
+                handle: '.sortable-handle', // 🛡️ Solo arrastrable desde el icono
+                ghostClass: 'sortable-ghost',
+                onEnd: ()=>{
+                    const order = [];
+                    document.querySelectorAll('.card').forEach(c=>order.push(c.dataset.id));
+                    localStorage.setItem('gridOrder', JSON.stringify(order));
+                    this.vibra("tick");
+                }
+            });
         } else {
             grid.classList.remove('edit-mode'); 
             btn.innerHTML = `<i class="fa-solid fa-pen" style="width:20px"></i> Editar`; 
             if(this.sortable) this.sortable.destroy();
+            this.vibra("doble");
         }
     }
     
@@ -354,5 +377,38 @@ export class Core {
         const current = document.body.getAttribute('data-theme');
         const next = current === 'dark' ? 'light' : 'dark';
         document.body.setAttribute('data-theme', next); localStorage.setItem('theme',next); 
+    }
+
+    // 📳 Motor Háptico
+    vibra(tipo = "tick") {
+        const sw = document.getElementById('sw-vibration');
+        if (!sw || !sw.checked || !navigator.vibrate) return;
+        if (tipo === "tick") navigator.vibrate(15);
+        if (tipo === "doble") navigator.vibrate([20, 40, 20]);
+        if (tipo === "error") navigator.vibrate([50, 50, 50]);
+    }
+
+    // 🔔 Notificaciones Toast
+    notificar(msg, icon = "✅") {
+        const container = document.getElementById('toast-area');
+        if(!container) return;
+        const t = document.createElement('div');
+        t.className = "toast";
+        t.innerHTML = `${icon} <span style="margin-left:8px">${msg}</span>`;
+        container.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+        this.vibra("doble");
+    }
+
+    // 🌐 Control de Red Offline/Online
+    setNetworkStatus(isOnline) {
+        if(isOnline) {
+            document.body.classList.remove('offline-mode');
+            if(this._wasOffline) { this.notificar("Conexión Recuperada", "🌐"); this._wasOffline = false; }
+        } else {
+            document.body.classList.add('offline-mode');
+            this.vibra("error");
+            this._wasOffline = true;
+        }
     }
 }
