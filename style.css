@@ -345,3 +345,97 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
     background: var(--text-main); color: var(--bg); border-color: var(--text-main);
     transform: scale(1.05);
 }
+
+/* ==========================================================
+   PAQUETE EXPERIMENTAL: HUD, PiP, Parallax y Swipe
+   ========================================================== */
+
+/* 1. EFECTO PARALLAX 3D (Giroscopio/Ratón) */
+.card {
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    transform-style: preserve-3d;
+}
+.card-content-parallax {
+    transform: translateZ(30px); /* Hace que el texto flote sobre el fondo */
+}
+
+/* 2. CONSOLA HUD (Matrix Style) */
+#hud-console {
+    position: fixed; bottom: 0; left: 0; width: 100vw; height: 35vh;
+    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+    border-top: 2px solid #32d74b; color: #32d74b; font-family: monospace;
+    font-size: 0.8rem; padding: 15px; overflow-y: auto; z-index: 9999;
+    display: none; flex-direction: column; gap: 4px;
+    box-shadow: 0 -10px 30px rgba(0,255,0,0.1);
+}
+#hud-console.active { display: flex; }
+.hud-msg { border-bottom: 1px solid rgba(50,215,75,0.2); padding-bottom: 2px; }
+.hud-err { color: #ff453a; }
+.hud-out { color: #0a84ff; }
+
+/* 3. BOTÓN DESHACER (Time-Travel Toast) */
+.toast-undo-btn {
+    background: #ff453a; color: white; border: none; padding: 5px 12px;
+    border-radius: 12px; cursor: pointer; font-weight: bold; margin-left: 10px;
+}
+.toast-progress {
+    position: absolute; bottom: 0; left: 0; height: 3px; background: #ff453a;
+    width: 100%; animation: shrink 3s linear forwards;
+}
+@keyframes shrink { to { width: 0%; } }
+
+/* 4. GESTOS SWIPE & BOTON PiP */
+.card-actions-overlay {
+    position: absolute; top: 10px; right: -50px; display: flex; flex-direction: column; gap: 5px;
+    transition: right 0.3s; z-index: 10;
+}
+.card.swipe-open .card-actions-overlay { right: 10px; } /* Se revela al deslizar */
+.mini-action-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text-main);
+    width: 35px; height: 35px; border-radius: 50%; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;
+}
+
+/* ==========================================================
+   MENÚ LATERAL Y PANTALLAS COMPLETAS (Módulo Experto)
+   ========================================================== */
+
+/* Menú Lateral (Sidebar) */
+#side-menu {
+    position: fixed; top: 0; left: -300px; /* Escondido fuera de la pantalla */
+    width: 260px; height: 100vh;
+    background: rgba(28, 28, 30, 0.95); backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border);
+    transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* Animación tipo Apple */
+    z-index: 10000; box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+}
+#side-menu.open { left: 0; } /* Clase que lo muestra */
+
+.side-menu-header { padding: 25px 20px 10px; font-weight: 800; font-size: 1.2rem; color: var(--primary); border-bottom: 1px solid var(--border); margin-bottom: 10px;}
+.side-menu-footer { margin-top: auto; padding: 20px; font-size: 0.7rem; color: var(--text-sec); text-align: center; border-top: 1px solid var(--border); }
+.side-menu-list { list-style: none; padding: 0; margin: 0; }
+.side-menu-list li {
+    padding: 15px 20px; cursor: pointer; color: var(--text-main); font-weight: 600;
+    transition: background 0.2s; display: flex; align-items: center; gap: 15px;
+}
+.side-menu-list li:hover { background: rgba(50, 215, 75, 0.1); color: var(--primary); }
+.side-menu-list li i { font-size: 1.2rem; width: 20px; text-align: center; }
+
+/* Pantallas Superpuestas (Macros y Plano) */
+.fullscreen-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(15px);
+    z-index: 9999; flex-direction: column;
+}
+.overlay-header { display: flex; justify-content: space-between; padding: 20px; border-bottom: 1px solid var(--border); }
+.close-btn { background: none; border: none; color: #ff453a; font-size: 1.5rem; cursor: pointer; }
+.plano-container { flex-grow: 1; position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+/* Multijugador: Efecto de Presencia (Aura azul) */
+@keyframes presence-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.7); }
+    70% { box-shadow: 0 0 15px 10px rgba(10, 132, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); }
+}
+.card.multiplayer-active { border: 2px solid #0a84ff !important; animation: presence-pulse 2s infinite; }
