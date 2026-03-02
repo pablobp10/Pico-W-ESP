@@ -786,15 +786,88 @@ export class Core {
     }
 
     // ==========================================================
-    // 🧠 LOGICA DE PLANOS Y MACROS
+    // 🧠 LOGICA DE PLANOS REALES Y MACROS IA
     // ==========================================================
 
     initModosExpertos() {
+        this.initConstructorPlano();
         this.initPlanoDraggable();
-        this.initGestorMacros();
+        this.initGestorMacrosIA();
     }
 
-    // Lógica para arrastrar los pines libremente por el plano
+    // --- MOTOR DEL CONSTRUCTOR ESPACIAL 2D ---
+    initConstructorPlano() {
+        const grid = document.getElementById('plano-grid');
+        const tools = document.querySelectorAll('.build-tool');
+        const btnClear = document.getElementById('btn-clear-grid');
+        if(!grid) return;
+
+        let currentTool = 'floor'; // Herramienta por defecto
+        let isDrawing = false;
+        const totalCells = 30 * 20; // 600 celdas
+
+        // 1. Selector de herramientas
+        tools.forEach(tool => {
+            tool.onclick = () => {
+                tools.forEach(t => t.classList.remove('active'));
+                tool.classList.add('active');
+                currentTool = tool.dataset.type;
+                this.vibra("tick");
+            };
+        });
+
+        // 2. Cargar mapa guardado (o crear uno vacío)
+        let savedMap = JSON.parse(localStorage.getItem('miPlanoTiles')) || Array(totalCells).fill('');
+
+        // 3. Generar la cuadrícula
+        grid.innerHTML = '';
+        for (let i = 0; i < totalCells; i++) {
+            const cell = document.createElement('div');
+            cell.className = `grid-cell ${savedMap[i]}`;
+            cell.dataset.index = i;
+            grid.appendChild(cell);
+        }
+
+        // 4. Función de pintado
+        const paintCell = (cell) => {
+            if (!cell || !cell.classList.contains('grid-cell')) return;
+            // Limpiamos las clases de materiales anteriores
+            cell.classList.remove('wall', 'floor', 'door', 'window');
+            // Pintamos el nuevo material si no es la goma de borrar
+            if (currentTool !== 'erase') cell.classList.add(currentTool);
+            
+            // Guardar en tiempo real
+            savedMap[cell.dataset.index] = currentTool !== 'erase' ? currentTool : '';
+            localStorage.setItem('miPlanoTiles', JSON.stringify(savedMap));
+        };
+
+        // 5. Controles de Ratón / Táctil para "pintar arrastrando"
+        grid.addEventListener('mousedown', (e) => { isDrawing = true; paintCell(e.target); });
+        grid.addEventListener('mouseover', (e) => { if(isDrawing) paintCell(e.target); });
+        document.addEventListener('mouseup', () => { if(isDrawing) { isDrawing = false; this.vibra("tick"); }});
+        
+        // Soporte táctil básico para móviles
+        grid.addEventListener('touchstart', (e) => { isDrawing = true; paintCell(e.target); }, {passive: false});
+        grid.addEventListener('touchmove', (e) => {
+            if(!isDrawing) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            paintCell(element);
+        }, {passive: false});
+        document.addEventListener('touchend', () => isDrawing = false);
+
+        // 6. Botón de borrado masivo
+        btnClear.onclick = () => {
+            if(confirm("¿Borrar todo el plano?")) {
+                savedMap = Array(totalCells).fill('');
+                localStorage.setItem('miPlanoTiles', JSON.stringify(savedMap));
+                document.querySelectorAll('.grid-cell').forEach(c => c.className = 'grid-cell');
+                this.vibra("doble");
+            }
+        };
+    }
+
     initPlanoDraggable() {
         const workspace = document.getElementById('plano-workspace');
         if(!workspace) return;
@@ -854,31 +927,85 @@ export class Core {
         document.addEventListener('touchend', endDrag);
     }
 
-    // Lógica visual para añadir Macros a la lista
-    initGestorMacros() {
-        const btnSave = document.getElementById('btn-save-macro');
+    // --- GESTOR DE MACROS IA & KEYBINDER ---
+    initGestorMacrosIA() {
+        const btnRecord = document.getElementById('btn-record-key');
+        const displayKey = document.getElementById('recorded-key-display');
+        const btnCompile = document.getElementById('btn-compile-macro');
+        const promptInput = document.getElementById('macro-ai-prompt');
         const list = document.getElementById('macro-list');
-        if(!btnSave || !list) return;
+        const emptyMsg = document.getElementById('macro-empty-msg');
+        
+        if (!btnRecord || !btnCompile) return; // Evita errores si falta el HTML
 
-        btnSave.onclick = () => {
-            const cond = document.getElementById('macro-if');
-            const acc = document.getElementById('macro-then');
+        let currentBinding = "";
+
+        // 1. El Keybinder (Atrapador de Teclas)
+        btnRecord.onclick = () => {
+            btnRecord.innerText = "Escuchando...";
+            btnRecord.style.background = "#ff9f0a";
+            btnRecord.style.color = "white";
             
-            // Limpiar mensaje de "vacío" si es la primera
-            if(list.innerHTML.includes("No hay reglas")) list.innerHTML = "";
+            const capturer = (e) => {
+                e.preventDefault(); // Evita que la tecla haga su función normal
+                
+                let keys = [];
+                if (e.ctrlKey) keys.push("Ctrl");
+                if (e.altKey) keys.push("Alt");
+                if (e.shiftKey) keys.push("Shift");
+                
+                // No grabar si solo pulsó un modificador
+                if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+                
+                keys.push(e.key.toUpperCase());
+                currentBinding = keys.join(" + ");
+                
+                displayKey.innerText = currentBinding;
+                btnRecord.innerText = "Re-grabar Atajo";
+                btnRecord.style.background = "var(--card-bg)";
+                btnRecord.style.color = "var(--primary)";
+                
+                this.vibra("tick");
+                window.removeEventListener('keydown', capturer);
+            };
+            
+            window.addEventListener('keydown', capturer);
+        };
 
-            const li = document.createElement('li');
-            li.className = "macro-item cascade-in";
-            li.innerHTML = `
-                <div>
-                    <span style="font-weight:bold; color:var(--text-main)">SI</span> ${cond.options[cond.selectedIndex].text} <br>
-                    <span style="font-weight:bold; color:var(--primary)">ENTONCES</span> ${acc.options[acc.selectedIndex].text}
-                </div>
-                <button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>
-            `;
-            list.appendChild(li);
+        // 2. El Compilador (Preparado para la IA)
+        btnCompile.onclick = async () => {
+            const prompt = promptInput.value.trim();
+            if(!currentBinding || !prompt) return this.notificar("Falta el atajo o el texto", "⚠️");
+
+            btnCompile.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Compilando...`;
             this.vibra("tick");
-            this.notificar("Regla guardada en local", "⚙️");
+
+            // Simulamos que la IA nos devuelve el JSON compilado en 1 segundo.
+            setTimeout(() => {
+                const codigoJSONGenerado = JSON.stringify({ "Led": "toggle", "Pomodoro": 25 });
+
+                if(emptyMsg) emptyMsg.style.display = 'none';
+
+                const li = document.createElement('li');
+                li.className = "macro-item cascade-in";
+                li.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <span style="font-family:monospace; font-weight:900; color:var(--primary); font-size:1.1rem;"><i class="fa-regular fa-keyboard"></i> ${currentBinding}</span>
+                        <span style="font-size:0.85rem; color:var(--text-sec);">"${prompt}"</span>
+                        <span style="font-family:monospace; font-size:0.75rem; color:#32d74b;">> ${codigoJSONGenerado}</span>
+                    </div>
+                    <button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>
+                `;
+                list.appendChild(li);
+                
+                // Limpiar inputs
+                promptInput.value = "";
+                displayKey.innerText = "Sin asignar";
+                currentBinding = "";
+                btnCompile.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar`;
+                
+                this.notificar("Atajo compilado con éxito", "✅");
+            }, 1000);
         };
     }
 }
