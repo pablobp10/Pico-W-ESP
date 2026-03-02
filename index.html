@@ -26,7 +26,7 @@
     </div>
     <header>
         <div class="header-left">
-            <h1>Pico OS</h1>
+            <h1> class="pico-os-title" style="cursor: pointer;">Pico OS</h1>
             
             <div class="broker-wrapper" id="broker-trigger">
                 <span id="mqtt-dot" class="dot red"></span>
@@ -68,6 +68,41 @@
             </div>
         </div>
     </header>
+
+    <div id="side-menu" class="glass-element">
+        <div class="side-menu-header">Modo Experto</div>
+        <ul class="side-menu-list">
+            <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
+            <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
+            <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
+            <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
+        </ul>
+        <div class="side-menu-footer">Sistema Ciberfísico Activo</div>
+    </div>
+
+    <div id="plano-view" class="fullscreen-overlay glass-element" style="display: none;">
+        <div class="overlay-header">
+            <h2>Plano Interactivo</h2>
+            <button class="close-btn" onclick="document.getElementById('plano-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="plano-container" id="plano-dropzone">
+            <div style="color: var(--text-sec); text-align: center; margin-top: 20vh;">
+                Arrastra aquí las tarjetas <br><small>(En desarrollo)</small>
+            </div>
+        </div>
+    </div>
+
+    <div id="macros-view" class="fullscreen-overlay glass-element" style="display: none;">
+        <div class="overlay-header">
+            <h2>Lógica de Nodos (Node-RED)</h2>
+            <button class="close-btn" onclick="document.getElementById('macros-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="plano-container">
+            <div style="color: var(--text-sec); text-align: center; margin-top: 20vh;">
+                Motor de secuencias locales <br><small>(En desarrollo)</small>
+            </div>
+        </div>
+    </div>
     
     <div class="filter-bar" id="filter-bar">
         <button class="filter-pill active" data-filter="all">Todos</button>
@@ -76,6 +111,13 @@
         <button class="filter-pill" data-filter="herramientas">Herramientas</button>
         <button class="filter-pill" data-filter="sistema">Sistema</button>
     </div>
+
+    <div id="ai-brain-bar" class="glass-element" style="margin: 10px 15px; padding: 5px 15px; border-radius: 20px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--primary);">
+        <i class="fa-solid fa-robot" style="color: var(--primary);"></i>
+        <input type="text" id="ai-input" placeholder="Ej: Apaga la luz y activa el pomodoro..." style="flex-grow: 1; background: transparent; border: none; outline: none; padding: 10px 0; font-size: 0.9rem; color: var(--text-main);">
+        <button id="btn-ai-send" style="background: none; border: none; color: var(--primary); font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+    
     <div class="grid" id="dashboard-grid"></div>
 
     <div class="toast-container" id="toast-area"></div>
