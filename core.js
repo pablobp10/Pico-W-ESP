@@ -397,17 +397,16 @@ export class Core {
 
         let API_KEY = "";
         try {
-            // 3. Desencriptamos la llave en este exacto milisegundo
             const bytes = CryptoJS.AES.decrypt(apiKeyCifrada, password);
-            API_KEY = bytes.toString(CryptoJS.enc.Utf8);
+            // .trim() elimina cualquier espacio en blanco o salto de línea invisible
+            API_KEY = bytes.toString(CryptoJS.enc.Utf8).trim(); 
             if(!API_KEY || API_KEY.length < 10) throw new Error("Llave incorrecta");
         } catch (e) {
             return this.notificar("Error de descifrado (Revisa tu contraseña)", "❌");
         }
 
-        // ☁️ CONEXIÓN AL CEREBRO CLOUD (Gemini API)
-        // ☁️ CONEXIÓN AL CEREBRO CLOUD (Gemini API)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        // ☁️ CONEXIÓN AL CEREBRO CLOUD (Usamos -latest para máxima compatibilidad)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
 
         try {
             const respuesta = await fetch(url, {
@@ -417,38 +416,38 @@ export class Core {
                     contents: [{
                         parts: [{ 
                             text: `Convierte esta orden a JSON: "${orden}". 
-                                   Claves válidas: "Led", "Pomodoro", "Megafono", "Calculadora". 
+                                   Claves válidas: "Led", "Pomodoro", "Megafono", "Calculadora", "Sensores", "Almacenamiento". 
                                    Valores válidos: "on", "off", "toggle", o números.
                                    Ejemplo estricto: {"Led": "on", "Pomodoro": 25}` 
                         }]
                     }],
-                    // 🛡️ LA MAGIA: Obliga a Google a devolver un JSON matemático puro
+                    // Obliga a devolver un JSON matemático
                     generationConfig: {
                         responseMimeType: "application/json"
                     }
                 })
             });
 
-            if (!respuesta.ok) throw new Error("Error de conexión con Google");
+            // Si Google rechaza la petición, capturamos el motivo exacto
+            if (!respuesta.ok) {
+                const errorDetails = await respuesta.text();
+                throw new Error(`Código ${respuesta.status}: ${errorDetails}`);
+            }
 
             const datos = await respuesta.json();
-            
-            // Extraemos la respuesta cruda para verla en la consola si algo falla
             const textoCrudo = datos.candidates[0].content.parts[0].text;
             console.log("📥 Respuesta cruda de la IA:", textoCrudo);
             
-            // Convertimos a diccionario
             const comandos = JSON.parse(textoCrudo);
             
-            // Lanzamos los comandos MQTT a la Pico
             for (const [app, accion] of Object.entries(comandos)) {
                 this.cmd(app, accion);
                 this.notificar(`Ejecutando: ${app} -> ${accion}`, "⚡");
             }
             
         } catch (error) {
-            this.notificar("Fallo de comprensión IA", "❌");
-            console.error("Detalles del fallo IA:", error);
+            this.notificar("Fallo de comunicación IA", "❌");
+            console.error("🔥 Detalles del fallo IA:", error);
         }
     }
     
