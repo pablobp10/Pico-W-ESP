@@ -439,3 +439,47 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
     100% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); }
 }
 .card.multiplayer-active { border: 2px solid #0a84ff !important; animation: presence-pulse 2s infinite; }
+
+/* ==========================================================
+   INTERFAZ DE PLANOS Y MACROS
+   ========================================================== */
+
+/* Fondo tipo Plano de Arquitecto (Blueprint Grid) */
+.plano-workspace {
+    width: 100%; height: calc(100% - 50px);
+    background-color: #1a1a1c;
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 20px 20px; /* Tamaño de la cuadrícula */
+    position: relative; overflow: hidden;
+}
+
+/* Pines arrastrables en el plano */
+.plano-pin {
+    position: absolute; background: rgba(10, 132, 255, 0.2); 
+    border: 1px solid var(--primary); color: white;
+    padding: 8px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    cursor: grab; user-select: none; touch-action: none;
+    backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: background 0.2s; display: flex; align-items: center; gap: 8px;
+}
+.plano-pin:active { cursor: grabbing; background: rgba(10, 132, 255, 0.5); }
+.plano-toolbar { height: 50px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--border); }
+
+/* Interfaz de Macros */
+.macro-builder {
+    background: var(--card-bg); padding: 20px; border-radius: 16px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.macro-builder h3 { margin-top: 0; color: var(--text-main); }
+.macro-select {
+    padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text-main); font-family: inherit;
+    font-size: 0.9rem; outline: none; flex-grow: 1;
+}
+.macro-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--card-bg); padding: 12px 15px; border-radius: 12px;
+    border: 1px solid var(--border); margin-bottom: 8px;
+}
