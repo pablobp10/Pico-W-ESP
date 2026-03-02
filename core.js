@@ -70,7 +70,7 @@ export class Core {
             // Aplicar filtro y repintar
             this.filtroActual = e.target.dataset.filter;
             this.vibra('tick');
-            this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada
+            this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada.
         });
     });
         const settingsTrigger = document.getElementById('settings-trigger');
