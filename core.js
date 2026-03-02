@@ -50,13 +50,24 @@ export class Core {
         this.initTheme();
         this.renderGrid();
         this.setupBrokerMenu();
-        
+        this.filtroActual = 'all';
+    
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
-        
+        document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Cambiar estilos de los botones
+            document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            // Aplicar filtro y repintar
+            this.filtroActual = e.target.dataset.filter;
+            this.vibra('tick');
+            this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada
+        });
+    
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -122,6 +133,7 @@ export class Core {
     }
 
     renderGrid() {
+        const tarjetasFiltradas = this.cards.filter(c => this.filtroActual === 'all' || c.category === this.filtroActual);
         const grid = document.getElementById('dashboard-grid');
         grid.innerHTML = "";
         let order = JSON.parse(localStorage.getItem('gridOrder'));
@@ -133,7 +145,7 @@ export class Core {
             });
         }
         
-        this.cards.forEach((card, index) => {
+        tarjetasFiltradas.cards.forEach((card, index) => {
             const div = document.createElement('div');
             div.className = `card cascade-in ${card.size || ''}`;
             div.style.animationDelay = `${index * 50}ms`; 
