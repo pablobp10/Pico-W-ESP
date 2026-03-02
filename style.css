@@ -540,3 +540,45 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
     border: 1px solid var(--border); margin-bottom: 10px; box-shadow: var(--shadow);
     flex-wrap: wrap; gap: 10px; /* Wrap para móviles */
 }
+
+/* --- PALETA DEL CONSTRUCTOR --- */
+.builder-toolbar { 
+    display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; 
+    background: var(--card-bg); padding: 10px; border-radius: 12px; border: 1px solid var(--border);
+}
+.build-tool { 
+    background: var(--bg); border: 1px solid var(--border); color: var(--text-main); 
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: 600; font-size: 0.8rem;
+}
+.build-tool.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* --- REJILLA DE DIBUJO --- */
+.plano-workspace {
+    flex-grow: 1; width: 100%; min-height: 60vh; 
+    background-color: #000; /* Fondo negro profundo */
+    position: relative; overflow: hidden;
+    border-radius: 16px; border: 1px solid var(--border);
+    box-shadow: inset 0 0 30px rgba(0,0,0,1);
+}
+
+.plano-grid {
+    display: grid; 
+    /* Creamos una matriz de 30x20 celdas (600 cuadritos) */
+    grid-template-columns: repeat(30, 1fr); 
+    grid-template-rows: repeat(20, 1fr);
+    width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+    z-index: 1; /* Por debajo de los pines */
+}
+
+/* Las celdas individuales */
+.grid-cell { border: 1px solid rgba(255, 255, 255, 0.03); cursor: crosshair; transition: background 0.1s; }
+.grid-cell:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* MATERIALES DE CONSTRUCCIÓN */
+.grid-cell.wall { background: #444; border: 1px solid #555; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5); }
+.grid-cell.floor { background: #1c1c1e; border-color: rgba(255,255,255,0.02); }
+.grid-cell.door { background: #8b5a2b; border: 2px solid #5c3a18; }
+.grid-cell.window { background: rgba(10, 132, 255, 0.3); border: 1px solid var(--primary); backdrop-filter: blur(2px); }
+
+/* Elevamos los pines para que floten sobre el dibujo */
+.plano-pin { z-index: 10; }
