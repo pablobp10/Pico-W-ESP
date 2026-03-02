@@ -145,6 +145,7 @@ export class Core {
         const tarjetasFiltradas = this.cards.filter(c => this.filtroActual === 'all' || c.category === this.filtroActual);
         const grid = document.getElementById('dashboard-grid');
         grid.innerHTML = "";
+        
         let order = JSON.parse(localStorage.getItem('gridOrder'));
         if(order) {
             this.cards.sort((a, b) => {
@@ -153,10 +154,25 @@ export class Core {
                 return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
             });
         }
+
+        // 🧠 DICCIONARIO DE TAMAÑOS: Aquí le recordamos al sistema quién es ancho o alto
+        // (Añade o quita nombres según el "id" exacto de tus tarjetas)
+        const memorySizes = {
+            "Sensores": "wide",
+            "Tiempo": "wide",
+            "Alma": "wide",
+            "Calculadora": "wide",
+            "Reloj": "tall",
+            "Lista": "tall"
+        };
         
         tarjetasFiltradas.forEach((card, index) => {
             const div = document.createElement('div');
-            div.className = `card cascade-in ${card.size || ''}`;
+            
+            // Rescatamos el tamaño del diccionario para que no lo olvide al filtrar
+            const cardSize = card.size || memorySizes[card.id] || "";
+            div.className = `card cascade-in ${cardSize}`;
+            
             div.style.animationDelay = `${index * 50}ms`; 
             div.style.setProperty('--order', index);
             
@@ -164,11 +180,15 @@ export class Core {
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
             
-            // 🧹 Volvemos a inyectar el HTML limpio, sin el icono extra
             div.innerHTML = card.html;
-            
             grid.appendChild(div);
-            if(card.onInit) card.onInit(this);
+            
+            // 🛡️ EL ESCUDO: Evita que el error de una tarjeta rompa a las demás
+            try {
+                if(card.onInit) card.onInit(this);
+            } catch(error) {
+                console.error(`Error silencioso iniciando tarjeta ${card.id}:`, error);
+            }
         });
     }
 
@@ -687,11 +707,7 @@ export class Core {
         const trigger = document.querySelector('.pico-os-title');
         const menu = document.getElementById('side-menu');
 
-        // Para PC: Desplegar al pasar el ratón
-        trigger.addEventListener('mouseenter', () => menu.classList.add('open'));
-        menu.addEventListener('mouseleave', () => menu.classList.remove('open'));
-
-        // Para Móvil: Desplegar al tocar
+        // UNIFICADO: PC y Móvil abren al hacer clic
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             menu.classList.toggle('open');
@@ -706,14 +722,8 @@ export class Core {
         });
 
         // Eventos de los botones del menú lateral
-        document.getElementById('btn-nav-plano').onclick = () => {
-            document.getElementById('plano-view').style.display = 'flex';
-            menu.classList.remove('open');
-        };
-        document.getElementById('btn-nav-macros').onclick = () => {
-            document.getElementById('macros-view').style.display = 'flex';
-            menu.classList.remove('open');
-        };
+        document.getElementById('btn-nav-plano').onclick = () => { document.getElementById('plano-view').style.display = 'flex'; menu.classList.remove('open'); };
+        document.getElementById('btn-nav-macros').onclick = () => { document.getElementById('macros-view').style.display = 'flex'; menu.classList.remove('open'); };
         document.getElementById('btn-nav-nfc').onclick = () => this.leerNFC();
         document.getElementById('btn-nav-radar').onclick = () => this.iniciarRadarBluetooth();
     }
