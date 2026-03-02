@@ -1,8 +1,14 @@
 export const LedCard = {
     id: "Led",
-    category: "luces"
+    category: "luces",
+    undo: true,  // ⏱️ Activa el Time-Travel de 3 segundos
+    pip: true,   // 🪟 Permite extraerla como ventana flotante
     html: `
-        <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; width:100%;">
+        <div class="card-content-parallax" style="display:flex; flex-direction:column; justify-content:space-between; height:100%; width:100%;">
+            <div class="card-actions-overlay">
+                <button class="mini-action-btn btn-pip" onclick="window.App.abrirPiP('Led')"><i class="fa-solid fa-clone"></i></button>
+            </div>
+            
             <div style="display:flex; justify-content:space-between; align-items:center; flex-grow:1; padding:0 5px">
                 <i class="fa-solid fa-lightbulb icon" style="font-size:3rem; margin:0"></i>
                 <span id="val-Led" style="font-weight:800; font-size:1.5rem; color:var(--text-main)">OFF</span>
@@ -12,7 +18,7 @@ export const LedCard = {
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-Led');
-        const card = document.getElementById('card-Led');
+        setTimeout(() => core.cmd('Led', 'get'), 500);
         
         card.classList.remove('on'); 
         document.getElementById('val-Led').innerText = "OFF";
@@ -22,14 +28,12 @@ export const LedCard = {
         setTimeout(() => core.cmd('Led', 'get'), 500); 
 
         btn.onclick = () => {
-            // ⬇️ LA MAGIA UX: Ponemos el botón a "pensar" y lo bloqueamos temporalmente
-            btn.classList.add('is-pending');
-            core.vibra("tick"); // Feedback táctil
-            
             const st = document.getElementById('val-Led').innerText;
-            core.cmd('Led', st === "ON" ? "off" : "on"); 
+            // 🧠 CAMBIO CLAVE: En vez de llamar a cmd(), llamamos a ejecutarConDeshacer()
+            core.ejecutarConDeshacer('Led', st === "ON" ? "off" : "on"); 
         };
     },
+    
     onData: (val, app, core) => {
         let isOn = false;
         if (val === true || val === "1" || val === "ON" || val === "on") isOn = true;
