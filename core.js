@@ -406,6 +406,7 @@ export class Core {
         }
 
         // ☁️ CONEXIÓN AL CEREBRO CLOUD (Gemini API)
+        // ☁️ CONEXIÓN AL CEREBRO CLOUD (Gemini API)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         try {
@@ -415,32 +416,39 @@ export class Core {
                 body: JSON.stringify({
                     contents: [{
                         parts: [{ 
-                            text: `Eres el cerebro de un sistema domótico. Traduce la siguiente orden del usuario a un único objeto JSON válido. 
-                                   Las claves son los IDs de las tarjetas (ej: "Led", "Pomodoro", "Megafono") y los valores son las acciones ("on", "off", "toggle", o números). 
-                                   NO escribas nada más que el JSON puro, ni texto explicativo, ni bloques de código markdown. 
-                                   Orden del usuario: "${orden}"` 
+                            text: `Convierte esta orden a JSON: "${orden}". 
+                                   Claves válidas: "Led", "Pomodoro", "Megafono", "Calculadora". 
+                                   Valores válidos: "on", "off", "toggle", o números.
+                                   Ejemplo estricto: {"Led": "on", "Pomodoro": 25}` 
                         }]
-                    }]
+                    }],
+                    // 🛡️ LA MAGIA: Obliga a Google a devolver un JSON matemático puro
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
                 })
             });
 
-            if (!respuesta.ok) throw new Error("Error en la API");
+            if (!respuesta.ok) throw new Error("Error de conexión con Google");
 
             const datos = await respuesta.json();
-            let textoJSON = datos.candidates[0].content.parts[0].text.trim();
-            textoJSON = textoJSON.replace(/```json/g, '').replace(/```/g, '').trim();
             
-            const comandos = JSON.parse(textoJSON);
-            console.log("Cerebro Cloud resolvió:", comandos);
+            // Extraemos la respuesta cruda para verla en la consola si algo falla
+            const textoCrudo = datos.candidates[0].content.parts[0].text;
+            console.log("📥 Respuesta cruda de la IA:", textoCrudo);
             
+            // Convertimos a diccionario
+            const comandos = JSON.parse(textoCrudo);
+            
+            // Lanzamos los comandos MQTT a la Pico
             for (const [app, accion] of Object.entries(comandos)) {
                 this.cmd(app, accion);
                 this.notificar(`Ejecutando: ${app} -> ${accion}`, "⚡");
             }
             
         } catch (error) {
-            this.notificar("Fallo en la Nube / JSON Inválido", "❌");
-            console.error(error);
+            this.notificar("Fallo de comprensión IA", "❌");
+            console.error("Detalles del fallo IA:", error);
         }
     }
     
