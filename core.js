@@ -56,6 +56,7 @@ export class Core {
         this.initSwipeGestures();
         this.initSidebar();
         this.initMultijugador();
+        this.initModosExpertos();
         
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
