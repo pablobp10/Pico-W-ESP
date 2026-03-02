@@ -54,6 +54,13 @@
                     <div class="dropdown-item" id="btn-theme">
                         <i class="fa-solid fa-moon" style="width:20px"></i> Tema
                     </div>
+                    <div class="dropdown-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span><i class="fa-solid fa-mobile-screen-button" style="width:20px"></i> Vibración</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sw-vibration" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="dropdown-item" id="btn-logout" style="border-top: 1px solid var(--border); color:#ff453a;">
                         <i class="fa-solid fa-right-from-bracket" style="width:20px"></i> Salir
                     </div>
@@ -64,6 +71,16 @@
 
     <div class="grid" id="dashboard-grid"></div>
 
+    <div class="offline-overlay" id="offline-screen">
+        <div style="text-align:center;">
+            <i class="fa-solid fa-satellite-dish" style="font-size:3rem; margin-bottom:15px;"></i>
+            <h2>Conexión Perdida</h2>
+            <p style="color:var(--text-sec); font-size:0.9rem;">Interfaz congelada hasta recuperar la red.</p>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-area"></div>
+    
     <script type="module">
         import { Core } from './core.js';
         window.App = new Core();
