@@ -324,3 +324,24 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
     10%, 90% { opacity: 1; transform: translateY(0) scale(1); }
     100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
 }
+
+/* --- BARRA DE FILTROS --- */
+.filter-bar {
+    display: flex; gap: 10px; width: 100%; padding: 15px 20px 5px;
+    overflow-x: auto; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+}
+.filter-bar::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
+
+.filter-pill {
+    background: var(--card-bg); color: var(--text-sec);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 16px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.filter-pill.active {
+    background: var(--text-main); color: var(--bg); border-color: var(--text-main);
+    transform: scale(1.05);
+}
