@@ -86,34 +86,36 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 .card.super-wide.graph-active { grid-row: span 3; } /* PC: Gráfica gigante */
 
 
-/* --- COMPORTAMIENTO MÓVIL Y TABLET VERTICAL (Hasta 900px) --- */
-@media (max-width: 900px) { 
-    .grid {
-        /* Forzamos rejilla de 2 columnas */
-        grid-template-columns: repeat(2, 1fr) !important;
-        grid-auto-rows: 160px !important; 
+/* Ajustes para Móviles (Compresión Extrema para que no se salga) */
+@media (max-width: 600px) {
+    /* 1. Pegar la barra a los bordes de la pantalla (de 20px a solo 5px) */
+    header { padding: 0 5px; }
+
+    /* 2. Ocultar el título "Pico OS" para ganar espacio */
+    header h1 { display: none; }
+
+    /* 3. Reducir los huecos entre elementos al mínimo */
+    .header-left { gap: 4px; }
+    
+    /* Forzar que el contenedor del estado no tenga tanto margen izquierdo */
+    #pico-status-container { margin-left: 2px !important; }
+
+    /* 4. Compactar el selector del Broker */
+    .broker-wrapper { padding: 4px 6px; font-size: 0.75rem; gap: 4px; }
+
+    /* 5. Comprimir la píldora de información */
+    .pico-info-pill {
+        padding: 3px 6px;
+        font-size: 0.7rem;
+        gap: 4px; /* Menos espacio entre el punto verde y los sensores */
     }
+}
 
-    /* 1. Tarjetas Estándar (Led, Fiesta...) -> 1x1 */
-    .card { grid-column: span 1 !important; grid-row: span 1 !important; }
-
-    /* 2. Tarjetas Altas (Calculadora, Lista, Reloj) -> 1 ancho x 2 alto */
-    .card.tall { 
-        grid-column: span 1 !important; 
-        grid-row: span 2 !important; 
-    }
-
-    /* 3. Tarjetas Anchas (Sensores sin gráfica) -> 2 ancho (Full) x 1 alto */
-    .card.wide, 
-    .card.super-wide { 
-        grid-column: span 2 !important; 
-        grid-row: span 1 !important; 
-    }
-
-    /* 4. Sensores CON Gráfica -> 2 ancho (Full) x 2 alto */
-    .card.super-wide.graph-active { 
-        grid-column: span 2 !important;
-        grid-row: span 2 !important; /* Crece verticalmente */
+/* ⬇️ NUEVO: Para Androids MUY estrechos (ej. pantallas de 360px o menos) */
+@media (max-width: 380px) {
+    /* Ocultamos la palabra "Online/Offline" y dejamos solo el punto de color y los sensores */
+    .pico-info-pill span:nth-child(2) {
+        display: none !important;
     }
 }
 
