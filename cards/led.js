@@ -1,5 +1,6 @@
 export const LedCard = {
     id: "Led",
+    category: "luces"
     html: `
         <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; width:100%;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-grow:1; padding:0 5px">
