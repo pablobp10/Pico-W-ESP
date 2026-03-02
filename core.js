@@ -383,37 +383,63 @@ export class Core {
         const orden = input.value.trim();
         if(!orden) return;
 
-        input.value = ""; // Limpiamos la barra
-        this.notificar("Procesando tu orden...", "🧠");
+        input.value = ""; 
+        this.notificar("Consultando al Cerebro...", "☁️");
         this.vibra("tick");
 
-        // 🤖 CONEXIÓN AL CEREBRO EXTERNO (Ollama Local API)
-        // Está configurado para conectar con tu PC de forma local y gratuita
+        // 🛡️ SISTEMA DE SEGURIDAD AES-256 AL VUELO
+        // 1. Recuperamos la contraseña con la que iniciaste sesión
+        const password = sessionStorage.getItem("p"); 
+        if(!password) return this.notificar("Acceso denegado: Inicia sesión", "🔒");
+
+        // 2. Aquí va tu API Key CIFRADA (Este es un ejemplo, luego pondrás la tuya)
+        const apiKeyCifrada = "U2FsdGVkX18xxwqLqWSZ9HU0Bhxe/sVuSRLebC/8w6C68NHfUf0n+D35Eu15T9dsdArr9Yev2OkiiEqALsaxVw==";
+
+        let API_KEY = "";
         try {
-            /* // TODO: Descomentar esto cuando instales Ollama en tu PC
-            const respuesta = await fetch('http://127.0.0.1:11434/api/generate', {
+            // 3. Desencriptamos la llave en este exacto milisegundo
+            const bytes = CryptoJS.AES.decrypt(apiKeyCifrada, password);
+            API_KEY = bytes.toString(CryptoJS.enc.Utf8);
+            if(!API_KEY || API_KEY.length < 10) throw new Error("Llave incorrecta");
+        } catch (e) {
+            return this.notificar("Error de descifrado (Revisa tu contraseña)", "❌");
+        }
+
+        // ☁️ CONEXIÓN AL CEREBRO CLOUD (Gemini API)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+        try {
+            const respuesta = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: "llama3", 
-                    prompt: `Eres un asistente domótico. Traduce esto a JSON: "${orden}". 
-                             Ejemplo: {"Led": "on", "Pomodoro": 25}`,
-                    stream: false
+                    contents: [{
+                        parts: [{ 
+                            text: `Eres el cerebro de un sistema domótico. Traduce la siguiente orden del usuario a un único objeto JSON válido. 
+                                   Las claves son los IDs de las tarjetas (ej: "Led", "Pomodoro", "Megafono") y los valores son las acciones ("on", "off", "toggle", o números). 
+                                   NO escribas nada más que el JSON puro, ni texto explicativo, ni bloques de código markdown. 
+                                   Orden del usuario: "${orden}"` 
+                        }]
+                    }]
                 })
             });
+
+            if (!respuesta.ok) throw new Error("Error en la API");
+
             const datos = await respuesta.json();
-            const comandos = JSON.parse(datos.response);
+            let textoJSON = datos.candidates[0].content.parts[0].text.trim();
+            textoJSON = textoJSON.replace(/```json/g, '').replace(/```/g, '').trim();
             
-            // Ejecutar los comandos mágicamente
+            const comandos = JSON.parse(textoJSON);
+            console.log("Cerebro Cloud resolvió:", comandos);
+            
             for (const [app, accion] of Object.entries(comandos)) {
                 this.cmd(app, accion);
+                this.notificar(`Ejecutando: ${app} -> ${accion}`, "⚡");
             }
-            */
-            console.log("Comando guardado para la IA:", orden);
-            setTimeout(() => this.notificar("IA en espera de conexión local", "⚙️"), 1000);
             
         } catch (error) {
-            this.notificar("Error conectando con el Cerebro", "❌");
+            this.notificar("Fallo en la Nube / JSON Inválido", "❌");
             console.error(error);
         }
     }
