@@ -219,7 +219,7 @@ export class Core {
             this.picoWatchdog = setTimeout(() => {
                 console.log("⏱️ Timeout: La Pico ha dejado de latir.");
                 this.updatePicoStatus("OFFLINE"); // Forzamos el estado a desconectado
-            }, 45000);
+            }, 20000);
             
             let ramPercent = 0;
             // 🧠 Traductor de RAM (r_pct es V22, ram es V19)
