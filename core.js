@@ -471,7 +471,7 @@ export class Core {
         if(!password) return;
         
         // ⚠️ PEGA AQUÍ TU CLAVE CIFRADA DE JSFIDDLE
-        const apiKeyCifrada = "PON_AQUI_TU_CHURRO_CIFRADO_CON_JSFIDDLE"; 
+        const apiKeyCifrada = "U2FsdGVkX18xxwqLqWSZ9HU0Bhxe/sVuSRLebC/8w6C68NHfUf0n+D35Eu15T9dsdArr9Yev2OkiiEqALsaxVw=="; 
         
         let API_KEY = "";
         try {
