@@ -60,6 +60,7 @@ export class Core {
         this.initVozJARVIS();
         this.iniciarAgenteProactivo();
         this.initBaseDeDatos()
+        this.initGestorActualizaciones()
         
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
@@ -1498,6 +1499,123 @@ INPUT DEL USUARIO: "${orden}"`;
                 
                 resolve(JSON.stringify(resumen));
             };
+        });
+    }
+    // ==========================================================
+    // 📦 GESTOR DE PAQUETES Y ACTUALIZACIONES OTA
+    // ==========================================================
+
+    initGestorActualizaciones() {
+        // 1. Inyectamos la sección en el menú lateral y el panel flotante
+        const menuLateral = document.getElementById('side-menu');
+        if (menuLateral) {
+            menuLateral.insertAdjacentHTML('beforeend', `
+                <div id="sidebar-updates">
+                    <div style="display:flex; align-items:center; color:#ff453a; font-weight:bold;">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        <span style="margin-left:10px;">Actualizaciones</span>
+                        <span class="update-bubble" id="update-count">0</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-sec); margin-top:5px;">Módulos de IA listos para instalar.</div>
+                </div>
+            `);
+        }
+        document.body.insertAdjacentHTML('beforeend', `<div id="download-manager"></div>`);
+
+        // 2. Evento al pulsar en el menú lateral
+        const btnUpdates = document.getElementById('sidebar-updates');
+        if (btnUpdates) {
+            btnUpdates.onclick = () => {
+                if (confirm(`¿Deseas descargar las actualizaciones?\nEsto podría consumir datos móviles.`)) {
+                    btnUpdates.style.display = 'none'; // Ocultamos el aviso
+                    document.getElementById('side-menu').classList.remove('open'); // Cerramos menú
+                    this.iniciarDescargas();
+                }
+            };
+        }
+
+        // 3. Buscamos actualizaciones a los 3 segundos de abrir la web
+        setTimeout(() => this.comprobarActualizaciones(), 3000);
+    }
+
+    comprobarActualizaciones() {
+        // Simulamos que el servidor nos avisa de que hay 2 archivos nuevos
+        this.paquetesPendientes = [
+            { id: 'pkg1', nombre: "Módulo Cognitivo JARVIS V3", size: "14.2 MB" },
+            { id: 'pkg2', nombre: "Diccionario de Hardware", size: "2.1 MB" }
+        ];
+
+        if (this.paquetesPendientes.length > 0) {
+            this.notificar("Actualización del sistema disponible", "🔄");
+            this.vibra("doble");
+            
+            // Mostramos el botón rojo en el menú lateral
+            const btnUpdates = document.getElementById('sidebar-updates');
+            const count = document.getElementById('update-count');
+            if (btnUpdates) btnUpdates.style.display = 'block';
+            if (count) count.innerText = this.paquetesPendientes.length;
+
+            // Chivato visual en el título principal para que sepas que hay algo en el menú
+            const menuTrigger = document.querySelector('.pico-os-title');
+            if (menuTrigger && !document.getElementById('main-menu-bubble')) {
+                menuTrigger.innerHTML += `<span id="main-menu-bubble" style="position:absolute; top:-5px; right:-15px; background:#ff453a; width:10px; height:10px; border-radius:50%;"></span>`;
+            }
+        }
+    }
+
+    iniciarDescargas() {
+        const manager = document.getElementById('download-manager');
+        manager.innerHTML = '<div style="font-weight:bold; margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-download"></i> Instalando paquetes...</div>';
+        
+        // Dibujamos las barras de progreso
+        this.paquetesPendientes.forEach(pkg => {
+            manager.innerHTML += `
+                <div class="download-item" id="dl-${pkg.id}">
+                    <div class="download-info">
+                        <span>${pkg.nombre} <span style="color:var(--text-sec); font-size:0.7rem;">(${pkg.size})</span></span>
+                        <span id="dl-pct-${pkg.id}">0%</span>
+                    </div>
+                    <div class="progress-bg">
+                        <div class="progress-fill" id="dl-fill-${pkg.id}"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        manager.classList.add('active'); // Hacemos que el panel suba desde abajo
+        this.vibra("tick");
+
+        const bubble = document.getElementById('main-menu-bubble');
+        if (bubble) bubble.remove();
+
+        let descargasCompletadas = 0;
+
+        // Simulamos la velocidad de descarga
+        this.paquetesPendientes.forEach((pkg) => {
+            let progreso = 0;
+            const velocidad = Math.random() * 4 + 2; 
+
+            const intervalo = setInterval(() => {
+                progreso += velocidad;
+                if (progreso >= 100) {
+                    progreso = 100;
+                    clearInterval(intervalo);
+                    descargasCompletadas++;
+                    document.getElementById(`dl-pct-${pkg.id}`).innerText = "OK";
+                    document.getElementById(`dl-pct-${pkg.id}`).style.color = "#32d74b";
+                    
+                    if (descargasCompletadas === this.paquetesPendientes.length) {
+                        setTimeout(() => {
+                            manager.classList.remove('active'); // Ocultamos el panel
+                            this.notificar("Sistemas actualizados al 100%", "✅");
+                            this.vibra("doble");
+                        }, 1500);
+                    }
+                }
+                
+                document.getElementById(`dl-fill-${pkg.id}`).style.width = `${progreso}%`;
+                if (progreso < 100) document.getElementById(`dl-pct-${pkg.id}`).innerText = `${Math.floor(progreso)}%`;
+            }, 150); 
         });
     }
 }
