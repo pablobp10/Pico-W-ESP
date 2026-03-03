@@ -582,3 +582,53 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
 
 /* Elevamos los pines para que floten sobre el dibujo */
 .plano-pin { z-index: 10; }
+
+/* Burbuja de Notificación en el Menú */
+.update-bubble {
+    background: #ff453a;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 10px;
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(255, 69, 58, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0); }
+}
+
+/* Sección de Actualizaciones en el Menú Lateral (Abajo del todo) */
+#sidebar-updates {
+    display: none; 
+    margin-top: auto; 
+    padding: 15px;
+    background: rgba(255, 69, 58, 0.1);
+    border-top: 1px solid rgba(255, 69, 58, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Panel Flotante de Descargas (Oculto abajo) */
+#download-manager {
+    position: fixed;
+    bottom: -100%; 
+    left: 0;
+    width: 100%;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    padding: 15px 20px;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+    transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999;
+    box-sizing: border-box;
+}
+#download-manager.active { bottom: 0; }
+
+.download-item { margin-bottom: 10px; }
+.download-info { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: var(--text-main); }
+.progress-bg { background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden; }
+.progress-fill { background: #32d74b; height: 100%; width: 0%; transition: width 0.3s linear; }
