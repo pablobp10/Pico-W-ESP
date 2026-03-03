@@ -7,7 +7,7 @@
   "theme_color": "#1c1c1e",
   "icons": [
     {
-      "src": "https://github.com/pablobp10/Pico-W-ESP/blob/main/logo.png",
+      "src": "https://raw.githubusercontent.com/pablobp10/Pico-W-ESP/main/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
