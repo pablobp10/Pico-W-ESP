@@ -4,6 +4,6 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-    // Este evento es obligatorio para que el navegador te considere una App nativa
+    // Este evento es obligatorio pra que el navegador te considere una App nativa
 });
 
