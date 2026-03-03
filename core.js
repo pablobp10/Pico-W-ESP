@@ -258,11 +258,17 @@ export class Core {
         container.innerHTML = "";
 
         if (isOnline) {
-            // Configuramos una bomba de relojería a 45 segundos.
-            // Como la Pico late cada 15s, si pasan 45s es que ha muerto o perdido el WiFi.
+            // El margen de supervivencia de 20 segundos
             this.picoWatchdog = setTimeout(() => {
-                console.log("⏱️ Timeout: La Pico ha dejado de latir.");
-                this.updatePicoStatus("OFFLINE"); // Forzamos el estado a desconectado
+                console.log("⏱️ Timeout: La Pico ha muerto. Sobrescribiendo estado en el Broker MQTT...");
+                this.updatePicoStatus("OFFLINE"); 
+                
+                // 💡 TU IDEA MAESTRA: La web publica el mensaje retenido en nombre de la Pico
+                if (this.mqtt && this.mqtt.isConnected()) {
+                    // Publicamos un JSON diciendo que está offline de forma retenida (true)
+                    this.pub("sistema_hb", JSON.stringify({ sistema: "OFFLINE" }), true);
+                    this.pub("sistema", "OFFLINE", true); // Por si usas la versión antigua V19 a la vez
+                }
             }, 20000);
             
             let ramPercent = 0;
