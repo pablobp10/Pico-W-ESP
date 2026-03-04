@@ -90,9 +90,25 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 
 /* Ajustes para Móviles (Protección de desbordamiento) */
 @media (max-width: 600px) {
+    /* 1. Mantenemos Pico OS visible pero un poco más compacto */
+    header h1 {
+        display: block !important;
+        font-size: 1.1rem;
+    }
+
+    /* 2. ELIMINAMOS la palabra "Online/Offline" (es el 2º elemento de la píldora) */
+    .pico-info-pill span:nth-child(2) {
+        display: none !important;
+    }
+
+    /* 3. (Opcional) Quitamos la línea vertical (|) que queda suelta al lado del punto verde
+    .pico-info-pill span:nth-child(3) {
+        border-left: none !important;
+        padding-left: 2px !important;
+    }
+
     /* --- BARRA SUPERIOR --- */
     header { padding: 0 5px; }
-    header h1 { display: none; }
     .header-left { gap: 4px; }
     #pico-status-container { margin-left: 2px !important; }
     .broker-wrapper { padding: 4px 6px; font-size: 0.75rem; gap: 4px; }
@@ -121,11 +137,6 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
     .val-text { font-size: 1.4rem; } 
     .icon { font-size: 1.6rem; margin-bottom: 5px; }
     .btn-action { padding: 10px; font-size: 0.8rem; }
-}
-
-/* Ocultación extrema para móviles muy pequeños */
-@media (max-width: 380px) {
-    .pico-info-pill span:nth-child(2) { display: none !important; }
 }
 
 /* UI GENERAL */
@@ -160,10 +171,6 @@ input:checked + .slider:before { transform: translateX(14px); }
 
 /* Ajustes para Móviles */
 @media (max-width: 600px) {
-    /* Ocultar el título "Pico OS" para ganar espacio */
-    header h1 {
-        display: none;
-    }
 
     /* Ajustar márgenes para que los botones no se peguen al borde */
     .header-left {
