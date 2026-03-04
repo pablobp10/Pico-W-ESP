@@ -777,15 +777,56 @@ INPUT DEL USUARIO: "${orden}"`;
             if(modo === "reactivo") {
                 console.warn("⚠️ Red neuronal principal off. Levantando GPU Local...", error);
                 this.notificar("Cloud caída. IA Local asumiendo el mando...", "🔋");
+                
+                // 1. Inyectamos la interfaz de progreso dinámicamente en los Toasts
+                let toastDl = document.getElementById('toast-ia-dl');
+                if (!toastDl) {
+                    const container = document.getElementById('toast-area');
+                    if(container) {
+                        container.insertAdjacentHTML('beforeend', `
+                            <div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">
+                                ⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Preparando Motor Local...</span>
+                                <div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;">
+                                    <div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div>
+                                </div>
+                            </div>
+                        `);
+                    }
+                }
+
                 try {
-                    const { CreateMLCEngine } = await import("https://esm.run/@mlc.ai/web-llm");
-                    this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3-8B-Instruct-q4f32_1-MLC");
+                    // 2. Cargamos el motor enganchando la telemetría de descarga a la barra visual
+                    const { CreateMLCEngine } = await import("https://esm.sh/@mlc.ai/web-llm");
+                    this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3-8B-Instruct-q4f32_1-MLC", {
+                        initProgressCallback: (progress) => {
+                            // progress.progress devuelve un valor entre 0 y 1
+                            const pct = Math.round(progress.progress * 100);
+                            const textEl = document.getElementById('ia-dl-text');
+                            const barEl = document.getElementById('ia-dl-bar');
+                            
+                            if(textEl) textEl.innerText = `Descargando IA Local: ${pct}%`;
+                            if(barEl) barEl.style.width = `${pct}%`;
+                            
+                            console.log(`[WebLLM]: ${progress.text}`); 
+                        }
+                    });
+                    
+                    // 3. Descarga terminada: destruimos la barra y avisamos de que está lista
+                    if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+                    this.notificar("IA Local montada en RAM", "🔋");
+
+                    // 4. Ejecutamos la orden localmente
                     const reply = await this.localEngine.chat.completions.create({
                         messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
                         response_format: { type: "json_object" }
                     });
                     this.desplegarPayloadCuantico(reply.choices[0].message.content, orden, modo);
-                } catch(e) { console.error("Fallo Categórico IA Local:", e); }
+
+                } catch(e) { 
+                    console.error("Fallo Categórico IA Local:", e); 
+                    if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+                    this.notificar("Tu dispositivo no soporta este modelo IA", "❌");
+                }
             }
         }
     }
