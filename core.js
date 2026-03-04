@@ -554,7 +554,7 @@ MODO DEL KERNEL: ${modo}
 INPUT DEL USUARIO: "${orden}"`;
 
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
             const respuesta = await fetch(url, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -572,7 +572,7 @@ INPUT DEL USUARIO: "${orden}"`;
                 console.warn("⚠️ Red neuronal principal off. Levantando GPU Local...", error);
                 this.notificar("Cloud caída. IA Local asumiendo el mando...", "🔋");
                 try {
-                    const { CreateMLCEngine } = await import("https://esm.run/@mlc.ai/web-llm");
+                    const { CreateMLCEngine } = await import("https://esm.sh/@mlc.ai/web-llm");
                     this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3-8B-Instruct-q4f32_1-MLC");
                     const reply = await this.localEngine.chat.completions.create({
                         messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
