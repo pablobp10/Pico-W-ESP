@@ -15,6 +15,7 @@ import { ColorCard } from './cards/color.js';
 import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
+import { GeneradorPrompt } from './prompt.js';
 
 export class Core {
     constructor() {
