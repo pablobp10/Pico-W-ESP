@@ -1,6 +1,5 @@
  export const ColorCard = {
     id: "Color",
-    size: "wide", // Ocupa 2 huecos
     html: `
         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; width:100%">
             <div class="label" style="margin-bottom:10px">
