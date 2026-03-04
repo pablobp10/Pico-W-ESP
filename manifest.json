@@ -10,7 +10,7 @@
       "src": "https://raw.githubusercontent.com/pablobp10/Pico-W-ESP/main/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }
