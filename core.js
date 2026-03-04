@@ -790,8 +790,8 @@ INPUT DEL USUARIO: "${orden}"`;
 
                 try {
                     // 2. Cargamos el motor enganchando la telemetría de descarga a la barra visual
-                    const { CreateMLCEngine } = await import("https://esm.sh/@mlc.ai/web-llm");
-                    this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3-8B-Instruct-q4f32_1-MLC", {
+                    const { CreateMLCEngine } = await import("https://cdn.jsdelivr.net/npm/@mlc.ai/web-llm@0.2.64/+esm");
+                    this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
                         initProgressCallback: (progress) => {
                             // progress.progress devuelve un valor entre 0 y 1
                             const pct = Math.round(progress.progress * 100);
