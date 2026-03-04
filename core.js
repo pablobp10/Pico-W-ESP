@@ -475,7 +475,7 @@ export class Core {
         // 👁️ TELEMETRÍA (El "Sistema Nervioso" de la casa)
         let contextoFisico = "--- TELEMETRÍA FÍSICA ACTUAL ---\n";
         document.querySelectorAll('.card').forEach(card => {
-            contextoFisico += `- Sensor/Actuador [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Desconectado"}\n`;
+            contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo y en espera de órdenes"}\n`;
         });
         const horaActualStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         contextoFisico += `- Reloj del sistema: ${horaActualStr}\n`;
