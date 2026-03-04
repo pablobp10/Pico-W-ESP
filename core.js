@@ -1580,7 +1580,13 @@ INPUT DEL USUARIO: "${orden}"`;
     }
 
     comprobarActualizaciones() {
-        // Simulamos que el servidor nos avisa de que hay 2 archivos nuevos
+        // 1. MEMORIA: Comprobamos si ya hemos instalado este parche antes
+        const parcheInstalado = localStorage.getItem('pico_os_patch_v22');
+        if (parcheInstalado === 'true') {
+            return; // Salimos silenciosamente, no hay nada que actualizar
+        }
+
+        // Si no está instalado, preparamos los paquetes
         this.paquetesPendientes = [
             { id: 'pkg1', nombre: "Módulo Cognitivo JARVIS V3", size: "14.2 MB" },
             { id: 'pkg2', nombre: "Diccionario de Hardware", size: "2.1 MB" }
@@ -1590,13 +1596,11 @@ INPUT DEL USUARIO: "${orden}"`;
             this.notificar("Actualización del sistema disponible", "🔄");
             this.vibra("doble");
             
-            // Mostramos el botón rojo en el menú lateral
             const btnUpdates = document.getElementById('sidebar-updates');
             const count = document.getElementById('update-count');
             if (btnUpdates) btnUpdates.style.display = 'block';
             if (count) count.innerText = this.paquetesPendientes.length;
 
-            // Chivato visual en el título principal para que sepas que hay algo en el menú
             const menuTrigger = document.querySelector('.pico-os-title');
             if (menuTrigger && !document.getElementById('main-menu-bubble')) {
                 menuTrigger.innerHTML += `<span id="main-menu-bubble" style="position:absolute; top:-5px; right:-15px; background:#ff453a; width:10px; height:10px; border-radius:50%;"></span>`;
@@ -1646,8 +1650,11 @@ INPUT DEL USUARIO: "${orden}"`;
                     document.getElementById(`dl-pct-${pkg.id}`).style.color = "#32d74b";
                     
                     if (descargasCompletadas === this.paquetesPendientes.length) {
+                        // 2. SELLO DE MEMORIA: Grabamos a fuego que ya está actualizado
+                        localStorage.setItem('pico_os_patch_v22', 'true');
+                        
                         setTimeout(() => {
-                            manager.classList.remove('active'); // Ocultamos el panel
+                            manager.classList.remove('active');
                             this.notificar("Sistemas actualizados al 100%", "✅");
                             this.vibra("doble");
                         }, 1500);
