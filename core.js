@@ -163,12 +163,6 @@ export class Core {
         // 🧠 DICCIONARIO DE TAMAÑOS: Aquí le recordamos al sistema quién es ancho o alto
         // (Añade o quita nombres según el "id" exacto de tus tarjetas)
         const memorySizes = {
-            "Sensores": "wide",
-            "Tiempo": "wide",
-            "Alma": "wide",
-            "Calculadora": "wide",
-            "Reloj": "tall",
-            "Lista": "tall"
         };
         
         tarjetasFiltradas.forEach((card, index) => {
