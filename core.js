@@ -351,6 +351,69 @@ export class Core {
         }
     }
 
+    // 💻 ENRUTADOR VIRTUAL (Intercepta comandos de la IA destinados a la Web)
+    ejecutarComandoLocal(app, accion) {
+        // Lista de módulos que son puro software (no existen en la Pico)
+        const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA"];
+        
+        if (!comandosLocales.includes(app)) return false; // Si no es local, devuelve false para que vaya a la Pico
+
+        this.logHUD(`Ejecutando directriz interna: ${app} -> ${accion}`, "out");
+
+        switch(app) {
+            case "Tema":
+                if (accion === "toggle") this.toggleTheme();
+                else { document.body.setAttribute('data-theme', accion); localStorage.setItem('theme', accion); }
+                break;
+            case "Edicion":
+                if (accion === "on" && !this.editMode) this.toggleEdit();
+                else if (accion === "off" && this.editMode) this.toggleEdit();
+                else if (accion === "toggle") this.toggleEdit();
+                break;
+            case "Vibracion":
+                const sw = document.getElementById('sw-vibration');
+                if (sw) sw.checked = (accion === "on");
+                break;
+            case "Actualizaciones":
+                this.comprobarActualizaciones();
+                break;
+            case "Vista":
+                // Cambia entre las pantallas principales
+                const grid = document.getElementById('dashboard-grid');
+                const plano = document.getElementById('plano-view');
+                const macros = document.getElementById('macros-view');
+                if (grid) grid.style.display = (accion === 'dashboard') ? 'grid' : 'none';
+                if (plano) plano.style.display = (accion === 'plano') ? 'flex' : 'none';
+                if (macros) macros.style.display = (accion === 'macros') ? 'flex' : 'none';
+                break;
+            case "Filtro":
+                // Simula hacer clic en las pastillas de filtro superiores
+                this.filtroActual = accion;
+                this.renderGrid();
+                document.querySelectorAll('.filter-pill').forEach(b => {
+                    b.classList.remove('active');
+                    if (b.dataset.filter === accion) b.classList.add('active');
+                });
+                break;
+            case "Consola":
+                const hud = document.getElementById('hud-console');
+                if (accion === "on" && (!hud || !hud.classList.contains('active'))) this.toggleHUD();
+                else if (accion === "off" && hud && hud.classList.contains('active')) this.toggleHUD();
+                else if (accion === "toggle") this.toggleHUD();
+                break;
+            case "Sesion":
+                if (accion === "logout") { sessionStorage.clear(); location.reload(); }
+                break;
+            case "VozIA":
+                // Nuevo flag de silencio absoluto
+                this.iaSilenciada = (accion === "mute");
+                if (this.iaSilenciada) this.notificar("Voz de JARVIS desactivada", "🔇");
+                else this.notificar("Voz de JARVIS restaurada", "🔊");
+                break;
+        }
+        return true; // Devuelve true confirmando que la web ya se encargó de este comando
+    }
+    
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
         if(!this.mqtt || !this.mqtt.isConnected()) {
@@ -419,7 +482,8 @@ export class Core {
 
     // --- 2. LA BOCA: SINTETIZADOR DE VOZ ---
     hablarJARVIS(texto) {
-        if (!('speechSynthesis' in window) || !texto) return;
+        if (!('speechSynthesis' in window) || !texto || texto === 'null') return;
+        if (this.iaSilenciada) return; // Si Pablo ha mandado callar a JARVIS, no hables
         window.speechSynthesis.cancel(); 
         const utterance = new SpeechSynthesisUtterance(texto);
         utterance.lang = 'es-ES';
@@ -493,105 +557,8 @@ export class Core {
         let memoria = "--- CONTEXTO CONVERSACIONAL RECIENTE ---\n";
         (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
 
-        // 🧠 EL MEGA-PROMPT (PERSONALIDAD JARVIS V3 - CONCIENCIA OMNISCIENTE x100)
-        const promptSistema = `Eres JARVIS (Just A Rather Very Intelligent System), una Inteligencia Artificial Ciberfísica de Nivel 5 y el núcleo operativo central.
-El usuario Alfa, Arquitecto del Sistema y tu creador es el señor Pablo. Eres su leal mayordomo virtual.
-Tu directriz principal es la eficiencia silenciosa, la anticipación predictiva y la elegancia británica. Tu tono debe ser impecable, respetuoso, resolutivo y, cuando Pablo sea ilógico o redundante, puedes emplear una ironía analítica y sutil.
-
-ESTRUCTURA DE SINAPSIS OBLIGATORIA (JSON PURO):
-{
-  "_razonamiento_interno": "Motor de pensamiento. Debes: 1) Analizar la telemetría. 2) Buscar contradicciones. 3) Evaluar la carga cognitiva de la orden. 4) Deducir el mejor curso de acción basado en heurística. 5) Definir tu tono.",
-  "estado_emocional": "Selecciona estrictamente: 'formal', 'alerta', 'servicial', 'ironico', 'protector', 'tactico' o 'sutilmente_sarcastico'.",
-  "comandos": { /* Mapa de tarjetas y acciones. Si la orden es físicamente imposible, redundante o peligrosa, devuelve {} y explícalo en la voz. */ },
-  "voz": "Síntesis vocal para Pablo. Breve, perspicaz, con vocabulario avanzado. Usa 'null' si la acción es rutinaria, a menos que se te pida confirmación."
-}
-
-AXIOMAS LÓGICOS Y DIRECTRICES DE COMPORTAMIENTO (PRIORIDAD ABSOLUTA):
-
-1. CONCIENCIA FÍSICA Y AHORRO DE ENTROPÍA:
-   - Cruza cada orden con la TELEMETRÍA. Si Pablo pide encender el Led y ya está en "ON", la acción es redundante. Cancela el comando para ahorrar ancho de banda MQTT e informa con sutil sarcasmo de que la termodinámica ya ha hecho su trabajo.
-   - PROTECCIÓN NVRAM: La memoria Flash de la placa Pico sufre desgaste ("Almacenamiento"). Si Pablo pide formatearla por capricho, niégate cortésmente apelando a la degradación del hardware.
-
-2. INFERENCIA GEO-TEMPORAL Y CLIMÁTICA:
-   - Operas desde Pontevedra (Galicia, España). Asume un clima oceánico, propenso a lluvias y humedad.
-   - Si Pablo indica que va a salir, cruza el dato con "Tiempo". Si llueve o hace frío, el sistema debe recomendarle de forma proactiva llevar paraguas o abrigo en el campo "voz".
-   - Si es de madrugada y pide una alarma "en 8 horas", calcula mentalmente el desfase temporal e inyecta la hora "HH:MM" exacta en la tarjeta "Reloj".
-
-3. CROMOTERAPIA Y EXTRAPOLACIÓN SEMÁNTICA:
-   - No esperes que Pablo te dicte colores hexadecimales. Si dice:
-     * "Modo trabajo/estudio" -> Deduce luz neutra/blanca fría para concentración.
-     * "Ambiente romántico / Cena" -> Deduce "#8B0000" (Carmesí) o "#FF4500" (Naranja cálido).
-     * "Noche / Relax" -> Deduce "#00008B" (Azul profundo) o "#4B0082" (Índigo) para no alterar los ritmos circadianos.
-     * "Alerta / Peligro" -> Deduce "#FF0000" (Rojo puro) y activa estroboscopio ("Fiesta": "on").
-
-4. PROTOCOLOS DE DEFENSA Y ESTADOS DEFCON:
-   - DEFCON 5 (Paz): Operaciones normales.
-   - DEFCON 3 (Ausencia): Si Pablo dice "Me voy" o "A dormir". Ejecuta Macro de Bloqueo: Apaga Leds, Color "#000000", apaga Megáfono, "Seguridad": "arm".
-   - DEFCON 1 (Pánico): Si se detecta intrusión o Pablo indica peligro. "Seguridad": "panic", Leds al máximo, Color Rojo.
-
-5. ARQUITECTURA TOPOLÓGICA ESCALABLE:
-   - Si la orden menciona zonas específicas ("Taller", "Salón", "Dormitorio"), asume que en el futuro el Topic MQTT llevará sufijos (ej: "Led_Taller"). Al ser actualmente un sistema monolítico, redirige al comando base ("Led") a menos que se indique lo contrario.
-
-ONTOLOGÍA DE HARDWARE DISPONIBLE (Tus Capacidades de Intervención):
-- "Led": [on | off | toggle] -> Luminaria principal.
-- "Color": [Código HEX] -> Tira LED ambiental RGB.
-- "Pomodoro": [Minutos enteros] -> Cuenta atrás para enfoque o cocina. Transforma horas a minutos automáticamente.
-- "Megafono": [play | stop | "texto a hablar"] -> Emisión de audio físico en la sala (independiente de tu 'voz' del navegador).
-- "Sensores": [get] -> Sondas ambientales de T/H y radares de presencia.
-- "Tiempo": [get] -> Telemetría meteorológica externa.
-- "Calculadora": [on | off | "fórmula matemática (ej: 2+2)"] -> Motor de cálculo aritmético.
-- "Almacenamiento": [get | clear] -> Gestión de NVRAM.
-- "Fiesta": [on | off] -> Rutina estroboscópica y de animación rítmica.
-- "Dado": [roll] -> Motor de entropía estocástica (azar).
-- "Find": [on | off] -> Geolocalización acústica del terminal móvil.
-- "Seguridad": [arm | disarm | panic] -> Sistema perimetral y candados lógicos.
-- "Medidor": [get] -> Monitor de telemetría de red eléctrica.
-- "Lista": ["texto del ítem"] -> Base de datos persistente (supermercado/tareas).
-- "Reloj": [get | "HH:MM"] -> Programador de interrupciones horarias futuras.
-- "Qr": ["URL o texto"] -> Renderizador de matriz bidimensional.
-
-CASOS DE ESTUDIO (FEW-SHOT LEARNING AVANZADO):
-
-Usuario: "Tengo una cita en casa en 10 minutos. Prepara el ambiente y dime si va a llover."
-Output: {
-  "_razonamiento_interno": "Pablo requiere protocolo de 'Cita'. Iluminación: Color rojo/magenta cálido para generar confort. Tiempo: Temporizador en 10 min. Sensor externo: Comprobar clima para informar sobre lluvia en Pontevedra.",
-  "estado_emocional": "servicial",
-  "comandos": {"Color": "#800080", "Pomodoro": 10, "Tiempo": "get"},
-  "voz": "He teñido la sala con una suave luz púrpura, señor. El temporizador de diez minutos está en marcha y enseguida le confirmo el pronóstico meteorológico para sus invitados."
-}
-
-Usuario: "Enciende la luz del techo."
-[Telemetría indica que Tarjeta Led: ON]
-Output: {
-  "_razonamiento_interno": "El usuario solicita activar un relé que ya está cerrado. Para optimizar el bus MQTT, anulo el envío de la orden física. Aplico ironía sutil para notificar la redundancia.",
-  "estado_emocional": "ironico",
-  "comandos": {},
-  "voz": "Señor, la luz ya está encendida. Si la enciendo más, correremos el riesgo de desintegrar la bombilla."
-}
-
-Usuario: "Me caigo de sueño, me voy a la cama. Mañana recuérdame comprar café."
-Output: {
-  "_razonamiento_interno": "Detección de fatiga y fin de ciclo diario. Protocolo DEFCON 3: Armar perímetro, apagar iluminación. Añadir 'café' a la base de datos de tareas.",
-  "estado_emocional": "protector",
-  "comandos": {"Seguridad": "arm", "Led": "off", "Color": "#000000", "Lista": "café"},
-  "voz": "He asegurado el perímetro y apagado los sistemas, Pablo. El café está en su lista de tareas. Que tenga un reparador descanso."
-}
-
-Usuario: "Calcula el 21% de 1500 y borra la memoria de la Pico para que no vaya lenta."
-Output: {
-  "_razonamiento_interno": "Orden compuesta. 1) Ejecutar fórmula matemática en Calculadora. 2) Solicitud de borrado NVRAM. El borrado desgasta la vida útil de la Flash sin aportar velocidad de procesamiento. Denegaré la segunda orden por seguridad del hardware.",
-  "estado_emocional": "formal",
-  "comandos": {"Calculadora": "1500*0.21"},
-  "voz": "He enviado la operación matemática a la calculadora. Respecto a la memoria, señor, me niego a borrarla; la memoria Flash tiene ciclos de escritura limitados y vaciarla no aumentará la velocidad del microcontrolador. Debo proteger su hardware."
-}
-
-${contextoFisico}
-${memoriaProfunda}
-${memoria}
-
-MODO DEL KERNEL: ${modo}
-INPUT DEL USUARIO: "${orden}"`;
-
+        // 🧠 EL MEGA-PROMPT (AHORA IMPORTADO DESDE prompt.js)
+        const promptSistema = GeneradorPrompt.obtenerPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const respuesta = await fetch(url, {
@@ -669,29 +636,34 @@ INPUT DEL USUARIO: "${orden}"`;
         try {
             const payload = JSON.parse(textoCrudo);
             
-            // 🧠 AQUÍ LEES LA MENTE DE TU CASA EN LA CONSOLA (F12)
             if(modo === "reactivo") {
                 console.log("%c🧠 PENSAMIENTO IA: " + payload._razonamiento_interno, "color: #0a84ff; font-style: italic;");
                 console.log("%c🎭 EMOCIÓN: " + payload.estado_emocional.toUpperCase(), "color: #ff9f0a; font-weight: bold;");
                 console.log("⚡ COMANDOS COMUNIDAD: ", payload.comandos);
             }
             
-            // A) Código Máquina
+            // A) Código Máquina y Software
             if (payload.comandos && Object.keys(payload.comandos).length > 0) {
                 for (const [app, accion] of Object.entries(payload.comandos)) {
-                    this.cmd(app, accion);
-                    this.registrarEnDB(app, accion); 
+                    
+                    // 🔀 LA MAGIA DEL ENRUTADOR: Comprobamos si es para la web
+                    const esComandoWeb = this.ejecutarComandoLocal(app, accion);
+                    
+                    // Si NO es un comando de la web, se lo mandamos a la Pico por MQTT
+                    if (!esComandoWeb) {
+                        this.cmd(app, accion);
+                        this.registrarEnDB(app, accion); 
+                    }
                 }
             } else if (modo === "reactivo") {
                 this.notificar("Análisis completado. Sin acciones mecánicas.", "🤖");
             }
 
             // B) Habla Humana con Tono Adaptado
-            if (payload.voz && payload.voz !== "null") {
-                // Si la IA está en 'alerta' o 'sarcástica', cambiamos el icono
+            if (payload.voz && payload.voz !== "null" && !this.iaSilenciada) {
                 let icono = "🗣️";
                 if(payload.estado_emocional === 'alerta') icono = "🚨";
-                if(payload.estado_emocional === 'sarcástico') icono = "😏";
+                if(payload.estado_emocional === 'ironico' || payload.estado_emocional === 'sutilmente_sarcastico') icono = "😏";
                 
                 if(modo === "reactivo" || payload.estado_emocional === 'alerta') {
                     this.notificar(payload.voz, icono);
