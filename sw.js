@@ -1,6 +1,10 @@
-self.addEventListener('install', (e) => {
+self.addEventListener('install', (event) => {
     console.log('[Service Worker] Instalado y listo para PWA');
     self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
