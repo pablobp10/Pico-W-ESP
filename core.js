@@ -572,7 +572,7 @@ INPUT DEL USUARIO: "${orden}"`;
                 console.warn("⚠️ Red neuronal principal off. Levantando GPU Local...", error);
                 this.notificar("Cloud caída. IA Local asumiendo el mando...", "🔋");
                 try {
-                    const { CreateMLCEngine } = await import("https://esm.sh/@mlc.ai/web-llm");
+                    const { CreateMLCEngine } = await import("https://cdn.jsdelivr.net/npm/@mlc.ai/web-llm@0.2.64/+esm");
                     this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC");
                     const reply = await this.localEngine.chat.completions.create({
                         messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
