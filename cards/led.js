@@ -18,19 +18,29 @@ export const LedCard = {
     `,
     onInit: (core) => {
         const btn = document.getElementById('btn-Led');
-        setTimeout(() => core.cmd('Led', 'get'), 500);
-        
+        const card = document.getElementById('card-Led');
+        const valTxt = document.getElementById('val-Led');
+
+        // 🛡️ ESCUDO: Si la interfaz aún no se ha dibujado, abortamos para no dar error
+        if (!btn || !card || !valTxt) return; 
+
+        // Configuración inicial segura
         card.classList.remove('on'); 
-        document.getElementById('val-Led').innerText = "OFF";
+        valTxt.innerText = "OFF";
         btn.innerText = "ENCENDER"; 
         btn.className = "btn-action btn-on";
 
+        // Pedimos el estado real a la placa (una sola vez es suficiente)
         setTimeout(() => core.cmd('Led', 'get'), 500); 
 
         btn.onclick = () => {
-            const st = document.getElementById('val-Led').innerText;
-            // 🧠 CAMBIO CLAVE: En vez de llamar a cmd(), llamamos a ejecutarConDeshacer()
+            const st = valTxt.innerText;
+            // 🧠 Time-Travel activado:
             core.ejecutarConDeshacer('Led', st === "ON" ? "off" : "on"); 
+            
+            // Feedback visual: Ponemos el botón en espera
+            btn.classList.add('is-pending');
+            btn.innerText = "ESPERANDO...";
         };
     },
     
@@ -41,15 +51,20 @@ export const LedCard = {
             if (val.led === true || val.led === "1" || val.led === "ON" || val.led === "on") isOn = true;
         }
         
-        document.getElementById('val-Led').innerText = isOn ? "ON" : "OFF";
+        const valTxt = document.getElementById('val-Led');
         const btn = document.getElementById('btn-Led');
         const card = document.getElementById('card-Led');
         
-        // ⬇️ LA RESPUESTA: Quitamos el estado de carga al recibir la confirmación
+        // 🛡️ ESCUDO: Protegemos la recepción de datos
+        if (!valTxt || !btn || !card) return;
+
+        valTxt.innerText = isOn ? "ON" : "OFF";
+        
+        // ⬇️ LA RESPUESTA: Quitamos el estado de carga al recibir la confirmación de la Pico
         btn.classList.remove('is-pending');
         
         if(isOn) { 
-            if(!card.classList.contains('on')) core.vibra("doble"); // Vibra si realmente cambió
+            if(!card.classList.contains('on')) core.vibra("doble"); // Vibra solo si hay un cambio real
             card.classList.add('on'); 
             btn.innerText = "APAGAR"; 
             btn.className = "btn-action btn-off"; 
