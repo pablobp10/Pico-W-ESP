@@ -443,7 +443,7 @@ export class Core {
         m.destinationName = this.conf.topic + "comando/" + app; 
         this.mqtt.send(m); 
         
-        console.log("🚀 COMANDO ENVIADO A LA PICO ->", m.destinationName, payload);
+        console.log("🚀 COMANDO ENVIADO A LA PICO ->", comando);
     }
 
     // ==========================================================
@@ -558,7 +558,7 @@ export class Core {
         (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
 
         // 🧠 EL MEGA-PROMPT (AHORA IMPORTADO DESDE prompt.js)
-        const promptSistema = GeneradorPrompt.obtenerPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
+        const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const respuesta = await fetch(url, {
