@@ -23,10 +23,41 @@ export const ListaCard = {
             if(e.key === 'Enter') addItem(core);
         };
     },
+    
     onData: (val, app, core) => {
-        let items = [];
-        try { items = Array.isArray(val) ? val : JSON.parse(val); } catch { items = []; }
+        let items = window.currentShopList || [];
         
+        // 🧠 TRADUCTOR HÍBRIDO AVANZADO
+        try { 
+            // 1. Sincronización JSON (entre móviles)
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) items = parsed;
+            else throw new Error("No es array");
+        } catch { 
+            // 2. Comandos de texto plano desde JARVIS
+            if (typeof val === "string" && val.trim() !== "" && val !== "get") {
+                const comando = val.trim().toLowerCase();
+                
+                if (comando === "limpiar" || comando === "borrar") {
+                    items = []; // Vacía la lista por completo
+                } 
+                else if (val.trim().startsWith("-")) {
+                    // Borra un elemento específico (ej: "- queso")
+                    const aBorrar = val.substring(1).trim().toLowerCase();
+                    items = items.filter(item => item.txt.toLowerCase() !== aBorrar);
+                } 
+                else {
+                    // Añade un elemento (con "+" o directamente el nombre)
+                    const aAnadir = val.trim().startsWith("+") ? val.substring(1).trim() : val.trim();
+                    if(aAnadir) items.push({ txt: aAnadir, done: false });
+                }
+                
+                // Republicamos el nuevo estado para todos
+                core.pub('Lista', JSON.stringify(items), true);
+            }
+        }
+        
+        window.currentShopList = items;
         const container = document.getElementById('shop-list');
         container.innerHTML = ""; 
         
