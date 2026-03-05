@@ -372,7 +372,7 @@ export class Core {
         const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA"];
         
         // 🎲 EMULADOR DE HARDWARE VIRTUAL (Tarjetas matemáticas o de red externa)
-        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo"];
+        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista"];
 
         // 1. Interceptamos el Hardware Virtual PRIMERO
         if (hardwareVirtual.includes(app)) {
