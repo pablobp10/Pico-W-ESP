@@ -675,6 +675,32 @@ export class Core {
                 this.notificar("Análisis completado. Sin acciones mecánicas.", "🤖");
             }
 
+            // 👻 MOTOR DEL FANTASMA EN EL DOM (Control físico de la interfaz)
+            if (payload.ui_acciones && payload.ui_acciones.length > 0) {
+                payload.ui_acciones.forEach(acc => {
+                    if (acc.tipo === "escribir") {
+                        const input = document.getElementById(acc.id);
+                        if (input) {
+                            input.value = acc.valor;
+                            this.logHUD(`Escribiendo en [${acc.id}]: "${acc.valor}"`, "info");
+                        }
+                    } else if (acc.tipo === "click") {
+                        const btn = document.getElementById(acc.id);
+                        if (btn) {
+                            btn.click();
+                            this.logHUD(`Pulsando botón [${acc.id}]`, "info");
+                        }
+                    } else if (acc.tipo === "css") {
+                        const el = acc.id === "body" ? document.body : document.getElementById(acc.id);
+                        if (el) {
+                            el.style[acc.propiedad] = acc.valor;
+                            this.logHUD(`Modificando CSS de [${acc.id}]`, "info");
+                        }
+                    }
+                });
+            }
+            
+            
             // B) Habla Humana con Tono Adaptado
             if (payload.voz && payload.voz !== "null" && !this.iaSilenciada) {
                 let icono = "🗣️";
