@@ -48,10 +48,10 @@ export class Core {
     }
 
     init() {
+        this.filtroActual = 'all';
         this.initTheme();
         this.renderGrid();
         this.setupBrokerMenu();
-        this.filtroActual = 'all';
         this.initAtajosTeclado();
         this.initParallax();
         this.initSwipeGestures();
@@ -576,20 +576,19 @@ export class Core {
         } catch (e) { return this.notificar("Error de cifrado IA", "❌"); }
 
         // 👁️ TELEMETRÍA (El "Sistema Nervioso" de la casa)
-        let contextoFisico = "--- TELEMETRÍA FÍSICA ACTUAL ---\n";
+        
+        // 1. Leemos el piloto de conexión visual de la UI
+        const statusEl = document.querySelector('.pico-info-pill');
+        const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
+        
+        let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
+        
         document.querySelectorAll('.card').forEach(card => {
-            contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo y en espera de órdenes"}\n`;
+            contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`;
         });
         const horaActualStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         contextoFisico += `- Reloj del sistema: ${horaActualStr}\n`;
 
-        // 🗄️ SUBCONSCIENTE (Patrones y Hábitos)
-        let memoriaProfunda = "";
-        if (this.db) {
-            const horaActual = new Date().getHours();
-            const datosHistoricos = await this.consultarHabitosDB(horaActual);
-            memoriaProfunda = `--- PATRONES HISTÓRICOS ESTADÍSTICOS (${horaActual}:00) ---\n${datosHistoricos}\n`;
-        }
 
         // 📚 MEMORIA A CORTO PLAZO (El hilo de la conversación)
         let memoria = "--- CONTEXTO CONVERSACIONAL RECIENTE ---\n";
