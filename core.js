@@ -539,18 +539,35 @@ export class Core {
         localStorage.setItem('picoHabitos', JSON.stringify(habitos));
     }
 
-    // --- 4. EL CEREBRO REACTIVO (Cuando tú le hablas) ---
+        // --- 4. EL CEREBRO REACTIVO (Cuando tú le hablas) ---
     async procesarComandoIA() {
         const input = document.getElementById('ai-input');
+        const btnSend = document.getElementById('btn-ai-send');
         const orden = input.value.trim();
         if(!orden) return;
 
+        // 1. Bloqueamos la UI y mostramos el Spinner de carga
+        const iconoOriginal = btnSend.innerHTML;
+        btnSend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btnSend.style.pointerEvents = 'none'; // Evita doble clic
         input.value = ""; 
+        input.disabled = true;
+        input.placeholder = "JARVIS analizando...";
+        
         this.notificar("Cerebro Cuántico procesando...", "🧠");
         this.vibra("tick");
 
         this.historialIA = this.historialIA || [];
+        
+        // 2. Esperamos a que la IA responda (Cloud o Local)
         await this.ejecutarInferencia(orden, "reactivo");
+
+        // 3. Restauramos la interfaz cuando termine (sea éxito o error)
+        btnSend.innerHTML = iconoOriginal;
+        btnSend.style.pointerEvents = 'auto';
+        input.disabled = false;
+        input.placeholder = "Ej: Apaga la luz...";
+        input.focus();
     }
 
     // --- 5. EL AGENTE AUTÓNOMO (Bucle de fondo) ---
