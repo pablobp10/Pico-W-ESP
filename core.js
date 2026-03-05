@@ -589,6 +589,13 @@ export class Core {
         const horaActualStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         contextoFisico += `- Reloj del sistema: ${horaActualStr}\n`;
 
+        // 🗄️ SUBCONSCIENTE (Patrones y Hábitos) - ¡Aquí está la pieza que faltaba!
+        let memoriaProfunda = "";
+        if (this.db) { 
+            const horaActual = new Date().getHours(); 
+            const datosHistoricos = await this.consultarHabitosDB(horaActual);
+            memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${datosHistoricos}\n`; 
+        }
 
         // 📚 MEMORIA A CORTO PLAZO (El hilo de la conversación)
         let memoria = "--- CONTEXTO CONVERSACIONAL RECIENTE ---\n";
