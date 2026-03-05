@@ -448,7 +448,6 @@ export class Core {
         }
         return true; // Devuelve true confirmando que la web ya se encargó de este comando
     }
-}
 
     // 💻 ENRUTADOR VIRTUAL (Intercepta comandos de la IA destinados a la Web)
     
