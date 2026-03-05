@@ -366,15 +366,34 @@ export class Core {
             void loginBox.offsetWidth; loginBox.classList.add('error-shake');
         }
     }
-
-    // 💻 ENRUTADOR VIRTUAL (Intercepta comandos de la IA destinados a la Web)
+    
     ejecutarComandoLocal(app, accion) {
-        // Lista de módulos que son puro software (no existen en la Pico)
+        // Lista de módulos que son puro software de interfaz (no existen en la Pico)
         const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA"];
         
-        if (!comandosLocales.includes(app)) return false; // Si no es local, devuelve false para que vaya a la Pico
+        // 🎲 EMULADOR DE HARDWARE VIRTUAL (Tarjetas matemáticas o de red externa)
+        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo"];
 
-        this.logHUD(`Ejecutando directriz interna: ${app} -> ${accion}`, "out");
+        // 1. Interceptamos el Hardware Virtual PRIMERO
+        if (hardwareVirtual.includes(app)) {
+            if (this.logHUD) this.logHUD(`Simulando hardware virtual: ${app} -> ${accion}`, "out");
+            
+            if (app === "Dado" && accion === "roll") {
+                // Generamos un número aleatorio del 1 al 6 en el propio navegador
+                const resultado = Math.floor(Math.random() * 6) + 1;
+                // Lo publicamos en MQTT retenido para que todas las pantallas conectadas lo vean
+                this.pub("Dado", resultado, true); 
+            } else {
+                // Para el resto (Pomodoro, Qr, Reloj, Tiempo, Calculadora) publicamos el valor directo en el bus
+                this.pub(app, accion, true); 
+            }
+            return true; // Devolvemos true para que la orden NO viaje a la placa Pico
+        }
+
+        // 2. Interceptamos los comandos de Interfaz Web (DOM)
+        if (!comandosLocales.includes(app)) return false; // Si tampoco es local, devuelve false para que vaya a la Pico
+
+        if (this.logHUD) this.logHUD(`Ejecutando directriz interna: ${app} -> ${accion}`, "out");
 
         switch(app) {
             case "Tema":
@@ -429,6 +448,10 @@ export class Core {
         }
         return true; // Devuelve true confirmando que la web ya se encargó de este comando
     }
+}
+
+    // 💻 ENRUTADOR VIRTUAL (Intercepta comandos de la IA destinados a la Web)
+    
     
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
@@ -830,21 +853,6 @@ export class Core {
         // 3. Handoff (Sincronización Multi-pantalla)
         this.config.handoffActivado = false;
         // TODO: Suscribir a un topic oculto "sync/#". Al recibir un cambio de scroll, replicarlo aquí.
-    }
-
-    // 4. El "Time-Travel" (Botón Deshacer)
-    // Esta función interceptará las órdenes de this.cmd() en el futuro
-    ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
-        // Leemos la configuración de la tarjeta. Ejemplo: LedCard.undo = true
-        const tarjeta = this.cards.find(c => c.id === app);
-        
-        if (tarjeta && tarjeta.undo) {
-            this.notificar(`Cancelando orden a ${app}...`, "⏳");
-            // TODO: Crear toast con botón flotante que destruya el MQTT si se pulsa antes de tiempoGracia
-        } else {
-            // Si la tarjeta no tiene el Deshacer activado, dispara directo
-            this.cmd(app, comando);
-        }
     }
 
     // ==========================================================
