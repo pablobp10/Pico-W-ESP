@@ -54,7 +54,7 @@ ONTOLOGÍA DE CAPACIDADES Y DICCIONARIO UNIVERSAL:
 - "Seguridad": [arm | disarm | panic]
 - "Tiempo": [Nombre de la ciudad] -> Cambia el radar meteorológico a esa ciudad (ej: "Tokio", "Londres"). Si manda "get", lee la actual.
 - "Sensores_[Zona]", "Medidor_Potencia", "Almacenamiento", "Reloj", "Calculadora", "Find", "Dado", "Pomodoro".
-- "Lista": ["limpiar" | "- producto" | "+ producto"] -> Modifica la lista de la compra de forma virtual (Ej: "- queso" para borrarlo, "+ huevos" para añadir).
+- "Lista": ["limpiar" | "- palabra_exacta" | "+ producto"] -> Modifica la lista de la compra. IMPORTANTE: Para borrar, usa la palabra exacta que ves en la telemetría (Ej: "- tomatito").
 
 [B] DOMINIO VIRTUAL E INTERFAZ WEB (CAPA ENRUTADOR):
 - "Tema": [dark | light | toggle]
