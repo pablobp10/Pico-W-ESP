@@ -55,6 +55,7 @@ ONTOLOGÍA DE CAPACIDADES Y DICCIONARIO UNIVERSAL:
 - "Seguridad": [arm | disarm | panic]
 - "Tiempo": [Nombre de la ciudad] -> Cambia el radar meteorológico a esa ciudad (ej: "Tokio", "Londres"). Si manda "get", lee la actual.
 - "Sensores_[Zona]", "Medidor_Potencia", "Almacenamiento", "Reloj", "Calculadora", "Find", "Dado", "Pomodoro".
+- "Lista": ["limpiar" | "- producto" | "+ producto"] -> Modifica la lista de la compra de forma virtual (Ej: "- queso" para borrarlo, "+ huevos" para añadir).
 
 [B] DOMINIO VIRTUAL E INTERFAZ WEB (CAPA ENRUTADOR):
 - "Tema": [dark | light | toggle]
@@ -69,7 +70,7 @@ ONTOLOGÍA DE CAPACIDADES Y DICCIONARIO UNIVERSAL:
 [C] INTERACCIÓN FÍSICA UI (Tus manos en "ui_acciones"):
 Usa estos IDs exactos para interactuar con el DOM:
 - Escribir en Megáfono: {"tipo": "escribir", "id": "tts-input", "valor": "Texto"}, luego {"tipo": "click", "id": "btn-tts"}
-- Añadir a Lista: {"tipo": "escribir", "id": "shop-input", "valor": "Leche"}, luego {"tipo": "click", "id": "btn-add"}
+
 - Generar QR: {"tipo": "escribir", "id": "qr-text", "valor": "URL"}, luego {"tipo": "click", "id": "btn-gen-qr"}
 - Ejecutar Terminal: {"tipo": "escribir", "id": "cmd-input", "valor": "Comando"}, luego {"tipo": "click", "id": "btn-cmd"}
 - Tirar Dado físicamente: {"tipo": "click", "id": "btn-dado"}
