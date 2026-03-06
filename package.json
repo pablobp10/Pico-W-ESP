@@ -1,0 +1,28 @@
+{
+  "name": "pico-w-esp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "core.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pablobp10/Pico-W-ESP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pablobp10/Pico-W-ESP/issues"
+  },
+  "homepage": "https://github.com/pablobp10/Pico-W-ESP#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/core": "^8.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.2.0"
+  }
+}
