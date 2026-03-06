@@ -488,50 +488,6 @@ export class Core {
     // ==========================================================
     // 🧠 SISTEMA OPERATIVO JARVIS (OMNI-CONSCIENTE + AUTÓNOMO)
     // ==========================================================
-
-    // 🔀 INTERRUPTOR NUBE / LOCAL
-    initInterruptorIA() {
-        this.modoIALocal = true; 
-        
-        const aiInput = document.getElementById('ai-input');
-        if (aiInput && !document.getElementById('btn-ia-mode')) {
-            const btnMode = document.createElement('button');
-            btnMode.id = 'btn-ia-mode';
-            btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-            btnMode.style.cssText = "background:transparent; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
-            
-            aiInput.parentNode.insertBefore(btnMode, aiInput);
-            
-            btnMode.onclick = async () => {
-                if (!this.modoIALocal) {
-                    // Intento de pasar a Local
-                    btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Animación de carga en el botón
-                    btnMode.style.color = '#32d74b';
-                    this.notificar("Arrancando turbinas locales...", "⚙️");
-                    
-                    const exito = await this.precargarMotorLocal();
-                    
-                    if (exito) {
-                        this.modoIALocal = true;
-                        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-                        this.notificar("IA Local lista en memoria", "🔒");
-                    } else {
-                        // Falló la carga (el móvil no aguanta)
-                        this.modoIALocal = false;
-                        btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                        btnMode.style.color = '#0a84ff';
-                        this.notificar("Hardware incompatible", "⚠️");
-                    }
-                } else {
-                    // Volver a la Nube (Google)
-                    this.modoIALocal = false;
-                    btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                    btnMode.style.color = '#0a84ff';
-                    this.notificar("Modo IA Nube (Gemini 1.5)", "☁️");
-                }
-            };
-        }
-    }
     
     // --- 1. EL OÍDO: RECONOCIMIENTO DE VOZ NATIVO ---
     initVozJARVIS() {
@@ -826,6 +782,50 @@ export class Core {
         } catch (e) { 
             console.error("Error de parsing neuronal:", e); 
             this.notificar("Sinapsis colapsada", "⚠️");
+        }
+    }
+    
+    // 🔀 INTERRUPTOR NUBE / LOCAL
+    initInterruptorIA() {
+        this.modoIALocal = true; 
+        
+        const aiInput = document.getElementById('ai-input');
+        if (aiInput && !document.getElementById('btn-ia-mode')) {
+            const btnMode = document.createElement('button');
+            btnMode.id = 'btn-ia-mode';
+            btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+            btnMode.style.cssText = "background:transparent; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
+            
+            aiInput.parentNode.insertBefore(btnMode, aiInput);
+            
+            btnMode.onclick = async () => {
+                if (!this.modoIALocal) {
+                    // Intento de pasar a Local
+                    btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Animación de carga en el botón
+                    btnMode.style.color = '#32d74b';
+                    this.notificar("Arrancando turbinas locales...", "⚙️");
+                    
+                    const exito = await this.precargarMotorLocal();
+                    
+                    if (exito) {
+                        this.modoIALocal = true;
+                        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+                        this.notificar("IA Local lista en memoria", "🔒");
+                    } else {
+                        // Falló la carga (el móvil no aguanta)
+                        this.modoIALocal = false;
+                        btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+                        btnMode.style.color = '#0a84ff';
+                        this.notificar("Hardware incompatible", "⚠️");
+                    }
+                } else {
+                    // Volver a la Nube (Google)
+                    this.modoIALocal = false;
+                    btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+                    btnMode.style.color = '#0a84ff';
+                    this.notificar("Modo IA Nube (Gemini 1.5)", "☁️");
+                }
+            };
         }
     }
     
