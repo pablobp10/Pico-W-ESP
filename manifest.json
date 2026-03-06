@@ -1,6 +1,5 @@
-
 {
-  "id": "/Pico-W-ESP/Pico OS",
+  "id": "/Pico-W-ESP/Pico_OS",
   "name": "Pico OS",
   "short_name": "Pico OS",
   "description": "IA de la frambuesa",
@@ -15,6 +14,7 @@
   "dir": "ltr",
   "categories": ["utilities", "productivity", "smart-home"],
   "prefer_related_applications": false,
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
   "launch_handler": {
     "client_mode": ["navigate-existing", "auto"]
   },
@@ -67,5 +67,52 @@
       "url": "/Pico-W-ESP/?action=fiesta",
       "icons": [{ "src": "logo-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "file_handlers": [
+    {
+      "action": "/Pico-W-ESP/",
+      "accept": {
+        "application/json": [".json"],
+        "text/plain": [".txt"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+pico",
+      "url": "/Pico-W-ESP/?cmd=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/Pico-W-ESP/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.pablo.picoos",
+      "id": "com.pablo.picoos"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Pico OS Control",
+      "description": "Control rápido de módulos",
+      "tag": "pico-widget",
+      "ms_ac_template": "widget.json",
+      "data": "widget-data.json",
+      "type": "application/json"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "note_taking": {
+    "new_note_url": "/Pico-W-ESP/?action=new_note"
+  }
 }
