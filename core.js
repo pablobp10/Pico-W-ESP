@@ -623,7 +623,8 @@ export class Core {
             return true;
 
         } catch (e) {
-            console.error("Fallo al montar GPU Local:", e);
+            // Añadimos e.message para que la consola nos dé el texto real y no un {}
+            console.error("Fallo al montar GPU Local:", e.message || e);
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
             return false;
         }
