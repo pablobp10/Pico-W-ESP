@@ -621,7 +621,7 @@ export class Core {
         // 🧠 EL MEGA-PROMPT (AHORA IMPORTADO DESDE prompt.js)
         const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const respuesta = await fetch(url, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -662,7 +662,7 @@ export class Core {
 
                 try {
                     // 2. Cargamos el motor enganchando la telemetría de descarga a la barra visual
-                    const { CreateMLCEngine } = await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.64/+esm");
+                    const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
                     this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
                         initProgressCallback: (progress) => {
                             // progress.progress devuelve un valor entre 0 y 1
