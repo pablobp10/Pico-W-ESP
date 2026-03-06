@@ -6,7 +6,7 @@
   "start_url": "/Pico-W-ESP/",
   "scope": "/Pico-W-ESP/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "display_override": ["tabbed", "window-controls-overlay", "minimal-ui"],
   "background_color": "#121212",
   "theme_color": "#0a84ff",
   "orientation": "portrait-primary",
@@ -18,52 +18,31 @@
   "launch_handler": {
     "client_mode": ["navigate-existing", "auto"]
   },
+  "scope_extensions": [
+    { "origin": "*.github.io" },
+    { "origin": "https://api.open-meteo.com" }
+  ],
   "icons": [
-    {
-      "src": "logo-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "logo-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "logo-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "screenshots": [
-    {
-      "src": "captura-mobile.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "captura-desktop.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide"
-    }
+    { "src": "captura-mobile.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" },
+    { "src": "captura-desktop.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide" }
   ],
   "shortcuts": [
     {
       "name": "Lista de Compra",
       "short_name": "Comprar",
-      "description": "Abre directamente la lista de la compra",
+      "description": "Abre directamente la lista",
       "url": "/Pico-W-ESP/?action=lista",
       "icons": [{ "src": "logo-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Modo Fiesta",
       "short_name": "Fiesta",
-      "description": "Activa el modo fiesta instantáneamente",
+      "description": "Activa el modo fiesta",
       "url": "/Pico-W-ESP/?action=fiesta",
       "icons": [{ "src": "logo-192.png", "sizes": "192x192" }]
     }
@@ -71,33 +50,19 @@
   "file_handlers": [
     {
       "action": "/Pico-W-ESP/",
-      "accept": {
-        "application/json": [".json"],
-        "text/plain": [".txt"]
-      }
+      "accept": { "application/json": [".json"], "text/plain": [".txt"] }
     }
   ],
   "protocol_handlers": [
-    {
-      "protocol": "web+pico",
-      "url": "/Pico-W-ESP/?cmd=%s"
-    }
+    { "protocol": "web+pico", "url": "/Pico-W-ESP/?cmd=%s" }
   ],
   "share_target": {
     "action": "/Pico-W-ESP/",
     "method": "GET",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
+    "params": { "title": "title", "text": "text", "url": "url" }
   },
   "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.pablo.picoos",
-      "id": "com.pablo.picoos"
-    }
+    { "platform": "play", "url": "https://play.google.com/store/apps/details?id=com.pablo.picoos", "id": "com.pablo.picoos" }
   ],
   "widgets": [
     {
@@ -109,10 +74,6 @@
       "type": "application/json"
     }
   ],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "note_taking": {
-    "new_note_url": "/Pico-W-ESP/?action=new_note"
-  }
+  "edge_side_panel": { "preferred_width": 400 },
+  "note_taking": { "new_note_url": "/Pico-W-ESP/?action=new_note" }
 }
