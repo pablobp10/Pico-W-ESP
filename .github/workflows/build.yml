@@ -17,6 +17,9 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Crear plataforma Android
+        run: npx cap add android || true
+
       - name: Sincronizar Capacitor
         run: npx cap sync android
 
