@@ -491,28 +491,42 @@ export class Core {
 
     // 🔀 INTERRUPTOR NUBE / LOCAL
     initInterruptorIA() {
-        this.modoIALocal = false; // Por defecto arrancamos en la Nube
+        this.modoIALocal = true; 
         
         const aiInput = document.getElementById('ai-input');
         if (aiInput && !document.getElementById('btn-ia-mode')) {
             const btnMode = document.createElement('button');
             btnMode.id = 'btn-ia-mode';
-            btnMode.title = "Cambiar entre Nube y Local";
             btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
             btnMode.style.cssText = "background:transparent; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
             
-            // Inyectar el botón justo antes de la caja de texto
             aiInput.parentNode.insertBefore(btnMode, aiInput);
             
-            btnMode.onclick = () => {
-                this.modoIALocal = !this.modoIALocal;
-                if (this.modoIALocal) {
-                    btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-                    btnMode.style.color = '#32d74b'; // Verde hacker
-                    this.notificar("Modo IA Local Forzado (Sin cuotas)", "🔒");
+            btnMode.onclick = async () => {
+                if (!this.modoIALocal) {
+                    // Intento de pasar a Local
+                    btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Animación de carga en el botón
+                    btnMode.style.color = '#32d74b';
+                    this.notificar("Arrancando turbinas locales...", "⚙️");
+                    
+                    const exito = await this.precargarMotorLocal();
+                    
+                    if (exito) {
+                        this.modoIALocal = true;
+                        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+                        this.notificar("IA Local lista en memoria", "🔒");
+                    } else {
+                        // Falló la carga (el móvil no aguanta)
+                        this.modoIALocal = false;
+                        btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+                        btnMode.style.color = '#0a84ff';
+                        this.notificar("Hardware incompatible", "⚠️");
+                    }
                 } else {
+                    // Volver a la Nube (Google)
+                    this.modoIALocal = false;
                     btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                    btnMode.style.color = '#0a84ff'; // Azul Nube
+                    btnMode.style.color = '#0a84ff';
                     this.notificar("Modo IA Nube (Gemini 1.5)", "☁️");
                 }
             };
@@ -615,37 +629,56 @@ export class Core {
         }, 600000); 
     }
 
-    // 🧠 MOTOR LOCAL AISLADO
-    async procesarConWebLLM(promptSistema, orden, modo) {
+    // ⚙️ 1. PRECARGA DEL MOTOR LOCAL (Se ejecuta al pulsar el botón)
+    async precargarMotorLocal() {
+        if (this.localEngine) return true; // Si ya está cargado, no hace nada
+
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
-            const container = document.getElementById('toast-area');
-            if(container) {
-                container.insertAdjacentHTML('beforeend', `
-                    <div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">
-                        ⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Preparando Motor Local...</span>
-                        <div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;">
-                            <div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div>
-                        </div>
+            const container = document.getElementById('toast-area') || document.body;
+            container.insertAdjacentHTML('beforeend', `
+                <div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">
+                    ⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Montando IA en VRAM...</span>
+                    <div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;">
+                        <div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div>
                     </div>
-                `);
-            }
+                </div>
+            `);
         }
 
         try {
             const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
-            this.localEngine = this.localEngine || await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+            
+            // 🛡️ ESCUDO ANTI-CRASH: Limitamos el context_window a 1024 para no pasar de 128MB
+            this.localEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
                 initProgressCallback: (progress) => {
                     const pct = Math.round(progress.progress * 100);
                     const textEl = document.getElementById('ia-dl-text');
                     const barEl = document.getElementById('ia-dl-bar');
-                    if(textEl) textEl.innerText = `Cargando IA Local: ${pct}%`;
+                    // WebLLM guarda todo en caché (IndexedDB) automáticamente.
+                    // Si ya está descargado, esto pasará del 0 al 100% en 2 segundos.
+                    if(textEl) textEl.innerText = `Caché Local: ${pct}%`;
                     if(barEl) barEl.style.width = `${pct}%`;
-                }
+                },
+                chatOpts: { context_window_size: 1024 } // <-- El truco mágico
             });
             
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
-            
+            return true;
+
+        } catch (e) {
+            console.error("Fallo al montar GPU Local:", e);
+            if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+            return false;
+        }
+    }
+
+    // 🧠 2. EJECUCIÓN PURA (Ya no descarga nada, solo piensa)
+    async procesarConWebLLM(promptSistema, orden, modo) {
+        try {
+            // Verificamos por seguridad que el motor exista
+            if (!this.localEngine) throw new Error("Motor no inicializado");
+
             const reply = await this.localEngine.chat.completions.create({
                 messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
                 response_format: { type: "json_object" }
@@ -653,9 +686,8 @@ export class Core {
             this.desplegarPayloadCuantico(reply.choices[0].message.content, orden, modo);
 
         } catch(e) { 
-            console.error("Fallo Categórico IA Local:", e); 
-            if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
-            this.notificar("Error de Motor Local", "❌");
+            console.error("Fallo de Inferencia Local:", e); 
+            this.notificar("Colapso lógico en IA Local", "❌");
         }
     }
     
