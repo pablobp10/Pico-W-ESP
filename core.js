@@ -786,48 +786,60 @@ export class Core {
         }
     }
     
-    // 🔀 INTERRUPTOR NUBE / LOCAL
+    // 🔀 INTERRUPTOR NUBE / LOCAL (Inteligente según el entorno)
     initInterruptorIA() {
-        this.modoIALocal = true; 
+        // 1. EL DETECTOR: ¿Estamos en un navegador o en la APK nativa?
+        // (Capacitor inyecta 'window.Capacitor', o podemos buscar 'wv' de WebView)
+        this.esAppNativa = !!window.Capacitor || navigator.userAgent.includes('wv'); 
+        
+        // 2. REGLA DE NEGOCIO: Si es App -> Local por defecto. Si es Web -> Nube.
+        this.modoIALocal = this.esAppNativa; 
         
         const aiInput = document.getElementById('ai-input');
-        if (aiInput && !document.getElementById('btn-ia-mode')) {
-            const btnMode = document.createElement('button');
-            btnMode.id = 'btn-ia-mode';
-            btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-            btnMode.style.cssText = "background:transparent; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
-            
-            aiInput.parentNode.insertBefore(btnMode, aiInput);
-            
-            btnMode.onclick = async () => {
-                if (!this.modoIALocal) {
-                    // Intento de pasar a Local
-                    btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Animación de carga en el botón
+        if (!aiInput || document.getElementById('btn-ia-mode')) return;
+
+        // 3. LA BIFURCACIÓN: Si es Web, cortamos aquí. Solo Nube, sin botón.
+        if (!this.esAppNativa) {
+            console.log("🌍 Entorno Web detectado: Forzando IA Nube (Gemini).");
+            return; 
+        }
+
+        // 4. MODO APP NATIVA: Creamos el botón para poder alternar
+        console.log("📱 Entorno App detectado: IA Local lista por defecto.");
+        const btnMode = document.createElement('button');
+        btnMode.id = 'btn-ia-mode';
+        
+        // Como es App, arrancamos con el chip verde
+        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+        btnMode.style.cssText = "background:transparent; border:none; color:#32d74b; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
+        
+        aiInput.parentNode.insertBefore(btnMode, aiInput);
+        
+        btnMode.onclick = async () => {
+            if (!this.modoIALocal) {
+                // Pasar a Local
+                btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
+                this.notificar("Arrancando turbinas locales...", "⚙️");
+                const exito = await this.precargarMotorLocal();
+                if (exito) {
+                    this.modoIALocal = true;
+                    btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
                     btnMode.style.color = '#32d74b';
-                    this.notificar("Arrancando turbinas locales...", "⚙️");
-                    
-                    const exito = await this.precargarMotorLocal();
-                    
-                    if (exito) {
-                        this.modoIALocal = true;
-                        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-                        this.notificar("IA Local lista en memoria", "🔒");
-                    } else {
-                        // Falló la carga (el móvil no aguanta)
-                        this.modoIALocal = false;
-                        btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                        btnMode.style.color = '#0a84ff';
-                        this.notificar("Hardware incompatible", "⚠️");
-                    }
+                    this.notificar("IA Local al mando", "🔒");
                 } else {
-                    // Volver a la Nube (Google)
                     this.modoIALocal = false;
                     btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
                     btnMode.style.color = '#0a84ff';
-                    this.notificar("Modo IA Nube (Gemini 1.5)", "☁️");
+                    this.notificar("Hardware incompatible", "⚠️");
                 }
-            };
-        }
+            } else {
+                // Volver a la Nube (Gemini)
+                this.modoIALocal = false;
+                btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+                btnMode.style.color = '#0a84ff';
+                this.notificar("Modo IA Nube", "☁️");
+            }
+        };
     }
     
     // Función para que las tarjetas publiquen estados fijos
