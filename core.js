@@ -62,6 +62,7 @@ export class Core {
         this.iniciarAgenteProactivo();
         this.initBaseDeDatos()
         this.initGestorActualizaciones()
+        this.initInterruptorIA();
         
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
@@ -488,6 +489,36 @@ export class Core {
     // 🧠 SISTEMA OPERATIVO JARVIS (OMNI-CONSCIENTE + AUTÓNOMO)
     // ==========================================================
 
+    // 🔀 INTERRUPTOR NUBE / LOCAL
+    initInterruptorIA() {
+        this.modoIALocal = false; // Por defecto arrancamos en la Nube
+        
+        const aiInput = document.getElementById('ai-input');
+        if (aiInput && !document.getElementById('btn-ia-mode')) {
+            const btnMode = document.createElement('button');
+            btnMode.id = 'btn-ia-mode';
+            btnMode.title = "Cambiar entre Nube y Local";
+            btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+            btnMode.style.cssText = "background:transparent; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
+            
+            // Inyectar el botón justo antes de la caja de texto
+            aiInput.parentNode.insertBefore(btnMode, aiInput);
+            
+            btnMode.onclick = () => {
+                this.modoIALocal = !this.modoIALocal;
+                if (this.modoIALocal) {
+                    btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+                    btnMode.style.color = '#32d74b'; // Verde hacker
+                    this.notificar("Modo IA Local Forzado (Sin cuotas)", "🔒");
+                } else {
+                    btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+                    btnMode.style.color = '#0a84ff'; // Azul Nube
+                    this.notificar("Modo IA Nube (Gemini 1.5)", "☁️");
+                }
+            };
+        }
+    }
+    
     // --- 1. EL OÍDO: RECONOCIMIENTO DE VOZ NATIVO ---
     initVozJARVIS() {
         const btnVoz = document.querySelector('.fa-robot'); 
@@ -580,118 +611,106 @@ export class Core {
         }, 600000); 
     }
 
+    // 🧠 MOTOR LOCAL AISLADO (WebLLM - Llama 3.2)
+    async procesarConWebLLM(promptSistema, orden, modo) {
+        let toastDl = document.getElementById('toast-ia-dl');
+        if (!toastDl) {
+            const container = document.getElementById('toast-area');
+            if(container) {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">
+                        ⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Preparando Motor Local...</span>
+                        <div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;">
+                            <div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div>
+                        </div>
+                    </div>
+                `);
+            }
+        }
+
+        try {
+            const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
+            this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
+                initProgressCallback: (progress) => {
+                    const pct = Math.round(progress.progress * 100);
+                    const textEl = document.getElementById('ia-dl-text');
+                    const barEl = document.getElementById('ia-dl-bar');
+                    if(textEl) textEl.innerText = `Cargando IA Local: ${pct}%`;
+                    if(barEl) barEl.style.width = `${pct}%`;
+                }
+            });
+            
+            if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+            
+            const reply = await this.localEngine.chat.completions.create({
+                messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
+                response_format: { type: "json_object" }
+            });
+            this.desplegarPayloadCuantico(reply.choices[0].message.content, orden, modo);
+
+        } catch(e) { 
+            console.error("Fallo Categórico IA Local:", e); 
+            if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+            this.notificar("Error de Motor Local", "❌");
+        }
+    }
+    
     // --- 6. MOTOR DE INFERENCIA CUÁNTICO (CHAIN-OF-THOUGHT & PERSONALIDAD) ---
     async ejecutarInferencia(orden, modo = "reactivo") {
         const password = sessionStorage.getItem("p"); 
         if(!password) return;
         
         const apiKeyCifrada = "U2FsdGVkX18xxwqLqWSZ9HU0Bhxe/sVuSRLebC/8w6C68NHfUf0n+D35Eu15T9dsdArr9Yev2OkiiEqALsaxVw=="; 
-        
         let API_KEY = "";
-        try {
-            API_KEY = CryptoJS.AES.decrypt(apiKeyCifrada, password).toString(CryptoJS.enc.Utf8).trim(); 
-        } catch (e) { return this.notificar("Error de cifrado IA", "❌"); }
+        try { API_KEY = CryptoJS.AES.decrypt(apiKeyCifrada, password).toString(CryptoJS.enc.Utf8).trim(); } 
+        catch (e) { return this.notificar("Error de cifrado IA", "❌"); }
 
-        // 👁️ TELEMETRÍA (El "Sistema Nervioso" de la casa)
-        
-        // 1. Leemos el piloto de conexión visual de la UI
+        // Telemetría
         const statusEl = document.querySelector('.pico-info-pill');
         const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
-        
         let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
-        
         document.querySelectorAll('.card').forEach(card => {
             contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`;
         });
-        const horaActualStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        contextoFisico += `- Reloj del sistema: ${horaActualStr}\n`;
+        contextoFisico += `- Reloj: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}\n`;
 
-        // 🗄️ SUBCONSCIENTE (Patrones y Hábitos) - ¡Aquí está la pieza que faltaba!
+        // Memoria
         let memoriaProfunda = "";
         if (this.db) { 
             const horaActual = new Date().getHours(); 
-            const datosHistoricos = await this.consultarHabitosDB(horaActual);
-            memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${datosHistoricos}\n`; 
+            memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${await this.consultarHabitosDB(horaActual)}\n`; 
         }
-
-        // 📚 MEMORIA A CORTO PLAZO (El hilo de la conversación)
-        let memoria = "--- CONTEXTO CONVERSACIONAL RECIENTE ---\n";
+        let memoria = "--- CONTEXTO ---\n";
         (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
 
-        // 🧠 EL MEGA-PROMPT (AHORA IMPORTADO DESDE prompt.js)
         const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            const respuesta = await fetch(url, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptSistema }] }],
-                    generationConfig: { responseMimeType: "application/json" }
-                })
-            });
 
-            if (!respuesta.ok) {
-                // 🕵️‍♂️ AQUÍ ATRAPAMOS EL ERROR REAL DE GOOGLE PARA LA CONSOLA
-                const errorGoogle = await respuesta.json();
-                console.error("🚨 MOTIVO EXACTO DEL FALLO DE GEMINI:", JSON.stringify(errorGoogle, null, 2));
-                throw new Error("Cloud Server Error");
-            }
-            const datos = await respuesta.json();
-            this.desplegarPayloadCuantico(datos.candidates[0].content.parts[0].text, orden, modo);
+        // 🔀 AQUÍ ACTÚA EL INTERRUPTOR
+        if (this.modoIALocal) {
+            // El usuario ha pulsado el botón del chip verde
+            await this.procesarConWebLLM(promptSistema, orden, modo);
+        } else {
+            // El usuario está en modo Nube (Nube primero, local si falla)
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+                const respuesta = await fetch(url, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptSistema }] }], generationConfig: { responseMimeType: "application/json" } })
+                });
 
-        } catch (error) {
-            if(modo === "reactivo") {
-                console.warn("⚠️ Red neuronal principal off. Levantando GPU Local...", error);
-                this.notificar("Cloud caída. IA Local asumiendo el mando...", "🔋");
-                
-                // 1. Inyectamos la interfaz de progreso dinámicamente en los Toasts
-                let toastDl = document.getElementById('toast-ia-dl');
-                if (!toastDl) {
-                    const container = document.getElementById('toast-area');
-                    if(container) {
-                        container.insertAdjacentHTML('beforeend', `
-                            <div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">
-                                ⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Preparando Motor Local...</span>
-                                <div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;">
-                                    <div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div>
-                                </div>
-                            </div>
-                        `);
-                    }
+                if (!respuesta.ok) {
+                    const errorGoogle = await respuesta.json();
+                    console.error("🚨 MOTIVO FALLO GEMINI:", JSON.stringify(errorGoogle, null, 2));
+                    throw new Error("Cloud Server Error");
                 }
+                const datos = await respuesta.json();
+                this.desplegarPayloadCuantico(datos.candidates[0].content.parts[0].text, orden, modo);
 
-                try {
-                    // 2. Cargamos el motor enganchando la telemetría de descarga a la barra visual
-                    const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
-                    this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
-                        initProgressCallback: (progress) => {
-                            // progress.progress devuelve un valor entre 0 y 1
-                            const pct = Math.round(progress.progress * 100);
-                            const textEl = document.getElementById('ia-dl-text');
-                            const barEl = document.getElementById('ia-dl-bar');
-                            
-                            if(textEl) textEl.innerText = `Descargando IA Local: ${pct}%`;
-                            if(barEl) barEl.style.width = `${pct}%`;
-                            
-                            console.log(`[WebLLM]: ${progress.text}`); 
-                        }
-                    });
-                    
-                    // 3. Descarga terminada: destruimos la barra y avisamos de que está lista
-                    if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
-                    this.notificar("IA Local montada en RAM", "🔋");
-
-                    // 4. Ejecutamos la orden localmente
-                    const reply = await this.localEngine.chat.completions.create({
-                        messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
-                        response_format: { type: "json_object" }
-                    });
-                    this.desplegarPayloadCuantico(reply.choices[0].message.content, orden, modo);
-
-                } catch(e) { 
-                    console.error("Fallo Categórico IA Local:", e); 
-                    if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
-                    this.notificar("Tu dispositivo no soporta este modelo IA", "❌");
+            } catch (error) {
+                if(modo === "reactivo") {
+                    console.warn("⚠️ Fallo en la nube. Activando fallback local automático...");
+                    this.notificar("Cloud caída. IA Local asumiendo mando...", "🔋");
+                    await this.procesarConWebLLM(promptSistema, orden, modo);
                 }
             }
         }
