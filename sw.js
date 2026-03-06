@@ -1,58 +1,78 @@
-// 📡 INTERCEPTOR DE RED Y CACHÉ
+self.addEventListener('install', (event) => {
+    console.log('[Service Worker] Instalado y listo para PWA');
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+});
+
+// 📡 INTERCEPTOR DE RED (Fusión: Tu Network-First + Mi Escudo Anti-CORS)
 self.addEventListener('fetch', (event) => {
-    // Escudo Anti-CORS
-    if (event.request.method !== 'GET' || event.request.url.includes('api.open-meteo.com') || event.request.url.includes('googleapis.com') || event.request.url.includes('esm.run') || !event.request.url.startsWith('http')) {
-        return; 
+    // 🛡️ ESCUDO ANTI-CORS (CRÍTICO: No tocar APIs externas)
+    if (
+        event.request.method !== 'GET' || 
+        event.request.url.includes('api.open-meteo.com') || 
+        event.request.url.includes('googleapis.com') || 
+        event.request.url.includes('esm.run') || 
+        !event.request.url.startsWith('http')
+    ) {
+        return; // Dejamos que el navegador gestione esto de forma normal
     }
 
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
-            return fetch(event.request).then((networkResponse) => {
-                return caches.open('pico-os-cache-v1').then((cache) => {
-                    cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                });
-            });
-        }).catch(() => console.log("Recurso offline:", event.request.url))
+        // 1. ESTRATEGIA NETWORK-FIRST (Tu código exacto)
+        fetch(event.request)
+            .then((respuestaRed) => {
+                if (respuestaRed && respuestaRed.status === 200 && respuestaRed.type === 'basic') {
+                    const respuestaClonada = respuestaRed.clone();
+                    caches.open('pico-os-auto-cache').then((cache) => {
+                        cache.put(event.request, respuestaClonada);
+                    });
+                }
+                return respuestaRed;
+            })
+            .catch(() => {
+                // 2. MODO OFFLINE (Rescate sin internet)
+                return caches.match(event.request);
+            })
     );
 });
 
-// 🔔 PUSH NOTIFICATIONS (Mensajes desde el servidor aunque la app esté cerrada)
+// =========================================================================
+// 🚀 SUPERPODERES PWABUILDER (Play Store Ready)
+// =========================================================================
+
+// 🔔 PUSH NOTIFICATIONS
 self.addEventListener('push', function(event) {
-    const data = event.data ? event.data.json() : { title: "JARVIS", body: "Mensaje del sistema ciberfísico", icon: "logo-192.png" };
-    
+    const data = event.data ? event.data.json() : { title: "Pico OS", body: "Notificación del sistema", icon: "logo-192.png" };
     const options = {
         body: data.body,
         icon: data.icon || 'logo-192.png',
         badge: 'logo-192.png',
-        vibrate: [100, 50, 100], // Vibra corto, pausa, corto
+        vibrate: [100, 50, 100],
         data: { url: '/Pico-W-ESP/' }
     };
-
     event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// Cuando el usuario hace click en la notificación flotante
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 
-// 🔄 BACKGROUND SYNC (Para enviar órdenes a la Pico cuando vuelva el internet)
+// 🔄 BACKGROUND SYNC 
 self.addEventListener('sync', function(event) {
     if (event.tag === 'sync-comandos') {
-        console.log("[Pico OS] Sincronizando comandos pendientes en segundo plano...");
-        // Aquí en el futuro leeremos la base de datos local y enviaremos a la Pico
+        console.log("[Pico OS] Ejecutando sincronización en segundo plano...");
         event.waitUntil(Promise.resolve());
     }
 });
 
-// ⏱️ PERIODIC SYNC (Ej: Actualizar la tarjeta del tiempo cada mañana en silencio)
+// ⏱️ PERIODIC SYNC 
 self.addEventListener('periodicsync', function(event) {
     if (event.tag === 'update-clima') {
-        console.log("[Pico OS] Actualizando telemetría meteorológica en silencio...");
-        // Listo para implementar el fetch al Open-Meteo
+        console.log("[Pico OS] Sincronización periódica activada...");
         event.waitUntil(Promise.resolve());
     }
 });
