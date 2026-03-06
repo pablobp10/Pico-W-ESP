@@ -33,7 +33,7 @@ export const ListaCard = {
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed)) items = parsed;
             else throw new Error("No es array");
-        } catch { 
+        }catch (e){ 
             // 2. Comandos de texto plano desde JARVIS
             if (typeof val === "string" && val.trim() !== "" && val !== "get") {
                 const comando = val.trim().toLowerCase();
