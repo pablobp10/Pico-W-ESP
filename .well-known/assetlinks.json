@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.pablobp10.twa",
+        "sha256_cert_fingerprints": ["3B:D1:50:05:BA:EB:FA:18:16:3E:C6:F5:D0:C0:FA:80:E2:32:9B:15:6B:3A:56:1F:5C:A9:33:02:D6:30:3A:57"]
+      }
+    }]
