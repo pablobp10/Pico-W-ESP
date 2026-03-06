@@ -630,7 +630,12 @@ export class Core {
                 })
             });
 
-            if (!respuesta.ok) throw new Error("Cloud Server 404/500");
+            if (!respuesta.ok) {
+                // 🕵️‍♂️ AQUÍ ATRAPAMOS EL ERROR REAL DE GOOGLE PARA LA CONSOLA
+                const errorGoogle = await respuesta.json();
+                console.error("🚨 MOTIVO EXACTO DEL FALLO DE GEMINI:", JSON.stringify(errorGoogle, null, 2));
+                throw new Error("Cloud Server Error");
+            }
             const datos = await respuesta.json();
             this.desplegarPayloadCuantico(datos.candidates[0].content.parts[0].text, orden, modo);
 
@@ -657,7 +662,7 @@ export class Core {
 
                 try {
                     // 2. Cargamos el motor enganchando la telemetría de descarga a la barra visual
-                    const { CreateMLCEngine } = await import("https://cdn.jsdelivr.net/npm/@mlc.ai/web-llm@0.2.64/+esm");
+                    const { CreateMLCEngine } = await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.64/+esm");
                     this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
                         initProgressCallback: (progress) => {
                             // progress.progress devuelve un valor entre 0 y 1
