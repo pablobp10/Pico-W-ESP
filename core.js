@@ -590,15 +590,19 @@ export class Core {
 
         this.historialIA = this.historialIA || [];
         
-        // 2. Esperamos a que la IA responda (Cloud o Local)
-        await this.ejecutarInferencia(orden, "reactivo");
-
-        // 3. Restauramos la interfaz cuando termine (sea éxito o error)
-        btnSend.innerHTML = iconoOriginal;
-        btnSend.style.pointerEvents = 'auto';
-        input.disabled = false;
-        input.placeholder = "Ej: Apaga la luz...";
-        input.focus();
+        try {
+            // 2. Esperamos a la IA con un tiempo límite imaginario
+            await this.ejecutarInferencia(orden, "reactivo");
+        } catch (e) {
+            console.error("Fallo general de inferencia:", e);
+        } finally {
+            // 3. PASE LO QUE PASE (incluso si explota WebGPU), restauramos el botón
+            btnSend.innerHTML = iconoOriginal;
+            btnSend.style.pointerEvents = 'auto';
+            input.disabled = false;
+            input.placeholder = "Ej: Apaga la luz...";
+            input.focus();
+        }
     }
 
     // --- 5. EL AGENTE AUTÓNOMO (Bucle de fondo) ---
@@ -611,7 +615,7 @@ export class Core {
         }, 600000); 
     }
 
-    // 🧠 MOTOR LOCAL AISLADO (WebLLM - Llama 3.2)
+    // 🧠 MOTOR LOCAL AISLADO
     async procesarConWebLLM(promptSistema, orden, modo) {
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
@@ -630,7 +634,7 @@ export class Core {
 
         try {
             const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
-            this.localEngine = this.localEngine || await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
+            this.localEngine = this.localEngine || await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
                 initProgressCallback: (progress) => {
                     const pct = Math.round(progress.progress * 100);
                     const textEl = document.getElementById('ia-dl-text');
