@@ -14,6 +14,12 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       
+      - name: Preparar archivos web y Configuracion
+        run: |
+          mkdir -p www
+          rsync -a --exclude='www' --exclude='node_modules' --exclude='.github' --exclude='android' --exclude='.*' ./ www/
+          echo '{ "appId": "com.pablo.picoos", "appName": "Pico OS", "webDir": "www", "bundledWebRuntime": false }' > capacitor.config.json
+
       - name: Instalar dependencias
         run: npm install
 
