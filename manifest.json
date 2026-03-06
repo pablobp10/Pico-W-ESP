@@ -1,16 +1,71 @@
+
 {
+  "id": "/Pico-W-ESP/Pico OS",
   "name": "Pico OS",
   "short_name": "Pico OS",
-  "start_url": "./index.html",
+  "description": "IA de la frambuesa",
+  "start_url": "/Pico-W-ESP/",
+  "scope": "/Pico-W-ESP/",
   "display": "standalone",
-  "background_color": "#1c1c1e",
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "background_color": "#121212",
   "theme_color": "#0a84ff",
+  "orientation": "portrait-primary",
+  "lang": "es-ES",
+  "dir": "ltr",
+  "categories": ["utilities", "productivity", "smart-home"],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/pablobp10/Pico-W-ESP/main/logo.png",
-      "sizes": "1024x1024",
+      "src": "logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "captura-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "captura-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lista de Compra",
+      "short_name": "Comprar",
+      "description": "Abre directamente la lista de la compra",
+      "url": "/Pico-W-ESP/?action=lista",
+      "icons": [{ "src": "logo-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Modo Fiesta",
+      "short_name": "Fiesta",
+      "description": "Activa el modo fiesta instantáneamente",
+      "url": "/Pico-W-ESP/?action=fiesta",
+      "icons": [{ "src": "logo-192.png", "sizes": "192x192" }]
     }
   ]
 }
