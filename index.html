@@ -35,7 +35,7 @@
         });
 
         // Función para guardar e imprimir logs
-        function saveLog(msg, color) {
+        window.saveLog = function (msg, color) {
             const str = `<span style="color:${color}">${msg}</span>`;
             logs.push(str);
             const container = document.getElementById('mobile-dev-logs');
