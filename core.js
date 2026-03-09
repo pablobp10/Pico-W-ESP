@@ -362,16 +362,24 @@ export class Core {
 
             let ghostKey = localStorage.getItem('pico_gk_' + u);
 
-            // Si es un dispositivo nuevo y no hay Llave Fantasma
+            // 🛡️ SI ES UN DISPOSITIVO NUEVO (Falta la Llave Fantasma)
             if (!ghostKey) {
+                
+                // 1. EL PARCHE: Si el recuadro estaba oculto (por el autocompletar), lo mostramos a la fuerza
+                if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
+                    pinInputEl.style.display = 'block';
+                    pinInputEl.focus(); // Ponemos el cursor dentro para que escribas directo
+                }
+
+                // 2. Si el PIN está vacío, avisamos y paramos el login
                 if (!pin) {
                     const err = document.getElementById('error-msg');
                     err.innerText = "⚠️ Introduce tu PIN Maestro de enrolamiento";
                     err.style.display = 'block';
-                    return; // Detenemos el login para que ponga el PIN
+                    return; 
                 }
 
-                // Desencriptamos el Sobre Pequeño con la Contraseña + PIN
+                // 3. Desencriptamos el Sobre Pequeño con la Contraseña + PIN
                 const keyEnv = CryptoJS.SHA256(p + pin);
                 const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
                 const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
@@ -382,7 +390,6 @@ export class Core {
                 
                 if (!ghostKey) throw new Error("PIN_FAIL"); 
                 
-                // Guardamos para siempre (hasta que falle 5 veces)
                 localStorage.setItem('pico_gk_' + u, ghostKey);
             }
 
