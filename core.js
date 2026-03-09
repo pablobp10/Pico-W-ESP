@@ -477,13 +477,15 @@ export class Core {
             // Arrancar servidor MQTT normal
             this.conectar();
             
-        } catch (error) {
+                } catch (error) {
             // 🐛 SI LLEGAS AQUÍ, LA CONTRASEÑA ERA CORRECTA PERO FALLÓ OTRA COSA
             console.error("💥 ERROR INTERNO AL ARRANCAR EL SISTEMA:", error);
             if (window.saveLog) {
-                window.saveLog(💥 Fallo de arranque: ${error.message || error}, "#ff453a");
-        }
-    }
+                // 🛡️ CORREGIDO: Comillas invertidas añadidas
+                window.saveLog(`💥 Fallo de arranque: ${error.message || error}`, "#ff453a");
+            } // 🛡️ CORREGIDO: Llave de cierre del 'if' añadida
+        } // Esta cierra el catch
+    } // Esta cierra la función login
     
     ejecutarComandoLocal(app, accion) {
         // Lista de módulos que son puro software de interfaz (no existen en la Pico)
