@@ -6,84 +6,235 @@
     <meta name="color-scheme" content="light dark">
     <title>Pico OS</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js" integrity="sha512-Y5n0fbohPllOQ21fTwM/h9sQQ/1a1h5KhweGhu2zwD8lAoJnTgVa7NIrFa1bRDIMQHixtyuRV2ubIx+qWbGdDA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-a+SUDuwNzXDvz4XrIcXHuCf089/iJAoN4lmrXJg18XnduKK6YlDHNRalv4yd1N40OKI80tFidF+rqTFKGPoWFQ==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js" integrity="sha512-Eezs+g9Lq4TCCq0wae01s9PuNWzHYoCMkE97e2qdkYthpI0pzC3UGB03lgEHn2XM85hDOUF6qgqqszs+iXU4UA==" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
-
-    <script>
-        (function() {
-            const logs = [];
-            window.addEventListener('DOMContentLoaded', () => {
-                document.body.insertAdjacentHTML('beforeend', `
-                    <div id="mobile-dev-console" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); font-family:monospace; font-size:12px; z-index:99999; padding:40px 10px 10px 10px; box-sizing:border-box; overflow-y:auto; backdrop-filter:blur(5px);">
-                        <button onclick="document.getElementById('mobile-dev-console').style.display='none'" style="position:fixed; top:10px; right:10px; background:#ff453a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.3);">CERRAR</button>
-                        <h3 style="color:#32d74b; margin-top:0; border-bottom:1px solid #333; padding-bottom:10px;">>_ Terminal de Depuración</h3>
-                        <div id="mobile-dev-logs"></div>
-                    </div>
-                    <button onclick="document.getElementById('mobile-dev-console').style.display='block'" style="position:fixed; bottom:20px; right:20px; background:#1c1c1e; border:1px solid #333; color:white; padding:12px; border-radius:50%; z-index:99998; box-shadow:0 4px 10px rgba(0,0,0,0.5);">🐛</button>
-                `);
-                const logContainer = document.getElementById('mobile-dev-logs');
-                logs.forEach(l => logContainer.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${l}</div>`);
-            });
-
-            window.saveLog = function (msg, color) {
-                const str = `<span style="color:${color}">${msg}</span>`;
-                logs.push(str);
-                const container = document.getElementById('mobile-dev-logs');
-                if (container) {
-                    container.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${str}</div>`;
-                    container.parentElement.scrollTop = container.parentElement.scrollHeight;
-                }
-            }
-
-            const oLog = console.log, oErr = console.error, oWarn = console.warn;
-            console.log = function(...a) { saveLog(a.join(" "), "#ffffff"); oLog.apply(console, a); };
-            console.warn = function(...a) { saveLog(a.join(" "), "#ffcc00"); oWarn.apply(console, a); };
-            console.error = function(...a) { saveLog(a.join(" "), "#ff453a"); oErr.apply(console, a); };
-
-            window.onerror = function(msg, url, line) {
-                saveLog(`💥 ERROR: ${msg} | ${line}`, "#ff453a");
-                return false;
-            };
-        })();
-    </script>
 </head>
 
+<script>
+    (function() {
+        const logs = [];
+        
+        // Dibuja la consola cuando el HTML está listo
+        window.addEventListener('DOMContentLoaded', () => {
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="mobile-dev-console" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); font-family:monospace; font-size:12px; z-index:99999; padding:40px 10px 10px 10px; box-sizing:border-box; overflow-y:auto; backdrop-filter:blur(5px);">
+                    <button onclick="document.getElementById('mobile-dev-console').style.display='none'" style="position:fixed; top:10px; right:10px; background:#ff453a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.3);">CERRAR</button>
+                    <h3 style="color:#32d74b; margin-top:0; border-bottom:1px solid #333; padding-bottom:10px;">>_ Terminal de Depuración</h3>
+                    <div id="mobile-dev-logs"></div>
+                </div>
+                <button onclick="document.getElementById('mobile-dev-console').style.display='block'" style="position:fixed; bottom:20px; right:20px; background:#1c1c1e; border:1px solid #333; color:white; padding:12px; border-radius:50%; z-index:99998; box-shadow:0 4px 10px rgba(0,0,0,0.5);">🐛</button>
+            `);
+            // Vuelca los logs que ocurrieron antes de que el DOM cargara
+            const logContainer = document.getElementById('mobile-dev-logs');
+            logs.forEach(l => logContainer.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${l}</div>`);
+        });
+
+        // Función para guardar e imprimir logs
+        window.saveLog = function (msg, color) {
+            const str = `<span style="color:${color}">${msg}</span>`;
+            logs.push(str);
+            const container = document.getElementById('mobile-dev-logs');
+            if (container) {
+                container.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${str}</div>`;
+                container.parentElement.scrollTop = container.parentElement.scrollHeight; // Auto-scroll
+            }
+        }
+
+        // Secuestro de los métodos originales de la consola
+        const oLog = console.log, oErr = console.error, oWarn = console.warn;
+        
+        console.log = function(...a) { 
+            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
+            saveLog(msg, "#ffffff"); oLog.apply(console, a); 
+        };
+        console.warn = function(...a) { 
+            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
+            saveLog(msg, "#ffcc00"); oWarn.apply(console, a); 
+        };
+        console.error = function(...a) { 
+            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
+            saveLog(msg, "#ff453a"); oErr.apply(console, a); 
+        };
+
+        // 🚨 EL CAZADOR DE ERRORES DE SINTAXIS
+        window.onerror = function(msg, url, line, col, error) {
+            const archivo = url.split('/').pop();
+            saveLog(`💥 ERROR CRÍTICO: ${msg}<br><span style="color:#8e8e93">Archivo: ${archivo} | Línea: ${line}</span>`, "#ff453a");
+            return false;
+        };
+
+        // Atrapa promesas fallidas (ej: Fetch errors)
+        window.onunhandledrejection = function(e) {
+            saveLog(`🌐 PROMISE REJECTION: ${e.reason}`, "#ff453a");
+        };
+    })();
+</script>
+    
 <body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🔐 Pico OS </h2>
+            <input type="text" id="user-input" placeholder="Usuario">
+            <input type="password" id="pass-input" placeholder="Contraseña o PIN">
+            <input type="password" id="pin-input" placeholder="PIN Maestro (2FA)" style="display:none; transition: all 0.3s ease;">
+            <button class="btn-action" id="btn-login" style="margin-top:15px">ENTRAR</button>
+            <p id="error-msg" style="color:red; display:none; margin-top:10px; font-size:0.9rem">Credenciales inválidas</p>
+        </div>
+    </div>
+    <header>
+        <div class="header-left">
+            <h1 class="pico-os-title" style="cursor: pointer;">Pico OS</h1>
+            
+            <div class="broker-wrapper" id="broker-trigger">
+                <span id="mqtt-dot" class="dot red"></span>
+                <span id="current-broker-name">Offline</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; opacity:0.5"></i>
+                
+                <div class="custom-dropdown" id="broker-menu">
+                </div>
+            </div>
+
+            <div id="pico-status-container" class="pico-status" style="margin-left: 10px; cursor:default">
+                <span class="dot red"></span>
+                <span style="font-size:0.9rem; font-weight:500; color:var(--text-sec); margin-left:6px">Pico</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="broker-wrapper" id="settings-trigger" style="justify-content:center; width: 40px; padding: 5px;">
+                <i class="fa-solid fa-gear" style="font-size:1.1rem; color:var(--text-sec)"></i>
+                
+                <div class="custom-dropdown" id="settings-menu" style="left: auto; right: 0; min-width: 150px;">
+                    <div class="dropdown-item" id="btn-edit">
+                        <i class="fa-solid fa-pen" style="width:20px"></i> Editar
+                    </div>
+                    <div class="dropdown-item" id="btn-theme">
+                        <i class="fa-solid fa-moon" style="width:20px"></i> Tema
+                    </div>
+                    <div class="dropdown-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span><i class="fa-solid fa-mobile-screen-button" style="width:20px"></i> Vibración</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sw-vibration" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="dropdown-item" id="btn-logout" style="border-top: 1px solid var(--border); color:#ff453a;">
+                        <i class="fa-solid fa-right-from-bracket" style="width:20px"></i> Salir
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="side-menu" class="glass-element">
+        <div class="side-menu-header">Modo Experto</div>
+        <ul class="side-menu-list">
+            <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
+            <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
+            <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
+            <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
+        </ul>
+        <div class="side-menu-footer">Sistema Ciberfísico Activo</div>
+    </div>
+
+    <div id="plano-view" class="fullscreen-overlay glass-element" style="display: none;">
+        <div class="overlay-header">
+            <h2>Constructor Espacial 2D</h2>
+            <button class="close-btn" onclick="document.getElementById('plano-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="plano-container">
+            
+            <div class="builder-toolbar">
+                <button class="build-tool active" data-type="floor">⬜ Suelo</button>
+                <button class="build-tool" data-type="wall">⬛ Pared</button>
+                <button class="build-tool" data-type="door">🚪 Puerta</button>
+                <button class="build-tool" data-type="window">🪟 Ventana</button>
+                <button class="build-tool" data-type="erase">🧽 Borrar</button>
+                <div style="flex-grow:1"></div>
+                <button class="btn-action" id="btn-clear-grid" style="width: auto; margin:0; background: #ff453a; padding: 8px 15px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+
+            <div id="plano-workspace" class="plano-workspace">
+                <div id="plano-grid" class="plano-grid"></div>
+                
+                <div class="plano-pin" id="pin-led" style="top: 30%; left: 40%;"><i class="fa-solid fa-lightbulb"></i> LED</div>
+                <div class="plano-pin" id="pin-temp" style="top: 60%; left: 60%;"><i class="fa-solid fa-temperature-half"></i> Sensores</div>
+            </div>
+            
+        </div>
+    </div>
+
+    <div id="macros-view" class="fullscreen-overlay glass-element" style="display: none;">
+        <div class="overlay-header">
+            <h2>Compilador Semántico (IA)</h2>
+            <button class="close-btn" onclick="document.getElementById('macros-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="plano-container" style="padding: 20px; overflow-y: auto;">
+            
+            <div class="macro-builder">
+                <h3>Crear Nuevo Atajo</h3>
+                <div class="macro-flex-group" style="align-items: stretch;">
+                    
+                    <div style="flex: 1; min-width: 250px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px;">
+                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold;">Disparador (Atajo)</span>
+                        <button id="btn-record-key" class="btn-action" style="background: var(--card-bg); color: var(--primary); border: 1px solid var(--primary); margin: 0;">Presiona para Grabar</button>
+                        <span id="recorded-key-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">Sin asignar</span>
+                    </div>
+
+                    <div style="flex: 2; min-width: 250px; display: flex; flex-direction: column; gap: 10px;">
+                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold; margin-left: 5px;">Acción (Lenguaje Natural)</span>
+                        <textarea id="macro-ai-prompt" placeholder="Ej: Apaga la luz principal, enciende el radar y activa el pomodoro a 25 mins..." style="flex-grow: 1; min-height: 80px; resize: none; border-radius: 8px; border: 1px solid var(--border); padding: 10px; background: var(--bg); color: var(--text-main); font-family: inherit;"></textarea>
+                        <button id="btn-compile-macro" class="btn-action" style="margin: 0;"><i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar</button>
+                    </div>
+
+                </div>
+            </div>
+
+            <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Atajos Activos</h3>
+            <ul id="macro-list" class="shopping-list">
+                <div id="macro-empty-msg" style="text-align:center; color:var(--text-sec); margin-top:20px; font-size:0.9rem;">No hay atajos compilados.</div>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="filter-bar" id="filter-bar">
+        <button class="filter-pill active" data-filter="all">Todos</button>
+        <button class="filter-pill" data-filter="luces">Luces</button>
+        <button class="filter-pill" data-filter="sensores">Sensores</button>
+        <button class="filter-pill" data-filter="herramientas">Herramientas</button>
+        <button class="filter-pill" data-filter="sistema">Sistema</button>
+    </div>
+
+    <div id="ai-brain-bar" class="glass-element" style="width: 98%; max-width: none; margin: 10px auto; padding: 10px 20px; box-sizing: border-box; border-radius: 20px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--primary);">
+        <i class="fa-solid fa-robot" style="color: var(--primary);"></i>
+        <input type="text" id="ai-input" placeholder="Ej: Apaga la luz y activa el pomodoro..." style="flex-grow: 1; background: transparent; border: none; outline: none; font-size: 0.9rem; color: var(--text-main);">
+        <button id="btn-ai-send" style="background: none; border: none; color: var(--primary); font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+    
+    <div class="grid" id="dashboard-grid"></div>
+
+    <div class="toast-container" id="toast-area"></div>
+    
     <script type="module">
         import { Core } from './core.js';
-    
-        // Función de arranque seguro
-        async function ignicion() {
-            console.log("🛠️ DOM detectado. Iniciando Core...");
-            window.App = new Core();
-        
-            // Cargamos las librerías dinámicamente en RAM
-            if (window.App.inicializarModulos) {
-                await window.App.inicializarModulos();
-            }
-        
-            // Una vez cargado Paho, Crypto y el HTML, lanzamos el sistema
-            window.App.init(); 
-        }
-
-        // Solo arranca cuando el HTML esté 100% listo
-        if (document.readyState === 'loading') {
-            window.addEventListener('DOMContentLoaded', ignicion);
-        } else {
-            ignicion();
-        }
+        window.App = new Core();
     </script>
-
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(() => {
-                    console.log('Motor PWA activado.');
-                });
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then(() => {
+                console.log('Motor PWA activado.');
             });
-        }
+        });
+    }
     </script>
+    
 </body>
 </html>
