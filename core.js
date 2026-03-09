@@ -31,9 +31,9 @@ export class Core {
         this.editMode = false;
         
         this.llave = {
-            "pablo": "1DaeBn5171s717AFJM62HmRP6KM3m5pe1JiFBnicGNFgGv6v1enDhTVeM0O3anNJWpinfPDX2IH1fgqL9rlc0JpalwJ+38nptGv1JOujc+bNNPa8a0mcC/Eqr4MTQBCnT42ilvXIck9CV7RsNYHJaE/Y7g9MPNc61Jeu84DEc0o9FGAHAjTkDGA2rmI0IGU0ELq3NVxQng6bEoUfqSWWYEpyQQE5WAcufh4UdvGhV5WIeqTS1KWwrVqyKxFO37FHff+Uj/WiYNh1ugTw2HiK+4RLRKHzj671l7BXWQsx1llnT0/lkDNzoC3R7vddodPxA3m4iSw45HGXLhuYAT5L3rOp6aaNTihPLEMOHq46VSq+qN9vzEUhr8/pS75Wg+clmlEIHyClTJ/gEkAuSG25/P+U5vXqPyXLwSqTEJAnpjA=",
-            "invitado": "LoS5LUKbEIiHn3qVFbFqXCGHXwc9DMGmxHVnlO6LowzzHKGm0lsCGMwGNiDvgCDF5KQ4tCXsx61AX0BX5WX15eko5Zh0+qHfDm+gSRwvOQouYaC/9roFjTujTxiTcGIvwLw+hemR5Ob884LAm1jRJjINK8SI48HmOMLluo7Ih4daASxeEB5Va2IYHXTgBE3S5+DZ77/DjsmWf7ICxmqfnoXHeWmjJGU+300Fe9MqpB30mdEdClTXKAQZpNaK/zwG18VsWeTjpxsIhJ0jpbyJg/bTWNHVbBahuQhzDyeOXq1khdAgXKKNhXhCqH4ZXw8EYZt8VlY4K8teoqsxc+ijJnGXJb3svTNRHSWSC97DDng7qM5P9QA15PiLzJdK1zLHI62AqBmaqoeZscpX2iEw/c93QU74i/9n9ACAGIhfFno=",
-            "admin": "bxZHAeNQEY3BNN6gHITNlziWeKVtApPxjeECUK3+InldGCJo3e3IWkOrWs6ocvmIv2d4hNefySDwhMDY91nk9sRGWDucOae+6DVKvXgTT8nBvFF9vnnxbR0ERJBhgPajDkg4j8chNJfULkyFTt2Wh2ttvJP+rwKGn6huitHWyPmOOi3PbjAhigo6gLP5VEyc5SxXLZy+pTSuyGplfEbQdSn3nQUCW1rJcdiIX40M6hQ="
+            "pablo": "eyJlIjoib04zNWc3M29tdTBLRjVucWhsaklGalJ0L0tpeEpOc0Jra0hFSFhBcUE3NW15Ukp2YWRtWGMzTUtJZ0hsWC83VVozNWd0bDNoV3liZVVEYlV0QTBQV2hVRkE4RkgwdFBRRU9OS3oyMWFZU0ZaSVJ6N0tsbDlZZjc2VkQrVm53SjUiLCJkIjoiMnFqODlNUE5HdG5Na0x3MWdsRC94TnY1Z2F0STkrQldrWjhOOHBBK3hPellCdjdINnNFaHY4QklZUmczTld6cFpKVzdBYmxjZVJsNHhNcmhpM1FqSmxsWlBRbUhoaEwzVlV4OXpDd1JFZzJJaDQrSmxYRDVLQmNxQjVaVkxmbThwSVYwSTN1MUFsMFZMd2pFZ0VxcUlNSlZLa0FYN3liSm1ZcDVadUsrL2hyZGg1T0h3aDFYcmlVWFVSVnpmbVY2MldORUtTR3JscVVKdmdlWjA0WGF4WmtMbTk4MlF5Z2ZXQWZTYXFJQloyWjVQdTdIQ3dJb3VvQ2xGSm9qS0NMUUIwaXMzUXdSQXRPbVltUzhKdmt0ZDRyTWhZc3E1V2tGOUFFanpkUFc1TysybHRhN2N4NUREZjJZWUwyNXhBMU1ZcFFIazh4SE13L05vazMyYlg0VHkreHIrY0s1MTBVRFNCbUI2cDlsb1UwV2lVajhqdjNEOFZneHZMYko2R2NQa2ExVXRiK2tkbFlPRkFWNTVNMlhvWnYvSDAyZlpHNnhKLy8zZ3VCTUJMdz0ifQ==",
+            "invitado": "eyJlIjoiMnhDUHNMUUtZNnF5Zlp6MDhkMWNGcW84NmltRXgwZVgzbnNKQjJuU3MyQWJwcGsvQzFFakhSMzdpbUpKZmlmRlQ4cVVrOFdJdHpGSUNReHRuMEhMK1BZak9kUjMrUytCRVM4VS80YklCbU9jeU1OeU5aenJwdkxsWnAvZDJqVkgiLCJkIjoiR1R5a2hxMFR4dzZVa0tuLzN1NUkyaWM4d3BiZk05eENaQUE1cHZ4NDRsSEZCRW1maG94dC9jZGIrY3FnenN0dmNkdmV0OW1paUY3OHhHMFFhb1VMN3hsZEhNMkp3M2FLTW9jWVBrWHRsWXZ5UlRkVXRmWVBEN29KVzh2R2dlWlNSVHBiaUduVFRHQUhOc2ZKY1BQUTBkUThHWElFVFBRdjM4QnV6M25UMlNyODN1bldEMS9QeEkvcVJRR2NETXQrNVNvQTFHcnMra3N3MC9RRDJUM3pHZTFJTFd5aVlTT3VLS3M4WjdsRWZmTGs3aXJOa1BnRkk2anpKUnoxL3VNQVZORFZVSEtadGJvdTk2bjNJcjdkb2MrQ1UvNG9aeURPRnBGQnR4aThzd1lpQ2ZxTU1oNTEvV2c0dHVXblVUMWljVUVXQytUcDZwOExTSjlrWTRNa2FtSjVaamUwV1cwTnl6d09vNHRIV3NrYkxwWUNsSkdYcjBYYmgxOEdTRkcvYzVmMU5xT3paYmJkVEdHVEZHbXNMMFA4QmwzK0dYUC93eXA3MFd4ZDZxQT0ifQ==",
+            "admin": "eyJlIjoicXkxZnpFTWIvRkdZbkRkMEVVM1RGcDVNT3VLQXNvbStMakErYzRqOEJranZtb0VWYUE2MlVlZTJKczhrMkdyU1U4NXFSZmc1ZjduY21ueHNmNnVzWXZHVzNtb3YxV1p2NnBlM3ZkekVGWXFOTzM4Z0FpU1MwQUhRclU2Q2ZRRmEiLCJkIjoiSFN6MVZpOUJsaEpuMFB2aFhTNDBPQWVGY0JXYWdsdWx6SFIrTFFMMFVXbzJwTGxUMGdPVUJBTVIwQlE3SDlBRE1RY0g4ZSs0Zkh5NWZWcU1yU2lSeXp5UlhUNlErMzBPd3NqK3RhcTFibDRKS2VLSkRtVW5JMGVWZWJpMkNiY0tDdG9ZSjJFd0RwKzdUNnlvWkIrZmZXbXpwbHV4Z2QyM0FUb2pWSjRtOEZMNnlIak9QMWcxcXJkNHdDRjlHRkJKNlZxVkkrS1pYVDZ5bWtmdUozNWxSYlQ2R1d0MTRQK1BtVTJQeUJtOTJsL2V4dGg1bFVLK3dBK1oycFliZGpXZm5nQ05yUE51bDk4aThjT3M2VTRYWWc9PSJ9"
         };
         
         this.brokers = [
@@ -337,26 +337,50 @@ export class Core {
         }
     }
 
-    login() {
+    async login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         if(!this.llave[u]) return document.getElementById('error-msg').innerText = "Usuario no encontrado";
-        
+
         try {
-            const k = CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(p));
-            const rawData = CryptoJS.enc.Base64.parse(this.llave[u]);
-            const iv = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
-            const ciphertext = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
+            // 1. Desempaquetamos los sobres
+            const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(this.llave[u]));
+            const boveda = JSON.parse(rawJsonStr); 
+
+            let ghostKey = localStorage.getItem('pico_gk_' + u);
+
+            if (!ghostKey) {
+                const pin = prompt("🔐 Dispositivo no reconocido.\nPor favor, introduce tu PIN Maestro);
+                if (!pin) return; 
+
+                const keyEnv = CryptoJS.SHA256(p + pin.trim());
+                const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
+                const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
+                const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
+                
+                const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
+                ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
+                
+                if (!ghostKey) throw new Error("PIN Incorrecto"); 
+                
+                localStorage.setItem('pico_gk_' + u, ghostKey);
+            }
+
+            // 2. ABRIR LA BÓVEDA PRINCIPAL
+            const keyData = CryptoJS.SHA256(p + ghostKey);
+            const rawData = CryptoJS.enc.Base64.parse(boveda.d);
+            const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
+            const cipherData = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
+
+            const decData = CryptoJS.AES.decrypt({ciphertext: cipherData}, keyData, { iv: ivData });
+            const txt = decData.toString(CryptoJS.enc.Utf8);
             
-            const b = CryptoJS.AES.decrypt({ciphertext: ciphertext}, k, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
-            const txt = b.toString(CryptoJS.enc.Utf8);
-            
-            // 🛡️ MAGIA NEGRA: Si la contraseña está mal, 'txt' será basura ilegible.
-            // Al hacer JSON.parse(txt) lanzará un error interno silencioso y saltará directo al Catch denegando el acceso.
             this.conf = JSON.parse(txt); 
             
+            // 🟢 ÉXITO ABSOLUTO: Reseteamos el contador de fallos a 0
+            localStorage.removeItem('pico_fails_' + u);
+
             this.rol = this.conf.rol;
-            // 🚀 Rescatamos las APIs a la memoria volátil del sistema
             this.apiKeys = this.conf.apis || {}; 
 
             sessionStorage.setItem("u", u); 
@@ -368,9 +392,25 @@ export class Core {
             this.conectar();
             
         } catch { 
+            // 🚨 DEFENSA ACTIVA: Gestión de fallos (5 strikes)
+            let fails = parseInt(localStorage.getItem('pico_fails_' + u) || "0");
+            fails++;
+            localStorage.setItem('pico_fails_' + u, fails);
+
             const errorMsg = document.getElementById('error-msg');
+
+            if (fails >= 5) {
+                // Castigo Máximo: Borramos la Llave Fantasma y reiniciamos el contador
+                localStorage.removeItem('pico_gk_' + u);
+                localStorage.removeItem('pico_fails_' + u);
+                errorMsg.innerText = "❌ Demasiados fallos. Dispositivo desvinculado por seguridad.";
+            } else {
+                // Aviso de intentos restantes
+                const intentosRestantes = 5 - fails;
+                errorMsg.innerText = `Contraseña o PIN incorrectos. (Te quedan ${intentosRestantes} intentos)`; 
+            }
+            
             const loginBox = document.querySelector('.login-box');
-            errorMsg.innerText = "Contraseña incorrecta"; 
             errorMsg.style.display = 'block'; 
             loginBox.classList.remove('error-shake');
             void loginBox.offsetWidth; loginBox.classList.add('error-shake');
