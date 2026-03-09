@@ -352,26 +352,31 @@ export class Core {
     async login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
-        const pin = document.getElementById('pin-input').value.trim(); // Leemos el HTML
+        const pinInputEl = document.getElementById('pin-input');
+        const pin = pinInputEl.value.trim(); 
         
-        if(!this.llave[u]) return document.getElementById('error-msg').innerText = "Usuario no encontrado";
+        if(!this.llave[u]) {
+            document.getElementById('error-msg').innerText = "Usuario no encontrado";
+            document.getElementById('error-msg').style.display = 'block';
+            return;
+        }
 
+        let txtDesencriptado = ""; // Lo guardamos aquí para usarlo después
+
+        // 🛡️ BLOQUE 1: EXCLUSIVO PARA CRIPTOGRAFÍA
         try {
             const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(this.llave[u]));
             const boveda = JSON.parse(rawJsonStr); 
 
             let ghostKey = localStorage.getItem('pico_gk_' + u);
 
-            // 🛡️ SI ES UN DISPOSITIVO NUEVO (Falta la Llave Fantasma)
             if (!ghostKey) {
-                
-                // 1. EL PARCHE: Si el recuadro estaba oculto (por el autocompletar), lo mostramos a la fuerza
+                // Forzamos mostrar el input si estaba oculto
                 if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
                     pinInputEl.style.display = 'block';
-                    pinInputEl.focus(); // Ponemos el cursor dentro para que escribas directo
+                    pinInputEl.focus(); 
                 }
 
-                // 2. Si el PIN está vacío, avisamos y paramos el login
                 if (!pin) {
                     const err = document.getElementById('error-msg');
                     err.innerText = "⚠️ Introduce tu PIN Maestro de enrolamiento";
@@ -379,7 +384,6 @@ export class Core {
                     return; 
                 }
 
-                // 3. Desencriptamos el Sobre Pequeño con la Contraseña + PIN
                 const keyEnv = CryptoJS.SHA256(p + pin);
                 const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
                 const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
@@ -393,54 +397,68 @@ export class Core {
                 localStorage.setItem('pico_gk_' + u, ghostKey);
             }
 
-            // 2. ABRIR LA BÓVEDA PRINCIPAL
             const keyData = CryptoJS.SHA256(p + ghostKey);
             const rawData = CryptoJS.enc.Base64.parse(boveda.d);
             const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
             const cipherData = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
 
             const decData = CryptoJS.AES.decrypt({ciphertext: cipherData}, keyData, { iv: ivData });
-            const txt = decData.toString(CryptoJS.enc.Utf8);
+            txtDesencriptado = decData.toString(CryptoJS.enc.Utf8);
             
-            this.conf = JSON.parse(txt); 
-            
-            // 🟢 ÉXITO ABSOLUTO: Reseteamos el contador de fallos a 0
-            localStorage.removeItem('pico_fails_' + u);
+            if (!txtDesencriptado) throw new Error("DATA_FAIL");
 
-            this.rol = this.conf.rol;
-            this.apiKeys = this.conf.apis || {}; 
-
-            sessionStorage.setItem("u", u); 
-            sessionStorage.setItem("p", p);
+        } catch (error) { 
+            // 🚨 SÓLO ENTRA AQUÍ SI LA CLAVE O EL PIN SON REALMENTE FALSOS
+            console.error("🔒 Error criptográfico real:", error);
             
-            document.getElementById('login-screen').style.display = 'none';
-            if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
-            
-            this.conectar();
-            
-        } catch { 
-            // 🚨 DEFENSA ACTIVA: Gestión de fallos (5 strikes)
             let fails = parseInt(localStorage.getItem('pico_fails_' + u) || "0");
             fails++;
             localStorage.setItem('pico_fails_' + u, fails);
 
             const errorMsg = document.getElementById('error-msg');
-
             if (fails >= 5) {
-                // Castigo Máximo: Borramos la Llave Fantasma y reiniciamos el contador
                 localStorage.removeItem('pico_gk_' + u);
                 localStorage.removeItem('pico_fails_' + u);
-                errorMsg.innerText = "❌ Demasiados fallos. Dispositivo desvinculado por seguridad.";
+                errorMsg.innerText = "❌ Demasiados fallos. Dispositivo desvinculado.";
             } else {
-                // Aviso de intentos restantes
-                const intentosRestantes = 5 - fails;
-                errorMsg.innerText = `Contraseña o PIN incorrectos. (Te quedan ${intentosRestantes} intentos)`; 
+                errorMsg.innerText = `Contraseña o PIN incorrectos. (Quedan ${5 - fails} intentos)`; 
             }
             
             const loginBox = document.querySelector('.login-box');
             errorMsg.style.display = 'block'; 
             loginBox.classList.remove('error-shake');
             void loginBox.offsetWidth; loginBox.classList.add('error-shake');
+            return; // Detenemos la función aquí
+        }
+
+        // 🚀 BLOQUE 2: ARRANQUE DEL SISTEMA (Sólo se ejecuta si pasaste el Bloque 1)
+        try {
+            this.conf = JSON.parse(txtDesencriptado); 
+            
+            // Clave correcta: limpiamos el historial de fallos
+            localStorage.removeItem('pico_fails_' + u);
+
+            this.rol = this.conf.rol;
+            this.apiKeys = this.conf.apis || {}; 
+
+            sessionStorage.setItem("u", u); 
+            sessionStorage.setItem("p", p); // Opcional, ya casi ni lo necesitamos
+            
+            document.getElementById('login-screen').style.display = 'none';
+            if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            
+            if (this.conf.v1_compat) {
+                if (typeof this.initLegacyProtocol === 'function') this.initLegacyProtocol();
+                return;
+            }
+
+            // Arrancar servidor MQTT normal
+            this.conectar();
+            
+        } catch (error) {
+            // 🐛 SI LLEGAS AQUÍ, LA CONTRASEÑA ERA CORRECTA PERO FALLÓ OTRA COSA
+            console.error("💥 ERROR INTERNO AL ARRANCAR EL SISTEMA:", error);
+            saveLog("Fallo al arrancar. Mira la consola.", "#ff453a");
         }
     }
     
