@@ -52,19 +52,29 @@
 <body>
     <script type="module">
         import { Core } from './core.js';
-        
-        // Esperamos a que el DOM esté cargado al 100%
-        window.addEventListener('DOMContentLoaded', async () => {
+    
+        // Función de arranque seguro
+        async function ignicion() {
+            console.log("🛠️ DOM detectado. Iniciando Core...");
             window.App = new Core();
-            
-            // Primero inyectamos las librerías en RAM
-            if(window.App.inicializarModulos) {
+        
+            // Cargamos las librerías dinámicamente en RAM
+            if (window.App.inicializarModulos) {
                 await window.App.inicializarModulos();
             }
-            
+        
+            // Una vez cargado Paho, Crypto y el HTML, lanzamos el sistema
             window.App.init(); 
-        });
+        }
+
+        // Solo arranca cuando el HTML esté 100% listo
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', ignicion);
+        } else {
+            ignicion();
+        }
     </script>
+
 
     <script>
         if ('serviceWorker' in navigator) {
