@@ -116,8 +116,8 @@ export class Core {
         const u = sessionStorage.getItem("u"), p = sessionStorage.getItem("p");
         if(u && p) { 
             document.getElementById('user-input').value = u; 
-            document.getElementById('pass-input').value = p; 
-            this.login(); 
+            document.getElementById('pass-input').value = p;
+            setTimeout(() => { this.login(); }, 500);
         }
 
         // Activar el Cerebro IA
@@ -1819,6 +1819,7 @@ export class Core {
 
                     // 3. Lo inyectamos en la RAM (DOM) para que empiece a funcionar AHORA MISMO
                     const script = document.createElement('script');
+                    script.type = 'module';
                     script.textContent = codigoJS; // Metemos el código directamente
                     document.head.appendChild(script);
 
