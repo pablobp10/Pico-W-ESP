@@ -206,8 +206,30 @@ export class Core {
     }
 
     conectar() {
-        if (this.conf.v1_compat) { this.initLegacyProtocol(); return; } // Trampa
+        if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
 
+        // 🛡️ SISTEMA DE AUTOSANACIÓN (Inyección de Emergencia en RAM)
+        if (typeof window.Paho === 'undefined' || !window.Paho.MQTT) {
+            console.warn("⚠️ Caché corrupta o librería MQTT no encontrada. Iniciando autosanación...");
+            if (window.saveLog) window.saveLog("Caché rota. Inyectando MQTT de urgencia...", "#ffcc00");
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = "https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js";
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+                console.log("✅ Autosanación completada.");
+                if (window.saveLog) window.saveLog("✅ Autosanación completada. Motor MQTT listo.", "#32d74b");
+            } catch (e) {
+                console.error("❌ Fallo crítico de red. No se puede descargar la librería MQTT.");
+                if (window.saveLog) window.saveLog("❌ Fallo de red: Imposible inyectar MQTT.", "#ff453a");
+                return; // Abortamos si no hay internet
+            }
+        }
+        
         const b = this.brokers[this.brIdx];
         const dot = document.getElementById('mqtt-dot');
         dot.className = "dot orange";
@@ -458,7 +480,8 @@ export class Core {
         } catch (error) {
             // 🐛 SI LLEGAS AQUÍ, LA CONTRASEÑA ERA CORRECTA PERO FALLÓ OTRA COSA
             console.error("💥 ERROR INTERNO AL ARRANCAR EL SISTEMA:", error);
-            saveLog("Fallo al arrancar. Mira la consola.", "#ff453a");
+            if (window.saveLog) {
+                window.saveLog(💥 Fallo de arranque: ${error.message || error}, "#ff453a");
         }
     }
     
