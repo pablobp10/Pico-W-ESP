@@ -16,7 +16,7 @@ import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
 import { GeneradorPrompt } from './prompt.js';
-    
+
 export class Core {
     constructor() {
         this.cards = [
@@ -24,21 +24,7 @@ export class Core {
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
             RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard
         ];
-        
-        this.versiones = {
-            "web-llm": "0.2.81",
-            "paho-mqtt": "1.0.1",
-            "crypto-js": "4.2.0",
-            "sortable": "1.15.0" 
-        };
-        
-        this.librerias = {
-            ia: `https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@${this.versiones["web-llm"]}`,
-            mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/mqttws31.min.js`,
-            crypto: `https://cdnjs.cloudflare.com/ajax/libs/crypto-js/${this.versiones["crypto-js"]}/crypto-js.min.js`,
-            sortable: `https://cdnjs.cloudflare.com/ajax/libs/Sortable/${this.versiones["sortable"]}/Sortable.min.js`
-        };
-        
+
         this.conf = null;
         this.mqtt = null;
         this.rol = "guest";
@@ -57,29 +43,10 @@ export class Core {
             { h: "test.mosquitto.org", p: 8081, name: "Mosquitto" }
         ];
         this.brIdx = 0;
+
+        this.init();
     }
 
-    async inicializarModulos() {
-        console.log("🚀 Iniciando inyección de módulos en RAM...");
-        
-        for (const [nombre, url] of Object.entries(this.librerias)) {
-            if (!document.querySelector(`script[src="${url}"]`)) {
-                const script = document.createElement('script');
-                script.src = url;
-                script.async = false; // Mantener orden de carga
-                document.head.appendChild(script);
-                
-                await new Promise(resolve => {
-                    script.onload = () => {
-                        console.log(`✅ ${nombre} cargado con éxito.`);
-                        resolve();
-                    };
-                });
-            }
-        }
-        this.notificar("Módulos actualizados y listos", "✅");
-    }
-    
     init() {
         this.filtroActual = 'all';
         this.initTheme();
