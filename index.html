@@ -53,22 +53,17 @@
     <script type="module">
         import { Core } from './core.js';
         
-        // Creamos la instancia
-        window.App = new Core();
-
-        // Ejecutamos la inyección de librerías críticas ANTES de arrancar
-        // Esto cargará Paho 1.0.1, Crypto-JS y Web-LLM 0.2.81 en RAM
-        (async () => {
-            try {
-                // Si implementaste inicializarModulos en el core.js como hablamos:
-                if(window.App.inicializarModulos) {
-                    await window.App.inicializarModulos();
-                }
-                console.log("🚀 Sistema de módulos listo. Arrancando Core...");
-            } catch (e) {
-                console.error("Fallo en la secuencia de ignición:", e);
+        // Esperamos a que el DOM esté cargado al 100%
+        window.addEventListener('DOMContentLoaded', async () => {
+            window.App = new Core();
+            
+            // Primero inyectamos las librerías en RAM
+            if(window.App.inicializarModulos) {
+                await window.App.inicializarModulos();
             }
-        })();
+            
+            window.App.init(); 
+        });
     </script>
 
     <script>
