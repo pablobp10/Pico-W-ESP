@@ -57,8 +57,6 @@ export class Core {
             { h: "test.mosquitto.org", p: 8081, name: "Mosquitto" }
         ];
         this.brIdx = 0;
-
-        this.init();
     }
 
     async inicializarModulos() {
