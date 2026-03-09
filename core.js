@@ -69,6 +69,18 @@ export class Core {
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
+        // 👁️ VIGILANTE DE TECLADO PARA EL PIN MÁGICO
+        document.getElementById('user-input').addEventListener('input', (e) => {
+            const u = e.target.value.trim();
+            const pinInput = document.getElementById('pin-input');
+            
+            // Si el usuario existe en tu diccionario de llaves y NO tiene la Llave Fantasma guardada
+            if (this.llave[u] && !localStorage.getItem('pico_gk_' + u)) {
+                pinInput.style.display = 'block'; // Mostrar PIN
+            } else {
+                pinInput.style.display = 'none';  // Ocultar PIN
+            }
+        });
         document.querySelectorAll('.filter-pill').forEach(btn => {
         btn.addEventListener('click', (e) => {
             // Cambiar estilos de los botones
@@ -340,20 +352,27 @@ export class Core {
     async login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
+        const pin = document.getElementById('pin-input').value.trim(); // Leemos el HTML
+        
         if(!this.llave[u]) return document.getElementById('error-msg').innerText = "Usuario no encontrado";
 
         try {
-            // 1. Desempaquetamos los sobres
             const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(this.llave[u]));
             const boveda = JSON.parse(rawJsonStr); 
 
             let ghostKey = localStorage.getItem('pico_gk_' + u);
 
+            // Si es un dispositivo nuevo y no hay Llave Fantasma
             if (!ghostKey) {
-                const pin = prompt("🔐 Dispositivo no reconocido.\nPor favor, introduce tu PIN Maestro);
-                if (!pin) return; 
+                if (!pin) {
+                    const err = document.getElementById('error-msg');
+                    err.innerText = "⚠️ Introduce tu PIN Maestro de enrolamiento";
+                    err.style.display = 'block';
+                    return; // Detenemos el login para que ponga el PIN
+                }
 
-                const keyEnv = CryptoJS.SHA256(p + pin.trim());
+                // Desencriptamos el Sobre Pequeño con la Contraseña + PIN
+                const keyEnv = CryptoJS.SHA256(p + pin);
                 const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
                 const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
                 const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
@@ -361,8 +380,9 @@ export class Core {
                 const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
                 ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
                 
-                if (!ghostKey) throw new Error("PIN Incorrecto"); 
+                if (!ghostKey) throw new Error("PIN_FAIL"); 
                 
+                // Guardamos para siempre (hasta que falle 5 veces)
                 localStorage.setItem('pico_gk_' + u, ghostKey);
             }
 
