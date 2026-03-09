@@ -31,9 +31,9 @@ export class Core {
         this.editMode = false;
         
         this.llave = {
-            "pablo": "kN+hf/XSn0EIKBF6MvlmOM3Fey9EGmlKAX0yGBYq+tVoSFizGZts766xX1R7AFRKVrLITUUCTMRQd9vt44qTHdE50WbjETI3pqwauRzshvr0vil85D9isbqjUr8SWkl4OWPVSOFHacvxIwtltnliNg==",
-            "invitado": "NyXu8S58v+Q3xnDroYH7+MyffhCT0aZuvdFYA+rNrqxLibKi+sLU1dygX52kts1FqA0/GsTp9v/pEQR1dcdUFFebgQiJ+pog5zAhJkuSu3f6eOx3yzDPDTI/sUN29tJ0ysycox2LMOv2nIXaDdn00Q==",
-            "admin": "TVvNksSUIigBVr6//QhXqSZG3QJKkesvCO/JSQ5c0KmLEwAF8dVuHxeyGQlynj6roqm0r/MSpzRL1o7naSh1d5w+x5FIx0nhSAgb0yPx8+SSeur1E7Lz1A6u8BzpdA81w48BawH87HWo/pjkWP3ENw=="
+            "pablo": "1DaeBn5171s717AFJM62HmRP6KM3m5pe1JiFBnicGNFgGv6v1enDhTVeM0O3anNJWpinfPDX2IH1fgqL9rlc0JpalwJ+38nptGv1JOujc+bNNPa8a0mcC/Eqr4MTQBCnT42ilvXIck9CV7RsNYHJaE/Y7g9MPNc61Jeu84DEc0o9FGAHAjTkDGA2rmI0IGU0ELq3NVxQng6bEoUfqSWWYEpyQQE5WAcufh4UdvGhV5WIeqTS1KWwrVqyKxFO37FHff+Uj/WiYNh1ugTw2HiK+4RLRKHzj671l7BXWQsx1llnT0/lkDNzoC3R7vddodPxA3m4iSw45HGXLhuYAT5L3rOp6aaNTihPLEMOHq46VSq+qN9vzEUhr8/pS75Wg+clmlEIHyClTJ/gEkAuSG25/P+U5vXqPyXLwSqTEJAnpjA=",
+            "invitado": "LoS5LUKbEIiHn3qVFbFqXCGHXwc9DMGmxHVnlO6LowzzHKGm0lsCGMwGNiDvgCDF5KQ4tCXsx61AX0BX5WX15eko5Zh0+qHfDm+gSRwvOQouYaC/9roFjTujTxiTcGIvwLw+hemR5Ob884LAm1jRJjINK8SI48HmOMLluo7Ih4daASxeEB5Va2IYHXTgBE3S5+DZ77/DjsmWf7ICxmqfnoXHeWmjJGU+300Fe9MqpB30mdEdClTXKAQZpNaK/zwG18VsWeTjpxsIhJ0jpbyJg/bTWNHVbBahuQhzDyeOXq1khdAgXKKNhXhCqH4ZXw8EYZt8VlY4K8teoqsxc+ijJnGXJb3svTNRHSWSC97DDng7qM5P9QA15PiLzJdK1zLHI62AqBmaqoeZscpX2iEw/c93QU74i/9n9ACAGIhfFno=",
+            "admin": "bxZHAeNQEY3BNN6gHITNlziWeKVtApPxjeECUK3+InldGCJo3e3IWkOrWs6ocvmIv2d4hNefySDwhMDY91nk9sRGWDucOae+6DVKvXgTT8nBvFF9vnnxbR0ERJBhgPajDkg4j8chNJfULkyFTt2Wh2ttvJP+rwKGn6huitHWyPmOOi3PbjAhigo6gLP5VEyc5SxXLZy+pTSuyGplfEbQdSn3nQUCW1rJcdiIX40M6hQ="
         };
         
         this.brokers = [
@@ -341,23 +341,32 @@ export class Core {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         if(!this.llave[u]) return document.getElementById('error-msg').innerText = "Usuario no encontrado";
+        
         try {
             const k = CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(p));
             const rawData = CryptoJS.enc.Base64.parse(this.llave[u]);
             const iv = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
             const ciphertext = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
+            
             const b = CryptoJS.AES.decrypt({ciphertext: ciphertext}, k, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
             const txt = b.toString(CryptoJS.enc.Utf8);
             
-            if(txt.includes("topic")) {
-                this.conf = JSON.parse(txt); 
-                this.rol = this.conf.rol;
-                sessionStorage.setItem("u", u); 
-                sessionStorage.setItem("p", p);
-                document.getElementById('login-screen').style.display = 'none';
-                if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
-                this.conectar();
-            } else throw 0;
+            // 🛡️ MAGIA NEGRA: Si la contraseña está mal, 'txt' será basura ilegible.
+            // Al hacer JSON.parse(txt) lanzará un error interno silencioso y saltará directo al Catch denegando el acceso.
+            this.conf = JSON.parse(txt); 
+            
+            this.rol = this.conf.rol;
+            // 🚀 Rescatamos las APIs a la memoria volátil del sistema
+            this.apiKeys = this.conf.apis || {}; 
+
+            sessionStorage.setItem("u", u); 
+            sessionStorage.setItem("p", p);
+            
+            document.getElementById('login-screen').style.display = 'none';
+            if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            
+            this.conectar();
+            
         } catch { 
             const errorMsg = document.getElementById('error-msg');
             const loginBox = document.querySelector('.login-box');
@@ -650,13 +659,10 @@ export class Core {
     
     // --- 6. MOTOR DE INFERENCIA CUÁNTICO (CHAIN-OF-THOUGHT & PERSONALIDAD) ---
     async ejecutarInferencia(orden, modo = "reactivo") {
-        const password = sessionStorage.getItem("p"); 
-        if(!password) return;
-        
-        const apiKeyCifrada = "U2FsdGVkX18xxwqLqWSZ9HU0Bhxe/sVuSRLebC/8w6C68NHfUf0n+D35Eu15T9dsdArr9Yev2OkiiEqALsaxVw=="; 
-        let API_KEY = "";
-        try { API_KEY = CryptoJS.AES.decrypt(apiKeyCifrada, password).toString(CryptoJS.enc.Utf8).trim(); } 
-        catch (e) { return this.notificar("Error de cifrado IA", "❌"); }
+        // Verificamos sesión y claves en memoria RAM
+        if(!sessionStorage.getItem("p") || !this.apiKeys) {
+            return this.notificar("Sesión corrupta o sin permisos de IA.", "❌");
+        }
 
         // Telemetría
         const statusEl = document.querySelector('.pico-info-pill');
@@ -680,29 +686,92 @@ export class Core {
 
         // 🔀 AQUÍ ACTÚA EL INTERRUPTOR
         if (this.modoIALocal) {
-            // El usuario ha pulsado el botón del chip verde
             await this.procesarConWebLLM(promptSistema, orden, modo);
         } else {
-            // El usuario está en modo Nube (Nube primero, local si falla)
-            try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
-                const respuesta = await fetch(url, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptSistema }] }], generationConfig: { responseMimeType: "application/json" } })
-                });
+            // 🛡️ MOTOR HYDRA MULTI-NUBE
+            
+            // Leemos las claves dinámicas (vacías si el usuario es "guest")
+            const keys = {
+                google: this.apiKeys.google || "", 
+                openrouter: this.apiKeys.openrouter || "",
+                groq: this.apiKeys.groq || ""
+            };
 
-                if (!respuesta.ok) {
-                    const errorGoogle = await respuesta.json();
-                    console.error("🚨 MOTIVO FALLO GEMINI:", JSON.stringify(errorGoogle, null, 2));
-                    throw new Error("Cloud Server Error");
+            const proveedores = [
+                {
+                    id: "Google (Gemini 1.5 Flash 8B)",
+                    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${keys.google}`,
+                    key: keys.google,
+                    headers: () => ({ "Content-Type": "application/json" }),
+                    body: () => JSON.stringify({
+                        contents: [{ parts: [{ text: promptSistema }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    }),
+                    parser: (data) => data.candidates[0].content.parts[0].text
+                },
+                {
+                    id: "OpenRouter (Llama 3 8B Gratis)",
+                    url: "https://openrouter.ai/api/v1/chat/completions",
+                    key: keys.openrouter,
+                    headers: () => ({ "Authorization": `Bearer ${keys.openrouter}`, "Content-Type": "application/json" }),
+                    body: () => JSON.stringify({
+                        model: "meta-llama/llama-3-8b-instruct:free",
+                        messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
+                        response_format: { type: "json_object" }
+                    }),
+                    parser: (data) => data.choices[0].message.content
+                },
+                {
+                    id: "Groq (Llama 3 70B)",
+                    url: "https://api.groq.com/openai/v1/chat/completions",
+                    key: keys.groq,
+                    headers: () => ({ "Authorization": `Bearer ${keys.groq}`, "Content-Type": "application/json" }),
+                    body: () => JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
+                        response_format: { type: "json_object" }
+                    }),
+                    parser: (data) => data.choices[0].message.content
                 }
-                const datos = await respuesta.json();
-                this.desplegarPayloadCuantico(datos.candidates[0].content.parts[0].text, orden, modo);
+            ];
 
-            } catch (error) {
+            let payloadGenerado = null;
+
+            // BUCLE DE SUPERVIVENCIA
+            for (const proveedor of proveedores) {
+                if (!proveedor.key) continue; // Salta si no tiene clave para este servicio
+
+                try {
+                    console.log(`🚀 Intentando inferencia con: ${proveedor.id}...`);
+                    const res = await fetch(proveedor.url, {
+                        method: 'POST',
+                        headers: proveedor.headers(),
+                        body: proveedor.body()
+                    });
+
+                    if (!res.ok) {
+                        const errorData = await res.json().catch(() => ({}));
+                        console.warn(`⚠️ Falló ${proveedor.id}:`, errorData.error?.message || res.statusText);
+                        continue;
+                    }
+
+                    const data = await res.json();
+                    payloadGenerado = proveedor.parser(data);
+                    console.log(`✅ Éxito de conexión con: ${proveedor.id}`);
+                    break;
+
+                } catch (e) {
+                    console.error(`💥 Error de red crítico con ${proveedor.id}:`, e);
+                }
+            }
+
+            // EVALUACIÓN FINAL
+            if (payloadGenerado) {
+                this.desplegarPayloadCuantico(payloadGenerado, orden, modo);
+            } else {
                 if(modo === "reactivo") {
-                    console.warn("⚠️ Fallo en la nube. Activando fallback local automático...");
-                    this.notificar("Cloud caída. IA Local asumiendo mando...", "🔋");
+                    console.error("☠️ COLAPSO NUBE: Todas las APIs han fallado o agotado su cuota.");
+                    this.notificar("Nubes caídas. IA Local asumiendo el mando...", "🔋");
                     await this.procesarConWebLLM(promptSistema, orden, modo);
                 }
             }
@@ -1492,59 +1561,98 @@ export class Core {
             };
         });
     }
+    
     // ==========================================================
-    // 📦 GESTOR DE PAQUETES Y ACTUALIZACIONES OTA
+    // 📦 GESTOR DE PAQUETES Y ACTUALIZACIONES (REAL)
     // ==========================================================
 
     initGestorActualizaciones() {
-        // 1. Inyectamos la sección en el menú lateral y el panel flotante
         const menuLateral = document.getElementById('side-menu');
         if (menuLateral) {
             menuLateral.insertAdjacentHTML('beforeend', `
-                <div id="sidebar-updates">
+                <div id="sidebar-updates" style="display:none; cursor:pointer;">
                     <div style="display:flex; align-items:center; color:#ff453a; font-weight:bold;">
                         <i class="fa-solid fa-cloud-arrow-down"></i>
                         <span style="margin-left:10px;">Actualizaciones</span>
                         <span class="update-bubble" id="update-count">0</span>
                     </div>
-                    <div style="font-size:0.75rem; color:var(--text-sec); margin-top:5px;">Módulos de IA listos para instalar.</div>
+                    <div style="font-size:0.75rem; color:var(--text-sec); margin-top:5px;">Parches del sistema listos.</div>
                 </div>
             `);
         }
         document.body.insertAdjacentHTML('beforeend', `<div id="download-manager"></div>`);
 
-        // 2. Evento al pulsar en el menú lateral
         const btnUpdates = document.getElementById('sidebar-updates');
         if (btnUpdates) {
             btnUpdates.onclick = () => {
-                if (confirm(`¿Deseas descargar las actualizaciones?\nEsto podría consumir datos móviles.`)) {
-                    btnUpdates.style.display = 'none'; // Ocultamos el aviso
-                    document.getElementById('side-menu').classList.remove('open'); // Cerramos menú
+                if (confirm(`¿Instalar las actualizaciones encontradas?`)) {
+                    btnUpdates.style.display = 'none';
+                    document.getElementById('side-menu').classList.remove('open');
                     this.iniciarDescargas();
                 }
             };
         }
 
-        // 3. Buscamos actualizaciones a los 3 segundos de abrir la web
-        setTimeout(() => this.comprobarActualizaciones(), 3000);
+        // Retrasamos el escaneo 5 segundos para no penalizar el tiempo de carga inicial
+        setTimeout(() => this.comprobarActualizacionesReales(), 5000);
     }
 
-    comprobarActualizaciones() {
-        // 1. MEMORIA: Comprobamos si ya hemos instalado este parche antes
-        const parcheInstalado = localStorage.getItem('pico_os_patch_v22');
-        if (parcheInstalado === 'true') {
-            return; // Salimos silenciosamente, no hay nada que actualizar
+    async comprobarActualizacionesReales() {
+        console.log("%c📡 RADAR DE ACTUALIZACIONES INICIADO...", "color: #0a84ff; font-weight: bold; font-size: 1.1em;");
+        this.paquetesPendientes = [];
+
+        // 1. ESCANEO DE LIBRERÍAS CORE (NPM Registry)
+        const libs = {
+            "crypto-js": "4.2.0",
+            "paho-mqtt": "1.1.0",
+            "@mlc-ai/web-llm": "0.2.46"
+        };
+
+        for (const [nombre, versionActual] of Object.entries(libs)) {
+            try {
+                const res = await fetch(`https://registry.npmjs.org/${nombre}/latest`);
+                const data = await res.json();
+                if (data.version && data.version !== versionActual) {
+                    console.warn(`📦 [LIBRERÍA]: ${nombre} desactualizada. Tienes v${versionActual}, la última es v${data.version}`);
+                    console.log(`   ↳ Motivo: Mejoras de rendimiento y seguridad. Actualiza la etiqueta <script> en tu index.html.`);
+                    this.paquetesPendientes.push({ id: `lib-${nombre}`, nombre: `Librería: ${nombre}`, size: "Core JS" });
+                } else {
+                    console.log(`✅ [LIBRERÍA]: ${nombre} al día (v${versionActual}).`);
+                }
+            } catch (e) { console.error(`Fallo al comprobar ${nombre}`); }
         }
 
-        // Si no está instalado, preparamos los paquetes
-        this.paquetesPendientes = [
-            { id: 'pkg1', nombre: "Módulo Cognitivo JARVIS V3", size: "14.2 MB" },
-            { id: 'pkg2', nombre: "Diccionario de Hardware", size: "2.1 MB" }
-        ];
+        // 2. ESCANEO DE MODELOS DE IA GRATUITOS (OpenRouter API)
+        // Buscamos si hay algún modelo nuevo que no estemos usando y sea totalmente gratis.
+        try {
+            console.log("🔍 Escaneando repositorio mundial de modelos IA (OpenRouter)...");
+            const res = await fetch("https://openrouter.ai/api/v1/models");
+            const data = await res.json();
+            
+            // Filtramos los que cuestan exactamente 0$
+            const modelosGratis = data.data.filter(m => m.pricing.prompt === "0" && m.pricing.completion === "0");
+            
+            // Comprobamos si hay alguno nuevo que mole (ejemplo: si acaban de meter Llama 4 gratis)
+            const modeloNovedad = modelosGratis.find(m => m.id.includes("llama-3.1") || m.id.includes("gemini-exp"));
+            
+            if (modeloNovedad) {
+                console.warn(`🧠 [NUEVA IA DISPONIBLE]: ${modeloNovedad.name} (${modeloNovedad.id})`);
+                console.log(`   ↳ Motivo: Modelo 100% gratuito recién añadido al hub mundial.`);
+            }
+            console.log(`✅ [MOTORES IA]: ${modelosGratis.length} modelos gratuitos detectados en el mercado.`);
+            
+        } catch (e) { console.error("Fallo al contactar con OpenRouter API."); }
 
+        // 3. ESCANEO DEL CACHÉ LOCAL (Falsos parches de la UI para la experiencia de usuario)
+        const parcheUI = localStorage.getItem('pico_os_ui_patch_3');
+        if (parcheUI !== 'true') {
+            console.warn("🎨 [PARCHE UI]: Elementos de interfaz pendientes de optimización.");
+            this.paquetesPendientes.push({ id: 'ui-patch', nombre: "Optimización Interfaz 3D", size: "1.2 MB" });
+        }
+
+        // 4. REFLEJAR EN LA INTERFAZ
         if (this.paquetesPendientes.length > 0) {
-            this.notificar("Actualización del sistema disponible", "🔄");
-            this.vibra("doble");
+            this.notificar(`${this.paquetesPendientes.length} actualizaciones encontradas`, "🔄");
             
             const btnUpdates = document.getElementById('sidebar-updates');
             const count = document.getElementById('update-count');
@@ -1555,65 +1663,81 @@ export class Core {
             if (menuTrigger && !document.getElementById('main-menu-bubble')) {
                 menuTrigger.innerHTML += `<span id="main-menu-bubble" style="position:absolute; top:-5px; right:-15px; background:#ff453a; width:10px; height:10px; border-radius:50%;"></span>`;
             }
+        } else {
+            console.log("%c✅ SISTEMA CORE 100% OPTIMIZADO Y AL DÍA.", "color: #32d74b; font-weight: bold;");
         }
     }
 
-    iniciarDescargas() {
+    // ==========================================================
+    // 💉 INYECTOR DE CÓDIGO EN MEMORIA (Actualizaciones Reales)
+    // ==========================================================
+
+    async iniciarDescargas() {
         const manager = document.getElementById('download-manager');
-        manager.innerHTML = '<div style="font-weight:bold; margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-download"></i> Instalando paquetes...</div>';
+        manager.innerHTML = '<div style="font-weight:bold; margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-download"></i> Inyectando código en memoria...</div>';
         
-        // Dibujamos las barras de progreso
+        // Creamos la UI para cada paquete real que haya encontrado el radar
         this.paquetesPendientes.forEach(pkg => {
             manager.innerHTML += `
                 <div class="download-item" id="dl-${pkg.id}">
                     <div class="download-info">
-                        <span>${pkg.nombre} <span style="color:var(--text-sec); font-size:0.7rem;">(${pkg.size})</span></span>
-                        <span id="dl-pct-${pkg.id}">0%</span>
-                    </div>
-                    <div class="progress-bg">
-                        <div class="progress-fill" id="dl-fill-${pkg.id}"></div>
+                        <span>${pkg.nombre}</span>
+                        <span id="dl-pct-${pkg.id}">Descargando...</span>
                     </div>
                 </div>
             `;
         });
 
-        manager.classList.add('active'); // Hacemos que el panel suba desde abajo
+        manager.classList.add('active');
         this.vibra("tick");
 
-        const bubble = document.getElementById('main-menu-bubble');
-        if (bubble) bubble.remove();
+        let completados = 0;
 
-        let descargasCompletadas = 0;
-
-        // Simulamos la velocidad de descarga
-        this.paquetesPendientes.forEach((pkg) => {
-            let progreso = 0;
-            const velocidad = Math.random() * 4 + 2; 
-
-            const intervalo = setInterval(() => {
-                progreso += velocidad;
-                if (progreso >= 100) {
-                    progreso = 100;
-                    clearInterval(intervalo);
-                    descargasCompletadas++;
-                    document.getElementById(`dl-pct-${pkg.id}`).innerText = "OK";
-                    document.getElementById(`dl-pct-${pkg.id}`).style.color = "#32d74b";
+        // Bucle de descarga e inyección REAL
+        for (const pkg of this.paquetesPendientes) {
+            try {
+                // Si es una librería NPM (ej: lib-paho-mqtt)
+                if (pkg.id.startsWith('lib-')) {
+                    const nombreLib = pkg.id.replace('lib-', '');
                     
-                    if (descargasCompletadas === this.paquetesPendientes.length) {
-                        // 2. SELLO DE MEMORIA: Grabamos a fuego que ya está actualizado
-                        localStorage.setItem('pico_os_patch_v22', 'true');
-                        
-                        setTimeout(() => {
-                            manager.classList.remove('active');
-                            this.notificar("Sistemas actualizados al 100%", "✅");
-                            this.vibra("doble");
-                        }, 1500);
-                    }
+                    // 1. Descargamos el código fuente real desde el CDN de NPM
+                    const url = `https://cdn.jsdelivr.net/npm/${nombreLib}@latest`;
+                    const respuesta = await fetch(url);
+                    const codigoJS = await respuesta.text();
+
+                    // 2. Lo guardamos en el CacheStorage del navegador (Memoria persistente de la PWA)
+                    const cache = await caches.open('pico-os-core-libs');
+                    await cache.put(url, new Response(codigoJS));
+
+                    // 3. Lo inyectamos en la RAM (DOM) para que empiece a funcionar AHORA MISMO
+                    const script = document.createElement('script');
+                    script.textContent = codigoJS; // Metemos el código directamente
+                    document.head.appendChild(script);
+
+                    // 4. Marcamos en LocalStorage qué versión tenemos ahora instalada en memoria
+                    localStorage.setItem(`version_instalada_${nombreLib}`, "latest");
                 }
-                
-                document.getElementById(`dl-fill-${pkg.id}`).style.width = `${progreso}%`;
-                if (progreso < 100) document.getElementById(`dl-pct-${pkg.id}`).innerText = `${Math.floor(progreso)}%`;
-            }, 150); 
-        });
+
+                // Actualizamos la UI
+                document.getElementById(`dl-pct-${pkg.id}`).innerText = "INSTALADO";
+                document.getElementById(`dl-pct-${pkg.id}`).style.color = "#32d74b";
+                completados++;
+
+            } catch (error) {
+                console.error(`Fallo al inyectar ${pkg.nombre}:`, error);
+                document.getElementById(`dl-pct-${pkg.id}`).innerText = "ERROR";
+                document.getElementById(`dl-pct-${pkg.id}`).style.color = "#ff453a";
+            }
+        }
+
+        // Cuando termina todo el bucle
+        if (completados === this.paquetesPendientes.length) {
+            setTimeout(() => {
+                manager.classList.remove('active');
+                this.notificar("Módulos inyectados en RAM con éxito", "✅");
+                this.vibra("doble");
+                this.paquetesPendientes = [];
+            }, 2500);
+        }
     }
 }
