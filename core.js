@@ -208,37 +208,61 @@ export class Core {
     async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
 
-        // 🛡️ SISTEMA DE AUTOSANACIÓN (Inyección de Emergencia en RAM)
+        // 🛡️ SISTEMA DE AUTOSANACIÓN (Inyección RAM con Evasión de Cortafuegos)
         if (typeof window.Paho === 'undefined' || !window.Paho.MQTT) {
-            console.warn("⚠️ Caché corrupta o librería MQTT no encontrada. Iniciando autosanación...");
-            if (window.saveLog) window.saveLog("Caché rota. Inyectando MQTT de urgencia...", "#ffcc00");
+            console.warn("⚠️ Caché corrupta. Iniciando Evasión de Firewall...");
+            if (window.saveLog) window.saveLog("Caché rota. Forzando inyección MQTT...", "#ffcc00");
             
-            try {
-                await new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = "https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js";
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                });
-                console.log("✅ Autosanación completada.");
-                if (window.saveLog) window.saveLog("✅ Autosanación completada. Motor MQTT listo.", "#32d74b");
-            } catch (e) {
-                console.error("❌ Fallo crítico de red. No se puede descargar la librería MQTT.");
-                if (window.saveLog) window.saveLog("❌ Fallo de red: Imposible inyectar MQTT.", "#ff453a");
-                return; // Abortamos si no hay internet
+            // 3 Rutas alternativas por si la red bloquea alguna
+            const rutasCDN = [
+                "https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js",
+                "https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt.min.js",
+                "https://cdn.jsdelivr.net/npm/paho-mqtt@1.1.0/paho-mqtt.min.js"
+            ];
+            
+            let pahoInstalado = false;
+
+            for (const url of rutasCDN) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = url;
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                    
+                    // 🛡️ DETECTOR DE MENTIRAS: Comprobamos si el código inyectado era real
+                    if (typeof window.Paho !== 'undefined' && window.Paho.MQTT) {
+                        pahoInstalado = true;
+                        break; // Triunfo absoluto, salimos del bucle
+                    }
+                } catch (e) {
+                    console.warn(`Ruta bloqueada: ${url}`);
+                }
+            }
+
+            if (pahoInstalado) {
+                console.log("✅ Evasión completada. Motor MQTT inyectado en RAM.");
+                if (window.saveLog) window.saveLog("✅ Evasión completada. Motor MQTT listo.", "#32d74b");
+            } else {
+                console.error("❌ Fallo crítico. El firewall bloquea todas las rutas MQTT.");
+                if (window.saveLog) window.saveLog("❌ Bloqueo absoluto del Firewall a los CDN.", "#ff453a");
+                return; // Cortamos aquí si es imposible
             }
         }
         
         const b = this.brokers[this.brIdx];
         const dot = document.getElementById('mqtt-dot');
-        dot.className = "dot orange";
+        if(dot) dot.className = "dot orange";
         const id = "Web_" + parseInt(Math.random() * 100000);
-        this.mqtt = new Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
+        
+        // Ahora sí es matemáticamente seguro instanciar el cliente
+        this.mqtt = new window.Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
         
         this.mqtt.onConnectionLost = (e) => {
             this.setNetworkStatus(false);
-            dot.className = "dot red";
+            if(dot) dot.className = "dot red";
             setTimeout(() => { this.brIdx = (this.brIdx+1)%this.brokers.length; this.conectar(); }, 3000);
         };
 
@@ -264,9 +288,13 @@ export class Core {
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
                 setTimeout(() => this.cmd('Led', 'get'), 500); 
             },
-            onFailure: () => { dot.className = "dot red"; setTimeout(() => this.conectar(), 3000); }
+            onFailure: () => { 
+                if(dot) dot.className = "dot red"; 
+                setTimeout(() => this.conectar(), 3000); 
+            }
         });
     }
+
 
     initLegacyProtocol() {
         const dot = document.getElementById('mqtt-dot');
