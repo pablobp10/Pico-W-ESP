@@ -205,7 +205,7 @@ export class Core {
         });
     }
 
-    conectar() {
+    async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
 
         // 🛡️ SISTEMA DE AUTOSANACIÓN (Inyección de Emergencia en RAM)
