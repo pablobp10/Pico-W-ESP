@@ -90,6 +90,12 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 
 /* Ajustes para Móviles (Protección de desbordamiento) */
 @media (max-width: 600px) {
+    /* ⬇️ ESTA ES LA REGLA MÁGICA QUE FUERZA EXACTAMENTE 2 COLUMNAS ⬇️ */
+    .grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px; /* Reducimos un pelín el hueco para que las tarjetas sean más grandes */
+    }
+
     header h1 {
         display: block !important;
         font-size: 1.1rem;
