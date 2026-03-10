@@ -134,7 +134,6 @@ export class Core {
         this.initVozJARVIS();
         this.iniciarAgenteProactivo();
         this.initBaseDeDatos()
-        this.initGestorActualizaciones()
         this.initInterruptorIA();
         
         document.getElementById('btn-login').onclick = () => this.login();
@@ -292,37 +291,23 @@ export class Core {
     async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
 
-        // 🛡️ SISTEMA DE AUTOSANACIÓN (Inyección de Emergencia en RAM)
-        if (typeof window.Paho === 'undefined' || !window.Paho.MQTT) {
-            console.warn("⚠️ Caché corrupta o librería MQTT no encontrada. Iniciando autosanación...");
-            if (window.saveLog) window.saveLog("Caché rota. Inyectando MQTT de urgencia...", "#ffcc00");
-            
-            try {
-                await new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = "https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js";
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                });
-                console.log("✅ Autosanación completada.");
-                if (window.saveLog) window.saveLog("✅ Autosanación completada. Motor MQTT listo.", "#32d74b");
-            } catch (e) {
-                console.error("❌ Fallo crítico de red. No se puede descargar la librería MQTT.");
-                if (window.saveLog) window.saveLog("❌ Fallo de red: Imposible inyectar MQTT.", "#ff453a");
-                return; // Abortamos si no hay internet
-            }
-        }
-        
         const b = this.brokers[this.brIdx];
         const dot = document.getElementById('mqtt-dot');
-        dot.className = "dot orange";
+        if (dot) dot.className = "dot orange";
         const id = "Web_" + parseInt(Math.random() * 100000);
-        this.mqtt = new Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
+        
+        try {
+            // Asumimos que inicializarModulos ya puso la v1.0.1 en window.Paho
+            this.mqtt = new window.Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
+        } catch (e) {
+            console.error("❌ Fallo crítico al instanciar MQTT. ¿Versión incorrecta en RAM?", e);
+            if (window.saveLog) window.saveLog("Motor MQTT no instanciable", "#ff453a");
+            return;
+        }
         
         this.mqtt.onConnectionLost = (e) => {
             this.setNetworkStatus(false);
-            dot.className = "dot red";
+            if (dot) dot.className = "dot red";
             setTimeout(() => { this.brIdx = (this.brIdx+1)%this.brokers.length; this.conectar(); }, 3000);
         };
 
@@ -348,7 +333,10 @@ export class Core {
                 this.mqtt.subscribe(this.conf.topic + "estado/#");
                 setTimeout(() => this.cmd('Led', 'get'), 500); 
             },
-            onFailure: () => { dot.className = "dot red"; setTimeout(() => this.conectar(), 3000); }
+            onFailure: () => { 
+                if (dot) dot.className = "dot red"; 
+                setTimeout(() => this.conectar(), 3000); 
+            }
         });
     }
 
@@ -1800,185 +1788,5 @@ export class Core {
                 resolve(JSON.stringify(resumen));
             };
         });
-    }
-    
-    // ==========================================================
-    // 📦 GESTOR DE PAQUETES Y ACTUALIZACIONES (REAL)
-    // ==========================================================
-
-    initGestorActualizaciones() {
-        const menuLateral = document.getElementById('side-menu');
-        if (menuLateral) {
-            menuLateral.insertAdjacentHTML('beforeend', `
-                <div id="sidebar-updates" style="display:none; cursor:pointer;">
-                    <div style="display:flex; align-items:center; color:#ff453a; font-weight:bold;">
-                        <i class="fa-solid fa-cloud-arrow-down"></i>
-                        <span style="margin-left:10px;">Actualizaciones</span>
-                        <span class="update-bubble" id="update-count">0</span>
-                    </div>
-                    <div style="font-size:0.75rem; color:var(--text-sec); margin-top:5px;">Parches del sistema listos.</div>
-                </div>
-            `);
-        }
-        document.body.insertAdjacentHTML('beforeend', `<div id="download-manager"></div>`);
-
-        const btnUpdates = document.getElementById('sidebar-updates');
-        if (btnUpdates) {
-            btnUpdates.onclick = () => {
-                if (confirm(`¿Instalar las actualizaciones encontradas?`)) {
-                    btnUpdates.style.display = 'none';
-                    document.getElementById('side-menu').classList.remove('open');
-                    this.iniciarDescargas();
-                }
-            };
-        }
-
-        // Retrasamos el escaneo 5 segundos para no penalizar el tiempo de carga inicial
-        setTimeout(() => this.comprobarActualizacionesReales(), 5000);
-    }
-
-    async comprobarActualizacionesReales() {
-        console.log("%c📡 RADAR DE ACTUALIZACIONES INICIADO...", "color: #0a84ff; font-weight: bold; font-size: 1.1em;");
-        this.paquetesPendientes = [];
-
-        // 1. ESCANEO DE LIBRERÍAS CORE (NPM Registry)
-        const libs = {
-            "crypto-js": "4.2.0",
-            "paho-mqtt": "1.1.0",
-            "@mlc-ai/web-llm": "0.2.46"
-        };
-
-        for (const [nombre, versionActual] of Object.entries(libs)) {
-            try {
-                const res = await fetch(`https://registry.npmjs.org/${nombre}/latest`);
-                const data = await res.json();
-                if (data.version && data.version !== versionActual) {
-                    console.warn(`📦 [LIBRERÍA]: ${nombre} desactualizada. Tienes v${versionActual}, la última es v${data.version}`);
-                    console.log(`   ↳ Motivo: Mejoras de rendimiento y seguridad. Actualiza la etiqueta <script> en tu index.html.`);
-                    this.paquetesPendientes.push({ id: `lib-${nombre}`, nombre: `Librería: ${nombre}`, size: "Core JS" });
-                } else {
-                    console.log(`✅ [LIBRERÍA]: ${nombre} al día (v${versionActual}).`);
-                }
-            } catch (e) { console.error(`Fallo al comprobar ${nombre}`); }
-        }
-
-        // 2. ESCANEO DE MODELOS DE IA GRATUITOS (OpenRouter API)
-        // Buscamos si hay algún modelo nuevo que no estemos usando y sea totalmente gratis.
-        try {
-            console.log("🔍 Escaneando repositorio mundial de modelos IA (OpenRouter)...");
-            const res = await fetch("https://openrouter.ai/api/v1/models");
-            const data = await res.json();
-            
-            // Filtramos los que cuestan exactamente 0$
-            const modelosGratis = data.data.filter(m => m.pricing.prompt === "0" && m.pricing.completion === "0");
-            
-            // Comprobamos si hay alguno nuevo que mole (ejemplo: si acaban de meter Llama 4 gratis)
-            const modeloNovedad = modelosGratis.find(m => m.id.includes("llama-3.1") || m.id.includes("gemini-exp"));
-            
-            if (modeloNovedad) {
-                console.warn(`🧠 [NUEVA IA DISPONIBLE]: ${modeloNovedad.name} (${modeloNovedad.id})`);
-                console.log(`   ↳ Motivo: Modelo 100% gratuito recién añadido al hub mundial.`);
-            }
-            console.log(`✅ [MOTORES IA]: ${modelosGratis.length} modelos gratuitos detectados en el mercado.`);
-            
-        } catch (e) { console.error("Fallo al contactar con OpenRouter API."); }
-
-        // 3. ESCANEO DEL CACHÉ LOCAL (Falsos parches de la UI para la experiencia de usuario)
-        const parcheUI = localStorage.getItem('pico_os_ui_patch_3');
-        if (parcheUI !== 'true') {
-            console.warn("🎨 [PARCHE UI]: Elementos de interfaz pendientes de optimización.");
-            this.paquetesPendientes.push({ id: 'ui-patch', nombre: "Optimización Interfaz 3D", size: "1.2 MB" });
-        }
-
-        // 4. REFLEJAR EN LA INTERFAZ
-        if (this.paquetesPendientes.length > 0) {
-            this.notificar(`${this.paquetesPendientes.length} actualizaciones encontradas`, "🔄");
-            
-            const btnUpdates = document.getElementById('sidebar-updates');
-            const count = document.getElementById('update-count');
-            if (btnUpdates) btnUpdates.style.display = 'block';
-            if (count) count.innerText = this.paquetesPendientes.length;
-
-            const menuTrigger = document.querySelector('.pico-os-title');
-            if (menuTrigger && !document.getElementById('main-menu-bubble')) {
-                menuTrigger.innerHTML += `<span id="main-menu-bubble" style="position:absolute; top:-5px; right:-15px; background:#ff453a; width:10px; height:10px; border-radius:50%;"></span>`;
-            }
-        } else {
-            console.log("%c✅ SISTEMA CORE 100% OPTIMIZADO Y AL DÍA.", "color: #32d74b; font-weight: bold;");
-        }
-    }
-
-    // ==========================================================
-    // 💉 INYECTOR DE CÓDIGO EN MEMORIA (Actualizaciones Reales)
-    // ==========================================================
-
-    async iniciarDescargas() {
-        const manager = document.getElementById('download-manager');
-        manager.innerHTML = '<div style="font-weight:bold; margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-download"></i> Inyectando código en memoria...</div>';
-        
-        // Creamos la UI para cada paquete real que haya encontrado el radar
-        this.paquetesPendientes.forEach(pkg => {
-            manager.innerHTML += `
-                <div class="download-item" id="dl-${pkg.id}">
-                    <div class="download-info">
-                        <span>${pkg.nombre}</span>
-                        <span id="dl-pct-${pkg.id}">Descargando...</span>
-                    </div>
-                </div>
-            `;
-        });
-
-        manager.classList.add('active');
-        this.vibra("tick");
-
-        let completados = 0;
-
-        // Bucle de descarga e inyección REAL
-        for (const pkg of this.paquetesPendientes) {
-            try {
-                // Si es una librería NPM (ej: lib-paho-mqtt)
-                if (pkg.id.startsWith('lib-')) {
-                    const nombreLib = pkg.id.replace('lib-', '');
-                    
-                    // 1. Descargamos el código fuente real desde el CDN de NPM
-                    const url = `https://cdn.jsdelivr.net/npm/${nombreLib}@latest`;
-                    const respuesta = await fetch(url);
-                    const codigoJS = await respuesta.text();
-
-                    // 2. Lo guardamos en el CacheStorage del navegador (Memoria persistente de la PWA)
-                    const cache = await caches.open('pico-os-core-libs');
-                    await cache.put(url, new Response(codigoJS));
-
-                    // 3. Lo inyectamos en la RAM (DOM) para que empiece a funcionar AHORA MISMO
-                    const script = document.createElement('script');
-                    script.type = 'module';
-                    script.textContent = codigoJS; // Metemos el código directamente
-                    document.head.appendChild(script);
-
-                    // 4. Marcamos en LocalStorage qué versión tenemos ahora instalada en memoria
-                    localStorage.setItem(`version_instalada_${nombreLib}`, "latest");
-                }
-
-                // Actualizamos la UI
-                document.getElementById(`dl-pct-${pkg.id}`).innerText = "INSTALADO";
-                document.getElementById(`dl-pct-${pkg.id}`).style.color = "#32d74b";
-                completados++;
-
-            } catch (error) {
-                console.error(`Fallo al inyectar ${pkg.nombre}:`, error);
-                document.getElementById(`dl-pct-${pkg.id}`).innerText = "ERROR";
-                document.getElementById(`dl-pct-${pkg.id}`).style.color = "#ff453a";
-            }
-        }
-
-        // Cuando termina todo el bucle
-        if (completados === this.paquetesPendientes.length) {
-            setTimeout(() => {
-                manager.classList.remove('active');
-                this.notificar("Módulos inyectados en RAM con éxito", "✅");
-                this.vibra("doble");
-                this.paquetesPendientes = [];
-            }, 2500);
-        }
     }
 }
