@@ -43,10 +43,83 @@ export class Core {
             { h: "test.mosquitto.org", p: 8081, name: "Mosquitto" }
         ];
         this.brIdx = 0;
-
-        this.init();
+        this.colaOffline = [];
+        this.arranqueSeguro();
     }
 
+    async arranqueSeguro() {
+        await this.inicializarModulos();
+        this.init(); // Ahora sí, arrancamos la UI cuando las librerías existen
+    }
+
+    async inicializarModulos() {
+        // 1. Cargamos versiones (RAM/Local)
+        this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
+            "web-llm": "0.2.81",
+            "paho-mqtt": "1.0.1",
+            "crypto-js": "4.2.0",
+            "sortable": "1.15.0"
+        };
+
+        this.librerias = {
+            crypto: `https://cdnjs.cloudflare.com/ajax/libs/crypto-js/${this.versiones["crypto-js"]}/crypto-js.min.js`,
+            mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/mqttws31.min.js`,
+            ia: `https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@${this.versiones["web-llm"]}`,
+            sortable: `https://cdnjs.cloudflare.com/ajax/libs/Sortable/${this.versiones["sortable"]}/Sortable.min.js`
+        };
+
+        console.log("🚀 Inyectando módulos dinámicos en RAM...");
+        
+        // Carga secuencial estricta (Crypto primero, luego MQTT)
+        for (const [nombre, url] of Object.entries(this.librerias)) {
+            if (!document.querySelector(`script[src="${url}"]`)) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(`Fallo en ${nombre}`);
+                    document.head.appendChild(script);
+                });
+            }
+        }
+        console.log("✅ Módulos listos.");
+        
+        // 2. Disparamos radar de actualizaciones en la sombra
+        setTimeout(() => this.buscarActualizacionesSilenciosas(), 10000);
+    }
+
+    async buscarActualizacionesSilenciosas() {
+        console.log("📡 Buscando parches en red mundial...");
+        let hayNovedades = false;
+        const nuevasVersiones = { ...this.versiones };
+
+        for (const pkg of ["crypto-js", "paho-mqtt"]) {
+            try {
+                const res = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
+                const data = await res.json();
+                if (data.version && data.version !== this.versiones[pkg]) {
+                    nuevasVersiones[pkg] = data.version;
+                    hayNovedades = true;
+                }
+            } catch (e) {}
+        }
+
+        if (hayNovedades) {
+            localStorage.setItem('pico_libs_versions', JSON.stringify(nuevasVersiones));
+            this.notificar("Actualización de librerías lista (Se aplicará al recargar)", "🔄");
+        }
+    }
+
+    sincronizarColaOffline() {
+        if (this.colaOffline.length > 0 && this.mqtt && this.mqtt.isConnected()) {
+            this.notificar(`Sincronizando ${this.colaOffline.length} comandos pendientes...`, "🔄");
+            this.colaOffline.forEach((orden, i) => {
+                setTimeout(() => this.cmd(orden.app, orden.c), i * 200);
+            });
+            this.colaOffline = []; 
+        }
+    }
+    
     init() {
         this.filtroActual = 'all';
         this.initTheme();
@@ -126,6 +199,7 @@ export class Core {
         
         // Activar control offline del navegador
         window.addEventListener('online', () => this.setNetworkStatus(true));
+        this.sincronizarColaOffline();
         window.addEventListener('offline', () => this.setNetworkStatus(false));
     }
 
@@ -575,7 +649,9 @@ export class Core {
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
     cmd(app, c) { 
         if(!this.mqtt || !this.mqtt.isConnected()) {
-            console.log("❌ MQTT no conectado aún."); 
+            console.log("❌ MQTT no conectado aún.");
+            this.colaOffline.push({app, c});
+            this.notificar("Comando en cola");
             return;
         }
         
