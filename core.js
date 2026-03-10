@@ -53,24 +53,23 @@ export class Core {
     }
 
     async inicializarModulos() {
-        // 1. Cargamos versiones (RAM/Local)
+        // 1. Diccionario Maestro de Versiones (El radar vigilará todas)
         this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
-            "@mlc-ai/web-llm": "0.2.81",
-            "paho-mqtt": "1.0.1",
+            "@mlc-ai/web-llm": "0.2.81", // 🧠 La IA se queda aquí para vigilarla
+            "paho-mqtt": "1.1.0",        // 🚀 ACTUALIZADO a la última
             "crypto-js": "4.2.0",
             "sortable": "1.15.0"
         };
 
+        // 2. Inyección de scripts clásicos (Sin la IA)
         this.librerias = {
             crypto: `https://cdnjs.cloudflare.com/ajax/libs/crypto-js/${this.versiones["crypto-js"]}/crypto-js.min.js`,
-            mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/mqttws31.min.js`,
-            ia: `https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@${this.versiones["web-llm"]}`,
+            mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/paho-mqtt.min.js`,
             sortable: `https://cdnjs.cloudflare.com/ajax/libs/Sortable/${this.versiones["sortable"]}/Sortable.min.js`
         };
 
         console.log("🚀 Inyectando módulos dinámicos en RAM...");
         
-        // Carga secuencial estricta (Crypto primero, luego MQTT)
         for (const [nombre, url] of Object.entries(this.librerias)) {
             if (!document.querySelector(`script[src="${url}"]`)) {
                 await new Promise((resolve, reject) => {
@@ -84,7 +83,6 @@ export class Core {
         }
         console.log("✅ Módulos listos.");
         
-        // 2. Disparamos radar de actualizaciones en la sombra
         setTimeout(() => this.buscarActualizacionesSilenciosas(), 10000);
     }
 
@@ -93,6 +91,7 @@ export class Core {
         let hayNovedades = false;
         const nuevasVersiones = { ...this.versiones };
 
+        // 🛡️ ACTUALIZADO: El radar vigila todo, incluida la IA (ES6)
         for (const pkg of ["crypto-js", "paho-mqtt", "@mlc-ai/web-llm"]) {
             try {
                 const res = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
@@ -100,6 +99,7 @@ export class Core {
                 if (data.version && data.version !== this.versiones[pkg]) {
                     nuevasVersiones[pkg] = data.version;
                     hayNovedades = true;
+                    console.log(`📦 Nuevo parche disponible: ${pkg} v${data.version}`);
                 }
             } catch (e) {}
         }
