@@ -14,9 +14,10 @@ export const TiempoCard = {
     onInit: (core) => {
         window.fetchWeather = (lat, lon, name) => {
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+            const urlBypass = "https://api.allorigins.win/raw?url=${encodeURIComponent(url)}";
             document.getElementById('weather-city').innerText = name;
 
-            fetch(url).then(r => r.json()).then(d => {
+            fetch(urlBypass).then(r => r.json()).then(d => {
                 if(!d.current_weather) return;
                 document.getElementById('weather-temp').innerText = `${Math.round(d.current_weather.temperature)}°`;
                 const { icon, color } = getWeatherIcon(d.current_weather.weathercode);
@@ -34,6 +35,7 @@ export const TiempoCard = {
             window.fetchWeather(42.431, -8.644, "PONTEVEDRA");
         }
     },
+    
     // 🧠 LA MAGIA: Interceptamos si la IA manda el nombre de una ciudad ("Tokio", "Nueva York")
     onData: (val) => {
         if (typeof val === 'string' && val.trim() !== "" && val !== "get") {
