@@ -1,6 +1,6 @@
 export const RelojCard = {
     id: "Clock",
-    size: "tall", // 1 Ancho x 2 Alto
+    defaultSize: "1x2",
     html: `
         <div style="display:flex; flex-direction:column; height:100%; width:100%">
             <div style="text-align:center; padding-bottom:5px; border-bottom:1px solid var(--border)">
