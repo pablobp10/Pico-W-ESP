@@ -1012,6 +1012,8 @@ export class Core {
                     break;
 
                 } catch (e) {
+                    const origen = this.modoIALocal ? 'local' : 'nube';
+                    this.gestionarFalloIA(origen);
                     console.error(`💥 Error de red crítico con ${proveedor.id}:`, e);
                 }
             }
@@ -1179,61 +1181,106 @@ export class Core {
         }
     }
     
-    // 🔀 INTERRUPTOR NUBE / LOCAL (Inteligente según el entorno)
+        // 🔀 INTERRUPTOR NUBE / LOCAL (Con Alta Disponibilidad)
     initInterruptorIA() {
-        // 1. EL DETECTOR: ¿Estamos en un navegador o en la APK nativa?
-        // (Capacitor inyecta 'window.Capacitor', o podemos buscar 'wv' de WebView)
-        this.esAppNativa = !!window.Capacitor || navigator.userAgent.includes('wv'); 
-        
-        // 2. REGLA DE NEGOCIO: Si es App -> Local por defecto. Si es Web -> Nube.
-        //this.modoIALocal = this.esAppNativa; 
-        
         const aiInput = document.getElementById('ai-input');
         if (!aiInput || document.getElementById('btn-ia-mode')) return;
 
-        // 3. LA BIFURCACIÓN: Si es Web, cortamos aquí. Solo Nube, sin botón.
-        if (!this.esAppNativa) {
-            console.log("🌍 Entorno Web detectado: Forzando IA Nube (Gemini).");
-            return; 
-        }
-
-        // 4. MODO APP NATIVA: Creamos el botón para poder alternar
-        console.log("📱 Entorno App detectado: IA Local lista por defecto.");
+        // Creamos el botón dinámicamente
         const btnMode = document.createElement('button');
         btnMode.id = 'btn-ia-mode';
         
-        // Como es App, arrancamos con el chip verde
-        btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-        btnMode.style.cssText = "background:transparent; border:none; color:#32d74b; font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
+        // 1. ESTADO POR DEFECTO: La Nube (Cloud)
+        this.modoIALocal = false;
+        this.reintentoNubeActivo = null; // Guardará el temporizador del bucle de 1 minuto
+        
+        btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+        btnMode.style.cssText = "background:transparent; border:none; color:var(--text-sec); font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
         
         aiInput.parentNode.insertBefore(btnMode, aiInput);
         
+        // 2. ALTERNANCIA MANUAL (Al pulsar el botón)
         btnMode.onclick = async () => {
+            // Si el usuario toca el botón, cancelamos cualquier bucle de emergencia activo
+            this.detenerReintento();
+
             if (!this.modoIALocal) {
-                // Pasar a Local
-                btnMode.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
-                this.notificar("Arrancando turbinas locales...", "⚙️");
-                const exito = await this.precargarMotorLocal();
-                if (exito) {
-                    this.modoIALocal = true;
-                    btnMode.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-                    btnMode.style.color = '#32d74b';
-                    this.notificar("IA Local al mando", "🔒");
-                } else {
-                    this.modoIALocal = false;
-                    btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                    btnMode.style.color = '#0a84ff';
-                    this.notificar("Hardware incompatible", "⚠️");
-                }
+                // Intento manual de pasar a Local
+                await this.activarModoLocal(btnMode);
             } else {
-                // Volver a la Nube (Gemini)
-                this.Local = false;
-                btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-                btnMode.style.color = '#0a84ff';
-                this.notificar("Modo IA Nube", "☁️");
+                // Intento manual de volver a la Nube
+                this.activarModoNube(btnMode);
             }
         };
     }
+
+    // ⚙️ MÉTODO: Activar IA Local
+    async activarModoLocal(btn) {
+        if(!btn) btn = document.getElementById('btn-ia-mode');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
+        this.notificar("Arrancando turbinas locales...", "⚙️");
+        
+        const exito = await this.precargarMotorLocal();
+        
+        if (exito) {
+            this.modoIALocal = true;
+            btn.innerHTML = '<i class="fa-solid fa-microchip"></i>';
+            btn.style.color = '#32d74b'; // Verde activo
+            this.notificar("IA Local al mando", "🔒");
+            return true;
+        } else {
+            // Si falla la activación local, forzamos el retorno a la nube
+            this.notificar("Hardware incompatible. Retornando a la Nube", "⚠️");
+            this.activarModoNube(btn);
+            return false;
+        }
+    }
+
+    // ☁️ MÉTODO: Activar IA Nube
+    activarModoNube(btn) {
+        if(!btn) btn = document.getElementById('btn-ia-mode');
+        this.modoIALocal = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud"></i>';
+        btn.style.color = 'var(--text-sec)'; // Gris/Azul
+        this.notificar("Modo IA Nube activado", "☁️");
+    }
+
+    // 🚨 DIRECTOR DE EMERGENCIAS (Auto-Failover)
+    // Llama a esta función desde tu código cuando un fetch a la IA falle
+    async gestionarFalloIA(origenFallo) {
+        const btn = document.getElementById('btn-ia-mode');
+        
+        if (origenFallo === 'nube') {
+            this.notificar("Conexión Nube caída. Desplegando IA Local...", "⚠️");
+            const exitoLocal = await this.activarModoLocal(btn);
+            
+            if (!exitoLocal) {
+                // Apagón total (Falló nube y falló local)
+                this.notificar("Apagón total de sistemas IA. Reintentando en 1 min...", "🚨");
+                btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ff453a;"></i>';
+                
+                if (!this.reintentoNubeActivo) {
+                    this.reintentoNubeActivo = setInterval(() => {
+                        this.notificar("Reintentando conexión con Nube...", "🔄");
+                        this.activarModoNube(btn);
+                        // NOTA: Deja que el usuario o el sistema intenten enviar otro mensaje aquí.
+                        // Si vuelve a fallar, el ciclo se repite.
+                    }, 60000); // 60 segundos
+                }
+            }
+        } else if (origenFallo === 'local') {
+            this.notificar("Motor Local colapsado. Evacuando a la Nube...", "⚠️");
+            this.activarModoNube(btn);
+        }
+    }
+
+    detenerReintento() {
+        if (this.reintentoNubeActivo) {
+            clearInterval(this.reintentoNubeActivo);
+            this.reintentoNubeActivo = null;
+        }
+    }
+
     
     // Función para que las tarjetas publiquen estados fijos
     pub(app, v, r) { 
