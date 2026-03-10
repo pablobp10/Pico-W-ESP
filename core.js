@@ -55,7 +55,7 @@ export class Core {
     async inicializarModulos() {
         // 1. Cargamos versiones (RAM/Local)
         this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
-            "web-llm": "0.2.81",
+            "@mlc-ai/web-llm": "0.2.81",
             "paho-mqtt": "1.0.1",
             "crypto-js": "4.2.0",
             "sortable": "1.15.0"
@@ -93,7 +93,7 @@ export class Core {
         let hayNovedades = false;
         const nuevasVersiones = { ...this.versiones };
 
-        for (const pkg of ["crypto-js", "paho-mqtt"]) {
+        for (const pkg of ["crypto-js", "paho-mqtt", "@mlc-ai/web-llm"]) {
             try {
                 const res = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
                 const data = await res.json();
@@ -142,6 +142,16 @@ export class Core {
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
+
+        const btnBio = document.getElementById('btn-bio');
+        if (btnBio) {
+            btnBio.onclick = () => {
+                const u = sessionStorage.getItem("u");
+                if (u) this.registrarBiometria(u);
+                else this.notificar("Inicia sesión primero", "⚠️");
+            };
+        }
+        
         // 👁️ VIGILANTE DE TECLADO PARA EL PIN MÁGICO
         document.getElementById('user-input').addEventListener('input', (e) => {
             const u = e.target.value.trim();
@@ -459,15 +469,23 @@ export class Core {
 
         let txtDesencriptado = ""; // Lo guardamos aquí para usarlo después
 
-        // 🛡️ BLOQUE 1: EXCLUSIVO PARA CRIPTOGRAFÍA
+        // 🛡️ BLOQUE 1: EXCLUSIVO PARA CRIPTOGRAFÍA Y WEBAUTHN
         try {
             const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(this.llave[u]));
             const boveda = JSON.parse(rawJsonStr); 
 
             let ghostKey = localStorage.getItem('pico_gk_' + u);
+            const tieneBio = localStorage.getItem(`pico_bio_${u}`);
 
+            // 1. SI TIENE BIOMETRÍA GUARDADA, PEDIMOS HUELLA / FACE ID
+            if (ghostKey && tieneBio) {
+                this.notificar("Esperando credencial biométrica...", "🛡️");
+                const bioOk = await this.verificarBiometria();
+                if (!bioOk) throw new Error("BIO_FAIL"); // Si cancela la huella, simulamos fallo
+            }
+
+            // 2. SI NO HAY LLAVE FANTASMA, PEDIMOS EL PIN MAESTRO CLÁSICO
             if (!ghostKey) {
-                // Forzamos mostrar el input si estaba oculto
                 if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
                     pinInputEl.style.display = 'block';
                     pinInputEl.focus(); 
@@ -475,7 +493,7 @@ export class Core {
 
                 if (!pin) {
                     const err = document.getElementById('error-msg');
-                    err.innerText = "⚠️ Introduce tu PIN Maestro de enrolamiento";
+                    err.innerText = "⚠️ Introduce tu PIN Maestro";
                     err.style.display = 'block';
                     return; 
                 }
@@ -493,6 +511,7 @@ export class Core {
                 localStorage.setItem('pico_gk_' + u, ghostKey);
             }
 
+            // 4. DESENCRIPTAMOS LA BÓVEDA REAL
             const keyData = CryptoJS.SHA256(p + ghostKey);
             const rawData = CryptoJS.enc.Base64.parse(boveda.d);
             const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
@@ -503,7 +522,7 @@ export class Core {
             
             if (!txtDesencriptado) throw new Error("DATA_FAIL");
 
-        } catch (error) { 
+        } catch (error) {  
             // 🚨 SÓLO ENTRA AQUÍ SI LA CLAVE O EL PIN SON REALMENTE FALSOS
             console.error("🔒 Error criptográfico real:", error);
             
@@ -560,6 +579,40 @@ export class Core {
             } // 🛡️ CORREGIDO: Llave de cierre del 'if' añadida
         } // Esta cierra el catch
     } // Esta cierra la función login
+
+    async registrarBiometria(u) {
+        if (!window.PublicKeyCredential) return;
+        try {
+            const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+            await navigator.credentials.create({
+                publicKey: {
+                    challenge: challenge,
+                    rp: { name: "Pico OS", id: window.location.hostname },
+                    user: { id: new Uint8Array(16), name: u, displayName: u },
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
+                    authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                    timeout: 60000
+                }
+            });
+            localStorage.setItem(`pico_bio_${u}`, 'true');
+            this.notificar("Biometría enlazada con éxito", "🔒");
+            this.vibra("doble");
+        } catch (e) { 
+            console.warn("Registro biométrico cancelado o no soportado."); 
+        }
+    }
+
+    async verificarBiometria() {
+        try {
+            const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+            const assertion = await navigator.credentials.get({
+                publicKey: { challenge: challenge, rpId: window.location.hostname, userVerification: "required" }
+            });
+            return !!assertion; // Devuelve true si la huella/cara es correcta
+        } catch (e) { 
+            return false; 
+        }
+    }
     
     ejecutarComandoLocal(app, accion) {
         // Lista de módulos que son puro software de interfaz (no existen en la Pico)
@@ -798,7 +851,8 @@ export class Core {
         }
 
         try {
-            const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm");
+            const versionIA = this.versiones["@mlc-ai/web-llm"];
+            const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
             
             // 🛡️ ESCUDO ANTI-CRASH: Limitamos el context_window a 1024 para no pasar de 128MB
             this.localEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
