@@ -1,6 +1,6 @@
 export const NotasCard = {
     id: "Notas",
-    size: "wide", // RESTAURADO: Ocupa 2 huecos
+    defaultSize: "1x2",
     html: `
         <div style="display:flex; flex-direction:column; height:100%; width:100%">
             <div class="label" style="text-align:left; margin-bottom:5px">
