@@ -15,6 +15,7 @@ import { ColorCard } from './cards/color.js';
 import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
+import { TerminalCard } from './cards/terminal.js';
 import { GeneradorPrompt } from './prompt.js';
 
 export class Core {
@@ -22,7 +23,7 @@ export class Core {
         this.cards = [
             TiempoCard, ListaCard, MegafonoCard, LedCard, SensoresCard,
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
-            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard
+            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TerminalCard
         ];
 
         this.conf = null;
@@ -149,6 +150,14 @@ export class Core {
                 if (u) this.registrarBiometria(u);
                 else this.notificar("Inicia sesión primero", "⚠️");
             };
+        }
+        
+        const swJarvis = document.getElementById('sw-jarvis');
+        if (swJarvis) {
+            swJarvis.addEventListener('change', (e) => {
+                if (e.target.checked) this.iniciarCentinelaAudio();
+                else this.detenerCentinelaAudio();
+            });
         }
         
         // 👁️ VIGILANTE DE TECLADO PARA EL PIN MÁGICO
@@ -857,7 +866,7 @@ export class Core {
             const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
             
             // 🛡️ ESCUDO ANTI-CRASH: Limitamos el context_window a 1024 para no pasar de 128MB
-            this.localEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+            this.localEngine = await CreateMLCEngine("SmolLM2-360M-Instruct-q4f16_1-MLC", {
                 initProgressCallback: (progress) => {
                     const pct = Math.round(progress.progress * 100);
                     const textEl = document.getElementById('ia-dl-text');
@@ -1096,6 +1105,79 @@ export class Core {
             this.notificar("Sinapsis colapsada", "⚠️");
         }
     }
+
+    async iniciarCentinelaAudio() {
+        if (this.centinelaActivo) {
+            this.notificar("Centinela auditivo ya activo", "🛡️");
+            return;
+        }
+
+        try {
+            this.notificar("Cargando red neuronal auditiva...", "⏳");
+            
+            // 1. Importamos TensorFlow y el modelo de comandos de voz dinámicamente
+            if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs");
+            const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands");
+
+            // 2. Instanciamos el reconocedor. 
+            // "BROWSER_FFT" es el modelo base preentrenado.
+            this.recognizer = speechCommands.create("BROWSER_FFT");
+            
+            /* 🛠️ CUANDO TENGAS TU MODELO DE "JARVIS", CAMBIARÁS LA LÍNEA ANTERIOR POR ESTA:
+            this.recognizer = speechCommands.create(
+                "BROWSER_FFT", null, 
+                "URL_DE_TU_SERVIDOR/model.json", 
+                "URL_DE_TU_SERVIDOR/metadata.json"
+            );
+            */
+
+            await this.recognizer.ensureModelLoaded();
+            const palabras = this.recognizer.wordLabels();
+            console.log("🎙️ Motor auditivo cargado. Palabras reconocidas:", palabras);
+
+            // 3. Iniciamos la escucha continua en segundo plano
+            this.recognizer.listen(result => {
+                // Buscamos la palabra con el mayor índice de probabilidad
+                const scores = Array.from(result.scores);
+                const maxScore = Math.max(...scores);
+                const maxScoreIndex = scores.indexOf(maxScore);
+                const palabraDetectada = palabras[maxScoreIndex];
+
+                // Umbral de confianza del 85% para evitar que salte con ruidos aleatorios
+                if (maxScore > 0.85) {
+                    console.log(`[Audio Neural] Detectado: ${palabraDetectada} (${Math.round(maxScore*100)}%)`);
+                    
+                    // ⚡ DISPARADOR: Usamos "go" temporalmente hasta que entrenes tu modelo
+                    if (palabraDetectada === "go") {
+                        this.vibra("doble");
+                        this.hablarJARVIS("Sistema activado. A la escucha.");
+                        
+                        // Opcional: Aquí dispararías la escucha de tu IA principal o un comando MQTT
+                    }
+                }
+            }, {
+                probabilityThreshold: 0.85,
+                invokeCallbackOnNoiseAndUnknown: false,
+                overlapFactor: 0.5 // Solapamiento de ventanas de audio para no cortar palabras
+            });
+
+            this.centinelaActivo = true;
+            this.notificar("Oído biónico online", "🎙️");
+
+        } catch (error) {
+            console.error("Fallo al iniciar TensorFlow Audio:", error);
+            this.notificar("Fallo al acceder al micrófono", "❌");
+            document.getElementById('sw-jarvis').checked = false;
+        }
+    }
+
+    detenerCentinelaAudio() {
+        if (this.recognizer && this.centinelaActivo) {
+            this.recognizer.stopListening();
+            this.centinelaActivo = false;
+            this.notificar("Centinela auditivo en reposo", "🛑");
+        }
+    }
     
     // 🔀 INTERRUPTOR NUBE / LOCAL (Inteligente según el entorno)
     initInterruptorIA() {
@@ -1261,6 +1343,30 @@ export class Core {
         // TODO: Suscribir a un topic oculto "sync/#". Al recibir un cambio de scroll, replicarlo aquí.
     }
 
+    async prepararCortezaNeuronal() {
+        if (this.tfReady) return;
+        
+        console.log("🧠 Desplegando esqueleto de TensorFlow.js...");
+        try {
+            // Importación dinámica extrema para no penalizar el tiempo de renderizado web
+            this.tf = await import("https://esm.run/@tensorflow/tfjs");
+            
+            // Forzamos el backend de WebGL (Gráfica) para máximo rendimiento, o WASM si falla
+            await this.tf.setBackend('webgl').catch(() => this.tf.setBackend('wasm'));
+            await this.tf.ready();
+            
+            this.tfReady = true;
+            console.log(`✅ Corteza neuronal online. Backend activo: ${this.tf.getBackend()}`);
+            
+            // Espacio reservado para futuros tensores (Acelerómetro, Mantenimiento predictivo, etc.)
+            /*
+            const modelo = await this.tf.loadLayersModel('local://mi-modelo-iot');
+            */
+        } catch (error) {
+            console.error("❌ Fallo crítico en TensorFlow:", error);
+        }
+    }
+    
     // ==========================================================
     // 🪄 MOTOR DE TECNOLOGÍAS AVANZADAS (V22)
     // ==========================================================
