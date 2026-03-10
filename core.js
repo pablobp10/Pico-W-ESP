@@ -354,25 +354,36 @@ export class Core {
                 }
             };
 
-            // 📏 BOTÓN REDIMENSIONAR (Invocando al cilindro radial)
+                        // 📏 BOTÓN REDIMENSIONAR (Límites inteligentes por pantalla)
             cardMenu.querySelector('.btn-c-tamano').onclick = () => {
-                const tamanosSoportados = card.tamanos || ['1x1'];
                 const anchoPantalla = window.innerWidth;
-                const maxColumnas = anchoPantalla <= 600 ? 2 : (anchoPantalla <= 1024 ? 4 : 6);
-
-                const tamanosValidos = tamanosSoportados.filter(t => parseInt(t.split('x')[0]) <= maxColumnas);
-
-                if (tamanosValidos.length <= 1) {
-                    this.notificar("Único tamaño disponible para esta pantalla", "⚠️");
-                    cardContent.style.transform = "translateX(0px)";
-                    return;
+                
+                let maxW, maxH;
+                
+                // Calculamos los límites físicos según el dispositivo
+                if (anchoPantalla <= 450) {
+                    // Pantalla móvil vertical: 1 columna
+                    maxW = 1; 
+                    maxH = 2; // Rango: 1 a 2 de alto
+                } else if (anchoPantalla <= 800) {
+                    // Pantalla móvil horizontal o tablet pequeña: 2 columnas
+                    maxW = 2; // Rango: 1 a 2 de ancho
+                    maxH = 3; // Rango: 1 a 3 de alto
+                } else {
+                    // PC o Tablet grande: Libre hasta 10x10
+                    maxW = 10;
+                    maxH = 10;
                 }
+
+                // Generamos los arrays dinámicamente: [1, 2, 3...]
+                const anchosDisponibles = Array.from({length: maxW}, (_, i) => i + 1);
+                const altosDisponibles = Array.from({length: maxH}, (_, i) => i + 1);
 
                 // Deslizamos la tarjeta a su sitio antes de abrir el overlay
                 cardContent.style.transform = "translateX(0px)";
                 
-                // Invocamos el cilindro infinito dentro de la propia tarjeta
-                this.abrirSelectorRadial(cardContent, tamanosValidos, currentSize, (nuevoTamano) => {
+                // Invocamos el cilindro infinito con los límites calculados
+                this.abrirSelectorRadialDoble(cardContent, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
                     // Aplicar el cambio visual
                     div.classList.remove(`size-${currentSize}`);
                     div.classList.add(`size-${nuevoTamano}`);
@@ -383,9 +394,10 @@ export class Core {
                     localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
 
                     this.vibra("tick");
-                    if (this.sortable) this.toggleEdit(); // Recalcula posiciones si estás en modo edición
+                    if (this.sortable) this.toggleEdit(); 
                 });
             };
+
 
             // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
@@ -396,122 +408,136 @@ export class Core {
         });
     }
     
-    // 🎡 MOTOR DEL CARRUSEL INFINITO REAL (Matemática 3D)
-    abrirSelectorRadial(tarjetaContenedor, tamanosValidos, tamanoActual, callback) {
+        // 🎡 MOTOR DEL CARRUSEL DOBLE INFINITO (Dinámico por pantalla)
+    abrirSelectorRadialDoble(tarjetaContenedor, anchosDisponibles, altosDisponibles, tamanoActual, callback) {
         const overlay = document.createElement('div');
         overlay.className = 'radial-overlay';
         
-        // 1. Matemáticas del Cilindro
-        // Para que ruede suave, necesitamos al menos unas 12 caras. Repetimos el array.
-        let caras = [...tamanosValidos];
-        while (caras.length < 12) { caras = caras.concat(tamanosValidos); }
-        
-        const numFaces = caras.length;
-        const theta = 360 / numFaces; // Ángulo entre cada cara
-        const cellHeight = 40;
-        // La magia: calculamos el radio exacto para que las caras formen un círculo cerrado
-        const radio = Math.round((cellHeight / 2) / Math.tan(Math.PI / numFaces));
+        const currentAncho = parseInt(tamanoActual.split('x')[0]);
+        const currentAlto = parseInt(tamanoActual.split('x')[1]);
 
-        let htmlCaras = '';
-        caras.forEach((val, i) => {
-            // Empujamos cada cara hacia afuera (translateZ) y la inclinamos (rotateX)
-            htmlCaras += `<div class="radial-face" id="face-${i}" style="transform: rotateX(${i * -theta}deg) translateZ(${radio}px)">${val}</div>`;
-        });
+        // Función auxiliar para construir el HTML de un cilindro
+        const construirCilindro = (valores) => {
+            let caras = [...valores];
+            // Repetimos hasta tener al menos 12 caras para un círculo suave
+            while (caras.length < 12) { caras = caras.concat(valores); }
+            const numFaces = caras.length;
+            const theta = 360 / numFaces;
+            const radio = Math.round(20 / Math.tan(Math.PI / numFaces)); // 20 es la mitad de cellHeight(40)
+            
+            let html = '';
+            caras.forEach((val, i) => {
+                html += `<div class="radial-face" data-val="${val}" id="face-${i}" style="transform: rotateX(${i * -theta}deg) translateZ(${radio}px)">${val}</div>`;
+            });
+            return { html, numFaces, theta, caras };
+        };
+
+        const colAncho = construirCilindro(anchosDisponibles);
+        const colAlto = construirCilindro(altosDisponibles);
 
         overlay.innerHTML = `
-            <div style="font-weight:bold; margin-bottom:10px; color:white;">Redimensionar</div>
-            <div class="radial-viewport">
-                <div class="radial-cylinder" id="cylinder">${htmlCaras}</div>
+            <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px;">DIMENSIONES</div>
+            <div style="display:flex; gap: 20px; align-items:center;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-left-right"></i> ANCHO</div>
+                    <div class="radial-viewport" id="viewport-ancho" style="width: 60px;">
+                        <div class="radial-cylinder" id="cylinder-ancho">${colAncho.html}</div>
+                    </div>
+                </div>
+                
+                <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px;">×</div>
+
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-up-down"></i> ALTO</div>
+                    <div class="radial-viewport" id="viewport-alto" style="width: 60px;">
+                        <div class="radial-cylinder" id="cylinder-alto">${colAlto.html}</div>
+                    </div>
+                </div>
             </div>
-            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:15px; background:var(--primary); color:white; border-radius:20px; padding:8px 20px;">Aplicar</button>
+            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:25px; background:var(--primary); color:white; border-radius:20px; padding:10px 25px; font-weight:bold;">Aplicar</button>
         `;
 
         tarjetaContenedor.appendChild(overlay);
-        // Forzamos un reflow para que la transición de opacidad funcione
         void overlay.offsetWidth; 
         overlay.style.opacity = '1';
 
-        const cylinder = overlay.querySelector('#cylinder');
-        
-        // Buscamos el índice inicial
-        let idxInicial = caras.indexOf(tamanoActual);
-        if (idxInicial === -1) idxInicial = 0;
-        
-        let anguloActual = idxInicial * theta;
-        cylinder.style.transform = `rotateX(${anguloActual}deg)`;
-        overlay.querySelector(`#face-${idxInicial}`).classList.add('selected');
-
-        // 2. Controladores Táctiles / Ratón
-        let isDragging = false;
-        let startY = 0;
-        let anguloInicial = 0;
-
-        const onStart = (e) => {
-            isDragging = true;
-            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            anguloInicial = anguloActual;
-            cylinder.style.transition = 'none'; // Sin retraso al arrastrar
-        };
-
-        const onMove = (e) => {
-            if (!isDragging) return;
-            e.preventDefault(); // Evita que la pantalla entera haga scroll
-            const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            const deltaY = currentY - startY;
-            // Sensibilidad: 1px de arrastre = X grados de giro
-            anguloActual = anguloInicial - (deltaY * 0.5); 
-            cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+        // Lógica de estado para ambos cilindros
+        const setupCilindro = (tipo, colData, valorInicial) => {
+            const cylinder = overlay.querySelector(`#cylinder-${tipo}`);
+            const viewport = overlay.querySelector(`#viewport-${tipo}`);
             
-            // Iluminamos la cara más cercana al centro visual
-            iluminarCaraSeleccionada();
-        };
-
-        const onEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            // Efecto Imán (Snap): Redondeamos el ángulo al múltiplo de theta más cercano
-            anguloActual = Math.round(anguloActual / theta) * theta;
-            cylinder.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)';
-            cylinder.style.transform = `rotateX(${anguloActual}deg)`;
-            iluminarCaraSeleccionada();
-        };
-
-        const iluminarCaraSeleccionada = () => {
-            // Calculamos qué índice queda mirando al frente
-            let normalizedIndex = Math.round(anguloActual / theta) % numFaces;
-            if (normalizedIndex < 0) normalizedIndex += numFaces; // Arreglo para rotación negativa
+            let idxInicial = colData.caras.indexOf(valorInicial);
+            if (idxInicial === -1) idxInicial = 0;
             
-            overlay.querySelectorAll('.radial-face').forEach(f => f.classList.remove('selected'));
-            overlay.querySelector(`#face-${normalizedIndex}`).classList.add('selected');
+            let anguloActual = idxInicial * colData.theta;
+            cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+
+            let isDragging = false;
+            let startY = 0;
+            let anguloInicial = 0;
+
+            const iluminarCara = () => {
+                let normalizedIndex = Math.round(anguloActual / colData.theta) % colData.numFaces;
+                if (normalizedIndex < 0) normalizedIndex += colData.numFaces;
+                viewport.querySelectorAll('.radial-face').forEach(f => f.classList.remove('selected'));
+                viewport.querySelectorAll('.radial-face')[normalizedIndex].classList.add('selected');
+            };
+            iluminarCara();
+
+            const onStart = (e) => {
+                isDragging = true;
+                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                anguloInicial = anguloActual;
+                cylinder.style.transition = 'none';
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                anguloActual = anguloInicial - ((currentY - startY) * 0.6); // Sensibilidad de giro
+                cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+                iluminarCara();
+            };
+
+            const onEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                anguloActual = Math.round(anguloActual / colData.theta) * colData.theta;
+                cylinder.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)';
+                cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+                iluminarCara();
+            };
+
+            viewport.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+            viewport.addEventListener('touchstart', onStart, {passive: false});
+            window.addEventListener('touchmove', onMove, {passive: false});
+            window.addEventListener('touchend', onEnd);
+
+            // Devolvemos una función para leer el valor final elegido
+            return () => {
+                let idx = Math.round(anguloActual / colData.theta) % colData.numFaces;
+                if (idx < 0) idx += colData.numFaces;
+                return colData.caras[idx];
+            };
         };
 
-        const viewport = overlay.querySelector('.radial-viewport');
-        viewport.addEventListener('mousedown', onStart);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onEnd);
-        viewport.addEventListener('touchstart', onStart, {passive: false});
-        window.addEventListener('touchmove', onMove, {passive: false});
-        window.addEventListener('touchend', onEnd);
+        const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
+        const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 3. Botón Aplicar
+        // 3. Botón Aplicar Final
         overlay.querySelector('#btn-aplicar-tamano').onclick = () => {
-            let selectedIndex = Math.round(anguloActual / theta) % numFaces;
-            if (selectedIndex < 0) selectedIndex += numFaces;
-            const tamanoElegido = caras[selectedIndex];
-            
+            const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
             overlay.style.opacity = '0';
             setTimeout(() => {
                 overlay.remove();
-                callback(tamanoElegido); // Enviamos la elección de vuelta
+                callback(tamanoElegido); 
             }, 200);
-            
-            // Limpieza de eventos globales
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onEnd);
-            window.removeEventListener('touchmove', onMove);
-            window.removeEventListener('touchend', onEnd);
         };
     }
+
     
 
     async conectar() {
