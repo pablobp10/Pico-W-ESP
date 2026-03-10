@@ -1,5 +1,6 @@
 export const TerminalCard = {
     id: "terminal",
+    size: "wide",
     icon: "fa-solid fa-terminal",
     title: "Terminal USB",
     html: `
