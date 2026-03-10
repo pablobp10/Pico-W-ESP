@@ -902,7 +902,7 @@ export class Core {
     // --- 6. MOTOR DE INFERENCIA CUÁNTICO (CHAIN-OF-THOUGHT & PERSONALIDAD) ---
     async ejecutarInferencia(orden, modo = "reactivo") {
         // Verificamos sesión y claves en memoria RAM
-        if(!sessionStorage.getItem("p") || !this.apiKeys) {
+        if(!localStorage.getItem("p") || !this.apiKeys) {
             return this.notificar("Sesión corrupta o sin permisos de IA.", "❌");
         }
 
