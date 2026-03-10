@@ -12,18 +12,36 @@ export const TiempoCard = {
         </div>
     `,
     onInit: (core) => {
-        window.fetchWeather = (lat, lon, name) => {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
-            const urlBypass = "https://api.allorigins.win/raw?url=${encodeURIComponent(url)}";
+        window.fetchWeather = async (lat, lon, name) => {
+            const urlDirecta = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+            const urlBypass = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlDirecta)}`;
+            
             document.getElementById('weather-city').innerText = name;
 
-            fetch(urlBypass).then(r => r.json()).then(d => {
+            // Función interna para pintar los datos si alguna de las dos rutas funciona
+            const pintarClima = (d) => {
                 if(!d.current_weather) return;
                 document.getElementById('weather-temp').innerText = `${Math.round(d.current_weather.temperature)}°`;
                 const { icon, color } = getWeatherIcon(d.current_weather.weathercode);
                 const iconDiv = document.getElementById('weather-icon');
-                iconDiv.innerHTML = `<i class="${icon}"></i>`; iconDiv.style.color = color;
-            }).catch(() => { document.getElementById('weather-city').innerText = "ERROR API"; });
+                iconDiv.innerHTML = `<i class="${icon}"></i>`; 
+                iconDiv.style.color = color;
+            };
+
+            try {
+                // Intento 1: Ataque directo (Triunfará en tu móvil)
+                let res = await fetch(urlDirecta);
+                if (!res.ok) throw new Error("Bloqueado por Firewall");
+                pintarClima(await res.json());
+            } catch (e1) {
+                try {
+                    // Intento 2: Túnel táctico (Triunfará en la red corporativa)
+                    let resBypass = await fetch(urlBypass);
+                    pintarClima(await resBypass.json());
+                } catch (e2) {
+                    document.getElementById('weather-city').innerText = "ERROR API";
+                }
+            }
         };
 
         if (navigator.geolocation) {
