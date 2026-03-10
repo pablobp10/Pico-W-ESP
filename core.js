@@ -1186,7 +1186,7 @@ export class Core {
         this.esAppNativa = !!window.Capacitor || navigator.userAgent.includes('wv'); 
         
         // 2. REGLA DE NEGOCIO: Si es App -> Local por defecto. Si es Web -> Nube.
-        this.modoIALocal = this.esAppNativa; 
+        //this.modoIALocal = this.esAppNativa; 
         
         const aiInput = document.getElementById('ai-input');
         if (!aiInput || document.getElementById('btn-ia-mode')) return;
@@ -1227,7 +1227,7 @@ export class Core {
                 }
             } else {
                 // Volver a la Nube (Gemini)
-                this.modoIALocal = false;
+                this.Local = false;
                 btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
                 btnMode.style.color = '#0a84ff';
                 this.notificar("Modo IA Nube", "☁️");
