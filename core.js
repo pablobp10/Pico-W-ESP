@@ -272,23 +272,91 @@ export class Core {
         };
         
         tarjetasFiltradas.forEach((card, index) => {
+            // 1. EL CONTENEDOR PRINCIPAL (Fondo estático)
             const div = document.createElement('div');
-            
-            // Rescatamos el tamaño del diccionario para que no lo olvide al filtrar
             const cardSize = card.size || memorySizes[card.id] || "";
             div.className = `card cascade-in ${cardSize}`;
-            
-            div.style.animationDelay = `${index * 50}ms`; 
+            div.style.animationDelay = `${index * 50}ms`;
             div.style.setProperty('--order', index);
-            
             if(card.adminOnly) div.classList.add('admin-only');
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
             
-            div.innerHTML = card.html;
+            // Reconfiguramos el contenedor para soportar capas
+            div.style.position = "relative";
+            div.style.overflow = "hidden";
+            div.style.padding = "0"; // Quitamos el padding global para dárselo a la capa superior
+
+            // 2. EL MENÚ OCULTO (Base inferior)
+            const cardMenu = document.createElement('div');
+            cardMenu.style.cssText = "position: absolute; top: 0; right: 0; width: 60px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; background: rgba(50, 215, 75, 0.1); border-left: 1px solid var(--primary);";
+            cardMenu.innerHTML = `
+                <button class="btn-c-ajustes" style="background:none; border:none; color:var(--text-main); font-size:1.2rem; cursor:pointer;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
+                <button class="btn-c-placeholder" style="background:none; border:none; color:#ff9f0a; font-size:1.2rem; cursor:pointer;" title="Acción Especial"><i class="fa-solid fa-bolt"></i></button>
+                <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.2rem; cursor:pointer;" title="Cerrar"><i class="fa-solid fa-chevron-right"></i></button>
+            `;
+
+            // 3. LA CAPA DE CONTENIDO (La que se desliza)
+            const cardContent = document.createElement('div');
+            // Le devolvemos el padding aquí para que el contenido respire
+            cardContent.style.cssText = "position: relative; z-index: 2; width: 100%; height: 100%; background: var(--card-bg); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 15px; box-sizing: border-box; border-radius: 20px;";
+            cardContent.innerHTML = card.html;
+
+            // Ensamblaje
+            div.appendChild(cardMenu);
+            div.appendChild(cardContent);
             grid.appendChild(div);
-            
-            // 🛡️ EL ESCUDO: Evita que el error de una tarjeta rompa a las demás
+
+            // 4. LÓGICA DE PULSACIÓN LARGA (Long Press)
+            let pressTimer;
+            let isDragging = false; // Sensor para no abrir el menú si solo estás haciendo scroll
+
+            const activarMenu = () => {
+                cardContent.style.transform = "translateX(-60px)";
+                this.vibra("doble");
+            };
+
+            const iniciarToque = (e) => {
+                if(this.editMode) return; // Si estamos ordenando tarjetas, desactivar menús
+                if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+                
+                isDragging = false;
+                // 800ms es el estándar ergonómico moderno para pulsación larga
+                pressTimer = setTimeout(() => {
+                    if(!isDragging) activarMenu();
+                }, 800); 
+            };
+
+            const cancelarToque = () => clearTimeout(pressTimer);
+            const marcarArrastre = () => { isDragging = true; clearTimeout(pressTimer); };
+
+            // Sensores Táctiles (Móvil)
+            cardContent.addEventListener('touchstart', iniciarToque, {passive: true});
+            cardContent.addEventListener('touchend', cancelarToque);
+            cardContent.addEventListener('touchmove', marcarArrastre, {passive: true});
+            // Sensores de Ratón (PC)
+            cardContent.addEventListener('mousedown', iniciarToque);
+            cardContent.addEventListener('mouseup', cancelarToque);
+            cardContent.addEventListener('mouseleave', cancelarToque);
+            cardContent.addEventListener('mousemove', marcarArrastre);
+
+            // 5. EVENTOS DEL MENÚ OCULTO
+            cardMenu.querySelector('.btn-c-cerrar').onclick = () => {
+                cardContent.style.transform = "translateX(0px)";
+            };
+
+            cardMenu.querySelector('.btn-c-ajustes').onclick = () => {
+                this.notificar(`Abriendo ajustes de ${card.id}`, "⚙️");
+                cardContent.style.transform = "translateX(0px)";
+                // TODO: Aquí lanzaremos la ventana modal de ajustes específica
+            };
+
+            cardMenu.querySelector('.btn-c-placeholder').onclick = () => {
+                this.notificar("Módulo en desarrollo", "⚡");
+                cardContent.style.transform = "translateX(0px)";
+            };
+
+            // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
                 if(card.onInit) card.onInit(this);
             } catch(error) {
