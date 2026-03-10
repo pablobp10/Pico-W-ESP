@@ -145,7 +145,7 @@ export class Core {
         const btnBio = document.getElementById('btn-bio');
         if (btnBio) {
             btnBio.onclick = () => {
-                const u = sessionStorage.getItem("u");
+                const u = localStorage.getItem("u");
                 if (u) this.registrarBiometria(u);
                 else this.notificar("Inicia sesión primero", "⚠️");
             };
