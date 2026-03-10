@@ -1,6 +1,6 @@
 export const SensoresCard = {
     id: "Sensores",
-    size: "super-wide", // Empieza ocupando 3 columnas x 1 fila
+    defaultSize: "3x2",
     html: `
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:0 10px; box-sizing:border-box">
             <div style="display:flex; gap:20px; align-items:center;">
