@@ -866,7 +866,7 @@ export class Core {
             const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
             
             // 🛡️ ESCUDO ANTI-CRASH: Limitamos el context_window a 1024 para no pasar de 128MB
-            this.localEngine = await CreateMLCEngine("SmolLM2-360M-Instruct-q4f16_1-MLC", {
+            this.localEngine = await CreateMLCEngine("SmolLM-135M-Instruct-q4f16_1-MLC", {
                 initProgressCallback: (progress) => {
                     const pct = Math.round(progress.progress * 100);
                     const textEl = document.getElementById('ia-dl-text');
