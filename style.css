@@ -90,16 +90,38 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
 
 /* Ajustes para Móviles (Protección de desbordamiento) */
 @media (max-width: 600px) {
-    /* ⬇️ ESTA ES LA REGLA MÁGICA QUE FUERZA EXACTAMENTE 2 COLUMNAS ⬇️ */
     .grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 10px; /* Reducimos un pelín el hueco para que las tarjetas sean más grandes */
+        /* 1. Devolvemos tu código original que era matemáticamente perfecto */
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        width: 100%;
+        padding: 0 10px;
+        box-sizing: border-box;
     }
 
-    header h1 {
-        display: block !important;
-        font-size: 1.1rem;
+    header h1 { display: block !important; font-size: 1.1rem; }
+    .pico-info-pill span:nth-child(2) { display: none !important; }
+    header { padding: 0 5px; }
+    .header-left { gap: 4px; }
+    #pico-status-container { margin-left: 2px !important; }
+    .broker-wrapper { padding: 4px 6px; font-size: 0.75rem; gap: 4px; }
+    .pico-info-pill { padding: 3px 6px; font-size: 0.7rem; gap: 4px; }
+    .val-text { font-size: 1.4rem; } 
+    .icon { font-size: 1.6rem; margin-bottom: 5px; }
+    .btn-action { padding: 10px; font-size: 0.8rem; }
+
+    /* 🛡️ EL ESCUDO: Evita que tamaños gigantes de PC rompan el móvil */
+    
+    /* Si la tarjeta tiene ancho 1 (ej: size-1x1, size-1x2), ocupa 1 columna normal */
+    .card[class*="size-1x"] {
+        grid-column: span 1 !important;
     }
+
+    /* Si la tarjeta tiene ancho 2 o superior (ej: size-2x1, size-4x4), le cortamos 
+       las alas y le obligamos a ocupar exactamente el ancho de la pantalla (1 / -1) */
+    .card:not([class*="size-1x"]) {
+        grid-column: 1 / -1 !important;
+    }
+}
 
     .pico-info-pill span:nth-child(2) { display: none !important; }
 
