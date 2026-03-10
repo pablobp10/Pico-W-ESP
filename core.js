@@ -206,10 +206,19 @@ export class Core {
 
         const u = localStorage.getItem("u"), p = localStorage.getItem("p");
         if(u && p) { 
-            document.getElementById('user-input').value = u; 
+            // 🆕 Ocultamos la pantalla de login al instante para evitar el parpadeo visual
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen) {
+                loginScreen.style.opacity = '0'; 
+                loginScreen.style.pointerEvents = 'none';
+            }
+            document.getElementById('user-input').value = u;
             document.getElementById('pass-input').value = p;
-            setTimeout(() => { this.login(); }, 500);
+            
+            // Ejecutamos el login súper rápido
+            setTimeout(() => { this.login(); }, 50);
         }
+
 
         // Activar el Cerebro IA
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
@@ -716,53 +725,68 @@ export class Core {
 
             let ghostKey = localStorage.getItem('pico_gk_' + u);
             const tieneBio = localStorage.getItem(`pico_bio_${u}`);
+            
+            // 🆕 REGLA MAESTRA: Comprobamos si ya nos identificamos en esta sesión
+            const sesionVerificada = sessionStorage.getItem('pico_sesion_ok') === 'true';
 
-            // 1. SI TIENE BIOMETRÍA GUARDADA, PEDIMOS HUELLA / FACE ID
-            if (ghostKey && tieneBio) {
-                this.notificar("Esperando credencial biométrica...", "🛡️");
-                const bioOk = await this.verificarBiometria(u);
-                if (!bioOk) throw new Error("BIO_FAIL"); // Si cancela la huella, simulamos fallo
-            }
-
-            // 2. SI NO HAY LLAVE FANTASMA, PEDIMOS EL PIN MAESTRO CLÁSICO
-            if (!ghostKey) {
-                if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
-                    pinInputEl.style.display = 'block';
-                    pinInputEl.focus(); 
+            // Solo exigimos seguridad biométrica o PIN si NO hay una sesión activa
+            if (!sesionVerificada) {
+                // 1. SI TIENE BIOMETRÍA GUARDADA, PEDIMOS HUELLA
+                if (ghostKey && tieneBio) {
+                    this.notificar("Esperando credencial biométrica...", "🛡️");
+                    const bioOk = await this.verificarBiometria(u);
+                    if (!bioOk) throw new Error("BIO_FAIL");
                 }
 
-                if (!pin) {
-                    const err = document.getElementById('error-msg');
-                    err.innerText = "⚠️ Introduce tu PIN Maestro";
-                    err.style.display = 'block';
-                    return; 
-                }
+                // 2. SI NO HAY LLAVE FANTASMA (Primera vez en este dispositivo), PEDIMOS PIN MAESTRO
+                if (!ghostKey) {
+                    if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
+                        pinInputEl.style.display = 'block';
+                        pinInputEl.focus(); 
+                        
+                        // Si estábamos en auto-login, volvemos a mostrar la pantalla
+                        const loginScreen = document.getElementById('login-screen');
+                        if(loginScreen) {
+                            loginScreen.style.opacity = '1';
+                            loginScreen.style.pointerEvents = 'auto';
+                        }
+                        return; // Cortamos ejecución para que escriba el PIN
+                    }
 
-                const keyEnv = CryptoJS.SHA256(p + pin);
-                const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
-                const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
-                const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
-                
-                const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
-                ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
-                
-                if (!ghostKey) throw new Error("PIN_FAIL"); 
-                
-                localStorage.setItem('pico_gk_' + u, ghostKey);
+                    if (!pin) {
+                        const err = document.getElementById('error-msg');
+                        err.innerText = "⚠️ Introduce tu PIN Maestro";
+                        err.style.display = 'block';
+                        return;
+                    }
+
+                    const keyEnv = CryptoJS.SHA256(p + pin);
+                    const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
+                    const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
+                    const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
+                    const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
+                    ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
+                    
+                    if (!ghostKey) throw new Error("PIN_FAIL");
+                    localStorage.setItem('pico_gk_' + u, ghostKey);
+                }
             }
 
-            // 4. DESENCRIPTAMOS LA BÓVEDA REAL
+            // 4. DESENCRIPTAMOS LA BÓVEDA REAL (Con la ghostKey que ya tenemos)
             const keyData = CryptoJS.SHA256(p + ghostKey);
             const rawData = CryptoJS.enc.Base64.parse(boveda.d);
             const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
             const cipherData = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
-
             const decData = CryptoJS.AES.decrypt({ciphertext: cipherData}, keyData, { iv: ivData });
             txtDesencriptado = decData.toString(CryptoJS.enc.Utf8);
             
             if (!txtDesencriptado) throw new Error("DATA_FAIL");
+            
+            // 🆕 GUARDAMOS EL PASAPORTE TEMPORAL: Esta pestaña ya es de confianza
+            sessionStorage.setItem('pico_sesion_ok', 'true');
 
         } catch (error) {  
+  
             // 🚨 SÓLO ENTRA AQUÍ SI LA CLAVE O EL PIN SON REALMENTE FALSOS
             console.error("🔒 Error criptográfico real:", error);
             
