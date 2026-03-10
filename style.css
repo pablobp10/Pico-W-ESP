@@ -19,7 +19,7 @@ body {
     background: var(--bg); color: var(--text-main); margin: 0; 
     display: flex; flex-direction: column; align-items: center; 
     min-height: 100vh; padding-bottom: 60px; transition: background 0.3s;
-    -webkit-tap-highlight-color: transparent; /* Mejora tactil en iOS */
+    -webkit-tap-highlight-color: transparent; 
 }
 
 /* HEADER */
@@ -58,52 +58,252 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
     display: grid; 
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
     grid-auto-rows: 150px; 
-    gap: 15px; /* Le damos un pelín más de aire general */
-    
-    /* ⬇️ LA CLAVE: Ancho casi total y SIN límite máximo */
+    gap: 15px; 
     width: 98%; 
     max-width: none; 
-    
     margin-top: 20px; 
     grid-auto-flow: dense; 
     align-items: stretch;
 }
 
-/* TARJETAS BASE */
+/* TARJETAS BASE (Corregido para soportar capas y menús) */
 .card { 
-    background: var(--card-bg); border-radius: 20px; padding: 15px; 
+    background: var(--card-bg); border-radius: 20px;
     text-align: center; box-shadow: var(--shadow); position: relative; 
     overflow: hidden; border: 1px solid var(--border); 
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    display: block; /* Fundamental para que funcione el absolute del menú */
     transition: all 0.2s ease; box-sizing: border-box;
-    /* Tamaño base: 1x1 */
-    grid-column: span 1; grid-row: span 1; 
     height: 100%;
 }
 
-/* --- CLASES DE TAMAÑO (COMPORTAMIENTO PC) --- */
-.card.wide { grid-column: span 2; }       /* Ancha */
-.card.tall { grid-row: span 2; }          /* Alta */
-.card.super-wide { grid-column: span 3; } /* Muy ancha */
-.card.super-wide.graph-active { grid-row: span 3; } /* PC: Gráfica gigante */
-
+/* --- TODAS LAS COMBINACIONES DINÁMICAS POSIBLES (1x1 a 10x10) --- */
+.size-1x1 { grid-column: span 1; grid-row: span 1; } .size-2x1 { grid-column: span 2; grid-row: span 1; } .size-3x1 { grid-column: span 3; grid-row: span 1; } .size-4x1 { grid-column: span 4; grid-row: span 1; } .size-5x1 { grid-column: span 5; grid-row: span 1; } .size-6x1 { grid-column: span 6; grid-row: span 1; } .size-7x1 { grid-column: span 7; grid-row: span 1; } .size-8x1 { grid-column: span 8; grid-row: span 1; } .size-9x1 { grid-column: span 9; grid-row: span 1; } .size-10x1 { grid-column: span 10; grid-row: span 1; }
+.size-1x2 { grid-column: span 1; grid-row: span 2; } .size-2x2 { grid-column: span 2; grid-row: span 2; } .size-3x2 { grid-column: span 3; grid-row: span 2; } .size-4x2 { grid-column: span 4; grid-row: span 2; } .size-5x2 { grid-column: span 5; grid-row: span 2; } .size-6x2 { grid-column: span 6; grid-row: span 2; } .size-7x2 { grid-column: span 7; grid-row: span 2; } .size-8x2 { grid-column: span 8; grid-row: span 2; } .size-9x2 { grid-column: span 9; grid-row: span 2; } .size-10x2 { grid-column: span 10; grid-row: span 2; }
+.size-1x3 { grid-column: span 1; grid-row: span 3; } .size-2x3 { grid-column: span 2; grid-row: span 3; } .size-3x3 { grid-column: span 3; grid-row: span 3; } .size-4x3 { grid-column: span 4; grid-row: span 3; } .size-5x3 { grid-column: span 5; grid-row: span 3; } .size-6x3 { grid-column: span 6; grid-row: span 3; } .size-7x3 { grid-column: span 7; grid-row: span 3; } .size-8x3 { grid-column: span 8; grid-row: span 3; } .size-9x3 { grid-column: span 9; grid-row: span 3; } .size-10x3 { grid-column: span 10; grid-row: span 3; }
+.size-1x4 { grid-column: span 1; grid-row: span 4; } .size-2x4 { grid-column: span 2; grid-row: span 4; } .size-3x4 { grid-column: span 3; grid-row: span 4; } .size-4x4 { grid-column: span 4; grid-row: span 4; } .size-5x4 { grid-column: span 5; grid-row: span 4; } .size-6x4 { grid-column: span 6; grid-row: span 4; } .size-7x4 { grid-column: span 7; grid-row: span 4; } .size-8x4 { grid-column: span 8; grid-row: span 4; } .size-9x4 { grid-column: span 9; grid-row: span 4; } .size-10x4 { grid-column: span 10; grid-row: span 4; }
+.size-1x5 { grid-column: span 1; grid-row: span 5; } .size-2x5 { grid-column: span 2; grid-row: span 5; } .size-3x5 { grid-column: span 3; grid-row: span 5; } .size-4x5 { grid-column: span 4; grid-row: span 5; } .size-5x5 { grid-column: span 5; grid-row: span 5; } .size-6x5 { grid-column: span 6; grid-row: span 5; } .size-7x5 { grid-column: span 7; grid-row: span 5; } .size-8x5 { grid-column: span 8; grid-row: span 5; } .size-9x5 { grid-column: span 9; grid-row: span 5; } .size-10x5 { grid-column: span 10; grid-row: span 5; }
+.size-1x6 { grid-column: span 1; grid-row: span 6; } .size-2x6 { grid-column: span 2; grid-row: span 6; } .size-3x6 { grid-column: span 3; grid-row: span 6; } .size-4x6 { grid-column: span 4; grid-row: span 6; } .size-5x6 { grid-column: span 5; grid-row: span 6; } .size-6x6 { grid-column: span 6; grid-row: span 6; } .size-7x6 { grid-column: span 7; grid-row: span 6; } .size-8x6 { grid-column: span 8; grid-row: span 6; } .size-9x6 { grid-column: span 9; grid-row: span 6; } .size-10x6 { grid-column: span 10; grid-row: span 6; }
+.size-1x7 { grid-column: span 1; grid-row: span 7; } .size-2x7 { grid-column: span 2; grid-row: span 7; } .size-3x7 { grid-column: span 3; grid-row: span 7; } .size-4x7 { grid-column: span 4; grid-row: span 7; } .size-5x7 { grid-column: span 5; grid-row: span 7; } .size-6x7 { grid-column: span 6; grid-row: span 7; } .size-7x7 { grid-column: span 7; grid-row: span 7; } .size-8x7 { grid-column: span 8; grid-row: span 7; } .size-9x7 { grid-column: span 9; grid-row: span 7; } .size-10x7 { grid-column: span 10; grid-row: span 7; }
+.size-1x8 { grid-column: span 1; grid-row: span 8; } .size-2x8 { grid-column: span 2; grid-row: span 8; } .size-3x8 { grid-column: span 3; grid-row: span 8; } .size-4x8 { grid-column: span 4; grid-row: span 8; } .size-5x8 { grid-column: span 5; grid-row: span 8; } .size-6x8 { grid-column: span 6; grid-row: span 8; } .size-7x8 { grid-column: span 7; grid-row: span 8; } .size-8x8 { grid-column: span 8; grid-row: span 8; } .size-9x8 { grid-column: span 9; grid-row: span 8; } .size-10x8 { grid-column: span 10; grid-row: span 8; }
+.size-1x9 { grid-column: span 1; grid-row: span 9; } .size-2x9 { grid-column: span 2; grid-row: span 9; } .size-3x9 { grid-column: span 3; grid-row: span 9; } .size-4x9 { grid-column: span 4; grid-row: span 9; } .size-5x9 { grid-column: span 5; grid-row: span 9; } .size-6x9 { grid-column: span 6; grid-row: span 9; } .size-7x9 { grid-column: span 7; grid-row: span 9; } .size-8x9 { grid-column: span 8; grid-row: span 9; } .size-9x9 { grid-column: span 9; grid-row: span 9; } .size-10x9 { grid-column: span 10; grid-row: span 9; }
+.size-1x10 { grid-column: span 1; grid-row: span 10; } .size-2x10 { grid-column: span 2; grid-row: span 10; } .size-3x10 { grid-column: span 3; grid-row: span 10; } .size-4x10 { grid-column: span 4; grid-row: span 10; } .size-5x10 { grid-column: span 5; grid-row: span 10; } .size-6x10 { grid-column: span 6; grid-row: span 10; } .size-7x10 { grid-column: span 7; grid-row: span 10; } .size-8x10 { grid-column: span 8; grid-row: span 10; } .size-9x10 { grid-column: span 9; grid-row: span 10; } .size-10x10 { grid-column: span 10; grid-row: span 10; }
 
 /* Ajustes para Móviles (Protección de desbordamiento) */
 @media (max-width: 600px) {
-    /* 1. Mantenemos Pico OS visible pero un poco más compacto */
     header h1 {
         display: block !important;
         font-size: 1.1rem;
     }
 
-    /* 2. ELIMINAMOS la palabra "Online/Offline" (es el 2º elemento de la píldora) */
-    .pico-info-pill span:nth-child(2) {
-        display: none !important;
-    }
+    .pico-info-pill span:nth-child(2) { display: none !important; }
 
-    /* 3. (Opcional) Quitamos la línea vertical (|) que queda suelta al lado del punto verde
-    .pico-info-pill span:nth-child(3) {
-        border-left: none !important;
+    header { padding: 0 5px; }
+    .header-left { gap: 4px; }
+    #pico-status-container { margin-left: 2px !important; }
+    .broker-wrapper { padding: 4px 6px; font-size: 0.75rem; gap: 4px; }
+    .pico-info-pill { padding: 3px 6px; font-size: 0.7rem; gap: 4px; }
+
+    .val-text { font-size: 1.4rem; } 
+    .icon { font-size: 1.6rem; margin-bottom: 5px; }
+    .btn-action { padding: 10px; font-size: 0.8rem; }
+}
+
+/* UI GENERAL */
+.val-text { font-size: 1.8rem; font-weight: 800; margin: 5px 0; color: var(--text-main); letter-spacing: -1px; }
+.label { font-size: 0.7rem; color: var(--text-sec); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+.icon { font-size: 2.2rem; margin-bottom: 10px; color: #8e8e93; }
+
+/* Botones y Switches */
+.btn-action { width: 100%; padding: 12px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 10px; color: white; background: var(--primary); font-size: 0.9rem;}
+.btn-action:active { transform: scale(0.96); opacity: 0.8; }
+.btn-on { background: #32d74b; } .btn-off { background: #ff453a; }
+.on .icon { color: #32d74b; filter: drop-shadow(0 0 12px rgba(50, 215, 75, 0.3)); }
+
+.switch-group { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.mini-switch-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-sec); }
+.toggle-switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #aeaeb2; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+input:checked + .slider { background-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(14px); }
+
+/* GRÁFICA IFRAME */
+#ts-iframe { 
+    width: calc(100% + 30px); 
+    flex-grow: 1; 
+    border: none; margin: 10px -15px -15px -15px; 
+    background: var(--bg); display: none; border-radius: 0 0 20px 20px;
+    min-height: 0; 
+}
+#ts-iframe.active { display: block; }
+
+/* MODULOS ESPECÍFICOS */
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; height: 100%; margin-top: 5px; }
+.calc-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 1.1rem; cursor: pointer; color: var(--text-main); font-weight: 500; }
+.calc-btn:active { background: var(--border); }
+#calc-display { width: 100%; background: transparent; padding: 5px; text-align: right; font-size: 2rem; margin-bottom: 5px; box-sizing: border-box; color: var(--text-main); font-weight: 300; }
+
+.shopping-list { flex-grow: 1; width: 100%; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+.shop-item { display: flex; align-items: center; gap: 10px; background: var(--bg); padding: 8px 12px; border-radius: 8px; transition: 0.2s; text-align: left; }
+.shop-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; margin: 0; }
+.shop-item span { flex-grow: 1; font-size: 0.9rem; font-weight: 500; color: var(--text-main); }
+.shop-item.done span { text-decoration: line-through; color: var(--text-sec); opacity: 0.6; }
+.shop-item .btn-del { color: #ff453a; background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.5; }
+.add-row { display: flex; align-items: center; width: 100%; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+#shop-input { flex-grow: 1; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-main); box-sizing: border-box; outline: none; }
+#btn-add { height: 36px; width: 36px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; display: flex; justify-content: center; align-items: center; padding: 0; }
+
+.clock-vertical-container { display: flex; flex-direction: column; justify-content: space-around; height: 100%; width: 100%; padding: 5px 0; }
+.clock-city-block { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.clock-city-name { font-size: 0.75rem; color: var(--text-sec); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.clock-city-time { font-size: 1.8rem; font-weight: 300; color: var(--text-main); font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* 1. BLUR FADE PARA EL LOGIN */
+#login-screen { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: var(--bg); z-index: 9999; 
+    display: flex; justify-content: center; align-items: center; 
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#login-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(1.1);
+    filter: blur(10px); 
+}
+
+/* 2. EFECTO REBOTE PARA LAS TARJETAS */
+.grid.show-cards .card {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+    animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes popIn {
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 3. SHAKE PARA CONTRASEÑA INCORRECTA */
+.error-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-2px, 0, 0); }
+    20%, 80% { transform: translate3d(4px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+    40%, 60% { transform: translate3d(8px, 0, 0); }
+}
+
+.login-box { background: var(--card-bg); padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 90%; max-width: 320px; text-align: center; }
+input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text-main); box-sizing: border-box; }
+.edit-mode .card { cursor: grab; border: 2px dashed var(--primary); animation: shake 0.3s infinite alternate; opacity: 0.6; }
+@keyframes shake { from { transform: rotate(-1deg); } to { transform: rotate(1deg); } }
+textarea { width: 100%; height: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; resize: none; background: var(--bg); color: var(--text-main); font-family: inherit; box-sizing: border-box; }
+.admin-only { display: none !important; }
+.broker-wrapper { position: relative; display: flex; align-items: center; gap: 6px; background: var(--bg); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; user-select: none; font-size: 0.8rem; font-weight: 600; transition: 0.2s; }
+.custom-dropdown { display: none; position: absolute; top: 120%; left: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); min-width: 140px; overflow: hidden; z-index: 1000; flex-direction: column; }
+.custom-dropdown.open { display: flex; }
+.dropdown-item { padding: 10px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; font-size:0.8rem; color:var(--text-main); }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: var(--primary); color: white; }
+
+/* ==========================================================
+   PAQUETE PREMIUM V22: ANIMACIONES Y UX
+   ========================================================== */
+
+.glass-element {
+    background: rgba(var(--card-bg-rgb, 255,255,255), 0.7) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+}
+[data-theme="dark"] .glass-element { background: rgba(28,28,30, 0.7) !important; }
+
+.cascade-in {
+    opacity: 0;
+    transform: scale(0.9) translateY(15px);
+    animation: premiumPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes premiumPop { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+.btn-action, .card { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s; }
+.card:active { transform: scale(0.98); }
+
+@keyframes ios-jiggle {
+    0%, 100% { transform: rotate(-1deg); }
+    50% { transform: rotate(1.5deg); }
+}
+.edit-mode .card {
+    animation: ios-jiggle 0.3s ease-in-out infinite;
+    animation-delay: calc(var(--order, 0) * 0.05s);
+    box-shadow: 0 0 15px rgba(0, 122, 255, 0.3);
+    cursor: grab; 
+    user-select: none;
+    touch-action: none;
+}
+.edit-mode .card:active {cursor: grabbing;}
+
+.btn-action.is-pending {
+    background: var(--bg) !important; color: transparent !important; pointer-events: none; position: relative;
+}
+.btn-action.is-pending::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    border: 3px solid var(--border); border-top-color: var(--text-sec);
+    border-radius: 50%; animation: spin 1s linear infinite;
+}
+
+body.offline-mode { overflow: hidden; pointer-events: none; }
+.offline-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    z-index: 9998; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s;
+}
+body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
+
+.toast-container {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.toast {
+    background: var(--card-bg); color: var(--text-main);
+    padding: 12px 20px; border-radius: 30px; font-weight: 600; font-size: 0.85rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid var(--border);
+    animation: toastAnim 3.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes toastAnim {
+    0% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+    10%, 90% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+}
+
+.filter-bar {
+    display: flex; gap: 10px; 
+    width: 98%; max-width: none; margin: 0 auto; 
+    padding: 15px 10px 5px; box-sizing: border-box; 
+    overflow-x: auto; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+
+.filter-pill {
+    background: var(--card-bg); color: var(--text-sec);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 16px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.filter-pill.active {
+    background: var(--text-main); color: var(--bg); border-color: var(--text-main);
+    transform: scale(1.05);
+}
+
+/* ==========================================================
+   PAQUETE EXPERIMENTAL: HUD, PiP, Parallax y Swipe
+   ========================================================== */
+
+.card {
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    transform-style: preserve-3d;        border-left: none !important;
         padding-left: 2px !important;
     }
 
