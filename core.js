@@ -316,8 +316,9 @@ export class Core {
             div.appendChild(cardContent);
             grid.appendChild(div);
 
-            // 4. LÓGICA DE PULSACIÓN LARGA (Long Press)
+            // 4. LÓGICA DE PULSACIÓN LARGA (Filtro Antitemblores)
             let pressTimer;
+            let startX = 0, startY = 0;
             let isDragging = false; 
 
             const activarMenu = () => {
@@ -326,21 +327,49 @@ export class Core {
             };
 
             const iniciarToque = (e) => {
-                if(this.editMode) return; 
-                if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+                // Si estamos editando o tocamos dentro de un botón/input real, abortar
+                if(this.editMode || e.target.closest('button') || e.target.tagName === 'INPUT') return;
                 
                 isDragging = false;
+                // Guardamos la coordenada X e Y exacta donde aterriza el dedo
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
+                clearTimeout(pressTimer);
+                // Bajamos de 800ms a 700ms para que se sienta más ágil
                 pressTimer = setTimeout(() => {
                     if(!isDragging) activarMenu();
-                }, 800); 
+                }, 700); 
             };
 
-            const cancelarToque = () => clearTimeout(pressTimer);
-            const marcarArrastre = () => { isDragging = true; clearTimeout(pressTimer); };
+            const cancelarToque = () => {
+                clearTimeout(pressTimer);
+            };
 
+            const marcarArrastre = (e) => { 
+                if (isDragging) return;
+                const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
+                // 🛡️ ZONA MUERTA: Solo cancela si el dedo se mueve más de 10 píxeles
+                if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
+                    isDragging = true; 
+                    clearTimeout(pressTimer); 
+                }
+            };
+
+            // 🛡️ ANTI-SECUESTRO: Bloquea el menú de "Copiar/Pegar" del móvil
+            cardContent.oncontextmenu = (e) => {
+                if(!this.editMode) e.preventDefault(); 
+            };
+
+            // Sensores Táctiles (Móviles)
             cardContent.addEventListener('touchstart', iniciarToque, {passive: true});
             cardContent.addEventListener('touchend', cancelarToque);
+            cardContent.addEventListener('touchcancel', cancelarToque); // Por si el SO interrumpe
             cardContent.addEventListener('touchmove', marcarArrastre, {passive: true});
+            
+            // Sensores Ratón (PC)
             cardContent.addEventListener('mousedown', iniciarToque);
             cardContent.addEventListener('mouseup', cancelarToque);
             cardContent.addEventListener('mouseleave', cancelarToque);
