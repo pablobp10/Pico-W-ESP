@@ -195,7 +195,7 @@ export class Core {
             }
         };
 
-        const u = sessionStorage.getItem("u"), p = sessionStorage.getItem("p");
+        const u = localStorage.getItem("u"), p = localStorage.getItem("p");
         if(u && p) { 
             document.getElementById('user-input').value = u; 
             document.getElementById('pass-input').value = p;
@@ -468,7 +468,7 @@ export class Core {
             // 1. SI TIENE BIOMETRÍA GUARDADA, PEDIMOS HUELLA / FACE ID
             if (ghostKey && tieneBio) {
                 this.notificar("Esperando credencial biométrica...", "🛡️");
-                const bioOk = await this.verificarBiometria();
+                const bioOk = await this.verificarBiometria(u);
                 if (!bioOk) throw new Error("BIO_FAIL"); // Si cancela la huella, simulamos fallo
             }
 
@@ -544,8 +544,8 @@ export class Core {
             this.rol = this.conf.rol;
             this.apiKeys = this.conf.apis || {}; 
 
-            sessionStorage.setItem("u", u); 
-            sessionStorage.setItem("p", p); // Opcional, ya casi ni lo necesitamos
+            localStorage.setItem("u", u); 
+            localStorage.setItem("p", p); // Opcional, ya casi ni lo necesitamos
             
             document.getElementById('login-screen').style.display = 'none';
             if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
@@ -572,31 +572,45 @@ export class Core {
         if (!window.PublicKeyCredential) return;
         try {
             const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-            await navigator.credentials.create({
+            const cred = await navigator.credentials.create({
                 publicKey: {
                     challenge: challenge,
                     rp: { name: "Pico OS", id: window.location.hostname },
                     user: { id: new Uint8Array(16), name: u, displayName: u },
-                    pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
                     authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
                     timeout: 60000
                 }
             });
+            
+            // 🛠️ LA MAGIA: Guardamos el ID exacto de la huella que acabamos de crear
+            const rawId = Array.from(new Uint8Array(cred.rawId));
+            localStorage.setItem(`pico_bio_id_${u}`, JSON.stringify(rawId));
             localStorage.setItem(`pico_bio_${u}`, 'true');
+            
             this.notificar("Biometría enlazada con éxito", "🔒");
             this.vibra("doble");
         } catch (e) { 
-            console.warn("Registro biométrico cancelado o no soportado."); 
+            console.warn("Registro biométrico cancelado."); 
         }
     }
 
-    async verificarBiometria() {
+    // 🛠️ Añade el parámetro 'u' (usuario) a la función para saber qué ID buscar
+    async verificarBiometria(u) {
         try {
+            const savedId = JSON.parse(localStorage.getItem(`pico_bio_id_${u}`));
+            if (!savedId) return false;
+
             const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
             const assertion = await navigator.credentials.get({
-                publicKey: { challenge: challenge, rpId: window.location.hostname, userVerification: "required" }
+                publicKey: { 
+                    challenge: challenge, 
+                    // 🛠️ Le decimos a Android exactamente qué huella queremos usar
+                    allowCredentials: [{ id: new Uint8Array(savedId), type: 'public-key' }],
+                    userVerification: "required" 
+                }
             });
-            return !!assertion; // Devuelve true si la huella/cara es correcta
+            return !!assertion;
         } catch (e) { 
             return false; 
         }
