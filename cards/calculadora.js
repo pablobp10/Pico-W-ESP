@@ -1,6 +1,6 @@
 export const CalculadoraCard = {
     id: "Calc",
-    size: "tall", // RESTAURADO: Ocupa 2 huecos verticales
+    defaultSize: "1x2",
     html: `
         <div style="display:flex; flex-direction:column; height:100%; width:100%;">
             <div id="calc-display">0</div>
