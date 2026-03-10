@@ -1,6 +1,6 @@
  export const QrCard = {
     id: "QR",
-    size: "wide", // Mejor ancho para ver input + QR
+    defaultSize: "2x1",
     html: `
         <div style="display:flex; align-items:center; justify-content:space-around; height:100%; width:100%">
             
