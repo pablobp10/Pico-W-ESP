@@ -257,6 +257,7 @@ export class Core {
         const grid = document.getElementById('dashboard-grid');
         grid.innerHTML = "";
         
+        // 💾 Recuperar orden
         let order = JSON.parse(localStorage.getItem('gridOrder'));
         if(order) {
             this.cards.sort((a, b) => {
@@ -266,50 +267,49 @@ export class Core {
             });
         }
 
-        // 🧠 DICCIONARIO DE TAMAÑOS: Aquí le recordamos al sistema quién es ancho o alto
-        // (Añade o quita nombres según el "id" exacto de tus tarjetas)
-        const memorySizes = {
-        };
-        
+        // 💾 Recuperar tamaños guardados de sesiones anteriores
+        let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
+
         tarjetasFiltradas.forEach((card, index) => {
-            // 1. EL CONTENEDOR PRINCIPAL (Fondo estático)
+            // 1. EL CONTENEDOR PRINCIPAL
             const div = document.createElement('div');
-            const cardSize = card.size || memorySizes[card.id] || "";
-            div.className = `card cascade-in ${cardSize}`;
+            
+            // Si hay un tamaño guardado lo usamos, si no, el por defecto de la tarjeta, si no, 1x1
+            let currentSize = savedSizes[card.id] || card.defaultSize || '1x1';
+            div.className = `card cascade-in size-${currentSize}`;
+            
             div.style.animationDelay = `${index * 50}ms`;
             div.style.setProperty('--order', index);
             if(card.adminOnly) div.classList.add('admin-only');
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
             
-            // Reconfiguramos el contenedor para soportar capas
             div.style.position = "relative";
             div.style.overflow = "hidden";
-            div.style.padding = "0"; // Quitamos el padding global para dárselo a la capa superior
+            div.style.padding = "0"; 
 
             // 2. EL MENÚ OCULTO (Base inferior)
             const cardMenu = document.createElement('div');
             cardMenu.style.cssText = "position: absolute; top: 0; right: 0; width: 60px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; background: rgba(50, 215, 75, 0.1); border-left: 1px solid var(--primary);";
+            
             cardMenu.innerHTML = `
                 <button class="btn-c-ajustes" style="background:none; border:none; color:var(--text-main); font-size:1.2rem; cursor:pointer;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
-                <button class="btn-c-placeholder" style="background:none; border:none; color:#ff9f0a; font-size:1.2rem; cursor:pointer;" title="Acción Especial"><i class="fa-solid fa-bolt"></i></button>
+                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
                 <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.2rem; cursor:pointer;" title="Cerrar"><i class="fa-solid fa-chevron-right"></i></button>
             `;
 
             // 3. LA CAPA DE CONTENIDO (La que se desliza)
             const cardContent = document.createElement('div');
-            // Le devolvemos el padding aquí para que el contenido respire
             cardContent.style.cssText = "position: relative; z-index: 2; width: 100%; height: 100%; background: var(--card-bg); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 15px; box-sizing: border-box; border-radius: 20px;";
             cardContent.innerHTML = card.html;
 
-            // Ensamblaje
             div.appendChild(cardMenu);
             div.appendChild(cardContent);
             grid.appendChild(div);
 
             // 4. LÓGICA DE PULSACIÓN LARGA (Long Press)
             let pressTimer;
-            let isDragging = false; // Sensor para no abrir el menú si solo estás haciendo scroll
+            let isDragging = false; 
 
             const activarMenu = () => {
                 cardContent.style.transform = "translateX(-60px)";
@@ -317,11 +317,10 @@ export class Core {
             };
 
             const iniciarToque = (e) => {
-                if(this.editMode) return; // Si estamos ordenando tarjetas, desactivar menús
+                if(this.editMode) return; 
                 if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
                 
                 isDragging = false;
-                // 800ms es el estándar ergonómico moderno para pulsación larga
                 pressTimer = setTimeout(() => {
                     if(!isDragging) activarMenu();
                 }, 800); 
@@ -330,30 +329,62 @@ export class Core {
             const cancelarToque = () => clearTimeout(pressTimer);
             const marcarArrastre = () => { isDragging = true; clearTimeout(pressTimer); };
 
-            // Sensores Táctiles (Móvil)
             cardContent.addEventListener('touchstart', iniciarToque, {passive: true});
             cardContent.addEventListener('touchend', cancelarToque);
             cardContent.addEventListener('touchmove', marcarArrastre, {passive: true});
-            // Sensores de Ratón (PC)
             cardContent.addEventListener('mousedown', iniciarToque);
             cardContent.addEventListener('mouseup', cancelarToque);
             cardContent.addEventListener('mouseleave', cancelarToque);
             cardContent.addEventListener('mousemove', marcarArrastre);
 
             // 5. EVENTOS DEL MENÚ OCULTO
+
+            // Botón Cerrar
             cardMenu.querySelector('.btn-c-cerrar').onclick = () => {
                 cardContent.style.transform = "translateX(0px)";
             };
 
+            // Botón Ajustes (Delega en el JS de la tarjeta)
             cardMenu.querySelector('.btn-c-ajustes').onclick = () => {
-                this.notificar(`Abriendo ajustes de ${card.id}`, "⚙️");
                 cardContent.style.transform = "translateX(0px)";
-                // TODO: Aquí lanzaremos la ventana modal de ajustes específica
+                if (card.abrirAjustes) {
+                    card.abrirAjustes(this); // Le pasamos el 'core'
+                } else {
+                    this.notificar(`Esta tarjeta no tiene ajustes`, "ℹ️");
+                }
             };
 
-            cardMenu.querySelector('.btn-c-placeholder').onclick = () => {
-                this.notificar("Módulo en desarrollo", "⚡");
+            // 📏 BOTÓN REDIMENSIONAR (Invocando al cilindro radial)
+            cardMenu.querySelector('.btn-c-tamano').onclick = () => {
+                const tamanosSoportados = card.tamanos || ['1x1'];
+                const anchoPantalla = window.innerWidth;
+                const maxColumnas = anchoPantalla <= 600 ? 2 : (anchoPantalla <= 1024 ? 4 : 6);
+
+                const tamanosValidos = tamanosSoportados.filter(t => parseInt(t.split('x')[0]) <= maxColumnas);
+
+                if (tamanosValidos.length <= 1) {
+                    this.notificar("Único tamaño disponible para esta pantalla", "⚠️");
+                    cardContent.style.transform = "translateX(0px)";
+                    return;
+                }
+
+                // Deslizamos la tarjeta a su sitio antes de abrir el overlay
                 cardContent.style.transform = "translateX(0px)";
+                
+                // Invocamos el cilindro infinito dentro de la propia tarjeta
+                this.abrirSelectorRadial(cardContent, tamanosValidos, currentSize, (nuevoTamano) => {
+                    // Aplicar el cambio visual
+                    div.classList.remove(`size-${currentSize}`);
+                    div.classList.add(`size-${nuevoTamano}`);
+                    currentSize = nuevoTamano;
+
+                    // Guardar persistentemente
+                    savedSizes[card.id] = nuevoTamano;
+                    localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
+
+                    this.vibra("tick");
+                    if (this.sortable) this.toggleEdit(); // Recalcula posiciones si estás en modo edición
+                });
             };
 
             // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
@@ -364,6 +395,124 @@ export class Core {
             }
         });
     }
+    
+    // 🎡 MOTOR DEL CARRUSEL INFINITO REAL (Matemática 3D)
+    abrirSelectorRadial(tarjetaContenedor, tamanosValidos, tamanoActual, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'radial-overlay';
+        
+        // 1. Matemáticas del Cilindro
+        // Para que ruede suave, necesitamos al menos unas 12 caras. Repetimos el array.
+        let caras = [...tamanosValidos];
+        while (caras.length < 12) { caras = caras.concat(tamanosValidos); }
+        
+        const numFaces = caras.length;
+        const theta = 360 / numFaces; // Ángulo entre cada cara
+        const cellHeight = 40;
+        // La magia: calculamos el radio exacto para que las caras formen un círculo cerrado
+        const radio = Math.round((cellHeight / 2) / Math.tan(Math.PI / numFaces));
+
+        let htmlCaras = '';
+        caras.forEach((val, i) => {
+            // Empujamos cada cara hacia afuera (translateZ) y la inclinamos (rotateX)
+            htmlCaras += `<div class="radial-face" id="face-${i}" style="transform: rotateX(${i * -theta}deg) translateZ(${radio}px)">${val}</div>`;
+        });
+
+        overlay.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:10px; color:white;">Redimensionar</div>
+            <div class="radial-viewport">
+                <div class="radial-cylinder" id="cylinder">${htmlCaras}</div>
+            </div>
+            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:15px; background:var(--primary); color:white; border-radius:20px; padding:8px 20px;">Aplicar</button>
+        `;
+
+        tarjetaContenedor.appendChild(overlay);
+        // Forzamos un reflow para que la transición de opacidad funcione
+        void overlay.offsetWidth; 
+        overlay.style.opacity = '1';
+
+        const cylinder = overlay.querySelector('#cylinder');
+        
+        // Buscamos el índice inicial
+        let idxInicial = caras.indexOf(tamanoActual);
+        if (idxInicial === -1) idxInicial = 0;
+        
+        let anguloActual = idxInicial * theta;
+        cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+        overlay.querySelector(`#face-${idxInicial}`).classList.add('selected');
+
+        // 2. Controladores Táctiles / Ratón
+        let isDragging = false;
+        let startY = 0;
+        let anguloInicial = 0;
+
+        const onStart = (e) => {
+            isDragging = true;
+            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            anguloInicial = anguloActual;
+            cylinder.style.transition = 'none'; // Sin retraso al arrastrar
+        };
+
+        const onMove = (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); // Evita que la pantalla entera haga scroll
+            const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            // Sensibilidad: 1px de arrastre = X grados de giro
+            anguloActual = anguloInicial - (deltaY * 0.5); 
+            cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+            
+            // Iluminamos la cara más cercana al centro visual
+            iluminarCaraSeleccionada();
+        };
+
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            // Efecto Imán (Snap): Redondeamos el ángulo al múltiplo de theta más cercano
+            anguloActual = Math.round(anguloActual / theta) * theta;
+            cylinder.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)';
+            cylinder.style.transform = `rotateX(${anguloActual}deg)`;
+            iluminarCaraSeleccionada();
+        };
+
+        const iluminarCaraSeleccionada = () => {
+            // Calculamos qué índice queda mirando al frente
+            let normalizedIndex = Math.round(anguloActual / theta) % numFaces;
+            if (normalizedIndex < 0) normalizedIndex += numFaces; // Arreglo para rotación negativa
+            
+            overlay.querySelectorAll('.radial-face').forEach(f => f.classList.remove('selected'));
+            overlay.querySelector(`#face-${normalizedIndex}`).classList.add('selected');
+        };
+
+        const viewport = overlay.querySelector('.radial-viewport');
+        viewport.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+        viewport.addEventListener('touchstart', onStart, {passive: false});
+        window.addEventListener('touchmove', onMove, {passive: false});
+        window.addEventListener('touchend', onEnd);
+
+        // 3. Botón Aplicar
+        overlay.querySelector('#btn-aplicar-tamano').onclick = () => {
+            let selectedIndex = Math.round(anguloActual / theta) % numFaces;
+            if (selectedIndex < 0) selectedIndex += numFaces;
+            const tamanoElegido = caras[selectedIndex];
+            
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.remove();
+                callback(tamanoElegido); // Enviamos la elección de vuelta
+            }, 200);
+            
+            // Limpieza de eventos globales
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onEnd);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onEnd);
+        };
+    }
+    
 
     async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
