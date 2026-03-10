@@ -363,24 +363,21 @@ export class Core {
                 }
             };
 
-                        // 📏 BOTÓN REDIMENSIONAR (Límites inteligentes por pantalla)
+            // 📏 BOTÓN REDIMENSIONAR (Límites inteligentes por pantalla)
             cardMenu.querySelector('.btn-c-tamano').onclick = () => {
                 const anchoPantalla = window.innerWidth;
                 
                 let maxW, maxH;
                 
-                // Calculamos los límites físicos según el dispositivo
-                if (anchoPantalla <= 450) {
-                    // Pantalla móvil vertical: 1 columna
-                    maxW = 1; 
-                    maxH = 2; // Rango: 1 a 2 de alto
-                } else if (anchoPantalla <= 800) {
-                    // Pantalla móvil horizontal o tablet pequeña: 2 columnas
-                    maxW = 2; // Rango: 1 a 2 de ancho
-                    maxH = 3; // Rango: 1 a 3 de alto
+                // ⬇️ AJUSTE: Si es móvil (menos de 600px), permitimos hasta 2 de ancho
+                if (anchoPantalla <= 600) {
+                    maxW = 2; // Móvil: Ancho máximo 2 tarjetas
+                    maxH = 4; // Móvil: Alto máximo 4 tarjetas
+                } else if (anchoPantalla <= 1024) {
+                    maxW = 4; // Tablet: Ancho máximo 4
+                    maxH = 6;
                 } else {
-                    // PC o Tablet grande: Libre hasta 10x10
-                    maxW = 10;
+                    maxW = 10; // PC: Libre
                     maxH = 10;
                 }
 
