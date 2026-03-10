@@ -9,15 +9,17 @@ self.addEventListener('activate', (event) => {
 
 // 📡 INTERCEPTOR DE RED (Fusión: Tu Network-First + Mi Escudo Anti-CORS)
 self.addEventListener('fetch', (event) => {
-    // 🛡️ ESCUDO ANTI-CORS (CRÍTICO: No tocar APIs externas)
+    // 🛡️ ESCUDO ANTI-CORS Y BYPASS DINÁMICO
     if (
         event.request.method !== 'GET' || 
         event.request.url.includes('api.open-meteo.com') || 
         event.request.url.includes('googleapis.com') || 
         event.request.url.includes('esm.run') || 
+        event.request.url.includes('registry.npmjs.org') || // <-- Bypass API de versiones
+        event.request.url.includes('?v=') ||                // <-- Bypass cache buster
         !event.request.url.startsWith('http')
     ) {
-        return; // Dejamos que el navegador gestione esto de forma normal
+        return; // Dejamos que el navegador gestione esto sin cachear
     }
 
     event.respondWith(
