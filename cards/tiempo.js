@@ -1,5 +1,7 @@
 export const TiempoCard = {
     id: "Tiempo",
+    category: "info",
+    
     html: `
         <div style="display:flex; flex-direction:column; justify-content:space-between; align-items:center; height:100%; width:100%;">
             <div id="weather-city" style="font-size: 0.75rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">
@@ -18,7 +20,6 @@ export const TiempoCard = {
             
             document.getElementById('weather-city').innerText = name;
 
-            // Función interna para pintar los datos si alguna de las dos rutas funciona
             const pintarClima = (d) => {
                 if(!d.current_weather) return;
                 document.getElementById('weather-temp').innerText = `${Math.round(d.current_weather.temperature)}°`;
@@ -29,13 +30,11 @@ export const TiempoCard = {
             };
 
             try {
-                // Intento 1: Ataque directo (Triunfará en tu móvil)
                 let res = await fetch(urlDirecta);
                 if (!res.ok) throw new Error("Bloqueado por Firewall");
                 pintarClima(await res.json());
             } catch (e1) {
                 try {
-                    // Intento 2: Túnel táctico (Triunfará en la red corporativa)
                     let resBypass = await fetch(urlBypass);
                     pintarClima(await resBypass.json());
                 } catch (e2) {
@@ -44,7 +43,12 @@ export const TiempoCard = {
             }
         };
 
-        if (navigator.geolocation) {
+        // 🧠 Leemos la base de datos local para ver si el usuario forzó una ciudad
+        let ciudadGuardada = localStorage.getItem('pico_tiempo_ciudad');
+        
+        if (ciudadGuardada) {
+            TiempoCard.onData(ciudadGuardada);
+        } else if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => window.fetchWeather(pos.coords.latitude, pos.coords.longitude, "UBICACIÓN"),
                 (err) => window.fetchWeather(42.431, -8.644, "PONTEVEDRA")
@@ -54,10 +58,9 @@ export const TiempoCard = {
         }
     },
     
-    // 🧠 LA MAGIA: Interceptamos si la IA manda el nombre de una ciudad ("Tokio", "Nueva York")
+    // 🧠 LA MAGIA: Interceptamos si la IA (o el usuario) manda el nombre de una ciudad
     onData: (val) => {
         if (typeof val === 'string' && val.trim() !== "" && val !== "get") {
-            // Buscamos las coordenadas de la ciudad en la API de geocoding
             fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1`)
                 .then(r => r.json())
                 .then(d => {
@@ -66,6 +69,28 @@ export const TiempoCard = {
                         window.fetchWeather(res.latitude, res.longitude, res.name);
                     }
                 });
+        }
+    },
+
+    // ⚙️ AJUSTES PROPIOS DE LA TARJETA
+    abrirAjustes: (core) => {
+        let ciudadActual = document.getElementById('weather-city').innerText;
+        if (ciudadActual === "DETECTANDO..." || ciudadActual === "UBICACIÓN") ciudadActual = "";
+        
+        let nuevaCiudad = prompt("Escribe una ciudad para forzar el clima (déjalo en blanco para usar GPS):", ciudadActual);
+        
+        if (nuevaCiudad !== null) { 
+            if (nuevaCiudad.trim() === "") {
+                // Borramos la ciudad y forzamos reinicio para que pille el GPS
+                localStorage.removeItem('pico_tiempo_ciudad');
+                core.notificar("Restaurando GPS...", "🛰️");
+                TiempoCard.onInit(core); 
+            } else {
+                // Guardamos la nueva ciudad y la buscamos
+                localStorage.setItem('pico_tiempo_ciudad', nuevaCiudad);
+                TiempoCard.onData(nuevaCiudad); 
+                core.notificar(`Buscando clima en ${nuevaCiudad}...`, "🔎");
+            }
         }
     }
 };
