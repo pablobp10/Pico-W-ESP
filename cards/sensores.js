@@ -2,18 +2,29 @@ export const SensoresCard = {
     id: "Sensores",
     defaultSize: "3x2",
     html: `
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:0 10px; box-sizing:border-box">
-            <div style="display:flex; gap:20px; align-items:center;">
-                <div style="text-align:center"><div class="val-text" id="val-s-temp" style="margin:0; font-size:2rem">--°</div><div class="label">TEMP</div></div>
-                <div style="height:30px; border-left:1px solid var(--border)"></div>
-                <div style="text-align:center"><div class="val-text" id="val-s-hum" style="margin:0; font-size:2rem">--%</div><div class="label">HUM</div></div>
+        <style>
+            #sens-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; }
+            .sens-top { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px; box-sizing: border-box; }
+            .sens-data-row { display: flex; gap: clamp(10px, 4cqmin, 30px); align-items: center; }
+            .sens-num { margin: 0; font-size: clamp(1.5rem, 10cqmin, 4rem); font-weight: 800; line-height: 1; color: var(--text-main); }
+            .sens-div { height: clamp(20px, 8cqmin, 40px); border-left: 1px solid var(--border); }
+            .sens-label { font-size: clamp(0.6rem, 3cqmin, 1rem); color: var(--text-sec); font-weight: bold; }
+        </style>
+        
+        <div id="sens-wrapper">
+            <div class="sens-top">
+                <div class="sens-data-row">
+                    <div style="text-align:center"><div class="sens-num" id="val-s-temp">--°</div><div class="sens-label">TEMP</div></div>
+                    <div class="sens-div"></div>
+                    <div style="text-align:center"><div class="sens-num" id="val-s-hum">--%</div><div class="sens-label">HUM</div></div>
+                </div>
+                <div class="switch-group">
+                    <div class="mini-switch-row"><span>Grabar</span><label class="toggle-switch"><input type="checkbox" id="sw-ts-rec"><span class="slider"></span></label></div>
+                    <div class="mini-switch-row"><span>Gráfica</span><label class="toggle-switch"><input type="checkbox" id="sw-show-graph"><span class="slider"></span></label></div>
+                </div>
             </div>
-            <div class="switch-group">
-                <div class="mini-switch-row"><span>Grabar</span><label class="toggle-switch"><input type="checkbox" id="sw-ts-rec"><span class="slider"></span></label></div>
-                <div class="mini-switch-row"><span>Gráfica</span><label class="toggle-switch"><input type="checkbox" id="sw-show-graph"><span class="slider"></span></label></div>
-            </div>
+            <iframe id="ts-iframe"></iframe>
         </div>
-        <iframe id="ts-iframe"></iframe>
     `,
     onInit: (core) => {
         document.getElementById('sw-ts-rec').onchange = (e) => core.cmd('Sensores', e.target.checked ? 'TS_ON' : 'TS_OFF');
@@ -23,20 +34,20 @@ export const SensoresCard = {
             const card = document.getElementById('card-Sensores');
             
             if(e.target.checked) {
-                // ACTIVAR MODO 3x2
-                card.classList.add('graph-active'); // CSS hace que ocupe span 2 rows
+                card.classList.add('graph-active'); // Expande hacia abajo
                 f.classList.add('active');
                 
-                if(core.conf && core.conf.ch) {
+                let ch = localStorage.getItem('pico_ts_ch') || (core.conf && core.conf.ch);
+                if(ch) {
                     const isDark = document.body.getAttribute('data-theme') === 'dark';
                     const color = isDark ? '0a84ff' : '007aff';
                     const bg = isDark ? '000000' : 'f2f2f7';
-                    let u = `https://thingspeak.com/channels/${core.conf.ch}/charts/1?bgcolor=%23${bg}&color=%23${color}&dynamic=true&results=60&type=line&title=`;
-                    if(core.conf.rk) u += `&api_key=${core.conf.rk}`;
+                    let u = `https://thingspeak.com/channels/${ch}/charts/1?bgcolor=%23${bg}&color=%23${color}&dynamic=true&results=60&type=line&title=`;
                     f.src = u;
+                } else {
+                    core.notificar("Canal de ThingSpeak no configurado", "⚠️");
                 }
             } else { 
-                // VOLVER A MODO 3x1
                 card.classList.remove('graph-active');
                 f.classList.remove('active'); 
                 f.src = ""; 
@@ -49,5 +60,9 @@ export const SensoresCard = {
             document.getElementById('val-s-hum').innerText = val.datos.hum; 
         }
         if(val.ts_activo !== undefined) document.getElementById('sw-ts-rec').checked = val.ts_activo;
+    },
+    abrirAjustes: (core) => {
+        let ch = prompt("ID del Canal de ThingSpeak:", localStorage.getItem('pico_ts_ch') || "");
+        if(ch) { localStorage.setItem('pico_ts_ch', ch); core.notificar("Canal Guardado", "📊"); }
     }
 };
