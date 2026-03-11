@@ -305,7 +305,7 @@ export class Core {
                 background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); 
                 z-index: 10; pointer-events: none; 
                 clip-path: circle(0px at 50% 50%); 
-                transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                transition: clip-path 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             `;
             
             // Botones más grandes y blancos para destacar sobre el cristal oscuro
