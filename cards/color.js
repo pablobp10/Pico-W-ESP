@@ -3,23 +3,14 @@ export const ColorCard = {
     defaultSize: "1x1",
     html: `
         <style>
-            #color-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; height: 100%; width: 100%; box-sizing: border-box; padding: 4cqmin; }
-            .color-title { font-size: clamp(0.7rem, 8cqmin, 1.5rem); font-weight: 800; color: var(--text-sec); text-align: center; margin: 0; }
-            #color-wheel-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; width: 100%; padding: 2cqmin; }
-            #color-wheel { width: 100% !important; display: flex; justify-content: center; align-items: center; }
-            #color-wheel svg { width: clamp(80px, 80cqmin, 400px) !important; height: auto !important; overflow: visible; }
-            
-            @container (aspect-ratio > 1.2) {
-                #color-wrapper { flex-direction: row; }
-                .color-title { width: 30%; font-size: clamp(0.8rem, 8cqw, 2rem); }
-                #color-wheel-container { width: 70%; }
-                #color-wheel svg { width: clamp(80px, 80cqh, 400px) !important; }
-            }
+            #color-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
+            #color-wheel { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+            /* 🛡️ FORZAMOS AL SVG DE IRO.JS A RESPETAR LOS LÍMITES */
+            #color-wheel svg { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; }
         </style>
         
         <div id="color-wrapper">
-            <div class="color-title"><i class="fa-solid fa-palette" style="color:#e91e63"></i> CONTROL RGB</div>
-            <div id="color-wheel-container"><div id="color-wheel"></div></div>
+            <div id="color-wheel"></div>
         </div>
     `,
     onInit: (core) => {
@@ -28,13 +19,12 @@ export const ColorCard = {
             script.src = "https://cdn.jsdelivr.net/npm/@jaames/iro@5";
             script.onload = () => initPicker(core);
             document.head.appendChild(script);
-        } else {
-            initPicker(core);
-        }
+        } else { initPicker(core); }
 
         function initPicker(core) {
             window.colorPicker = new iro.ColorPicker("#color-wheel", {
-                width: 150, color: "#ffffff", borderWidth: 2, borderColor: "#fff",
+                width: 250, // Lo ponemos grande porque el CSS lo encogerá sin pixelar
+                color: "#ffffff", borderWidth: 2, borderColor: "#fff",
                 layout: [{ component: iro.ui.Wheel }]
             });
             let lastSend = 0;
@@ -44,13 +34,5 @@ export const ColorCard = {
             });
         }
     },
-    onData: (val) => {
-        if (window.colorPicker && val.startsWith("#")) window.colorPicker.color.hexString = val;
-    },
-    abrirAjustes: (core) => {
-        if(confirm("¿Apagar LED RGB?")) {
-            if (window.colorPicker) window.colorPicker.color.hexString = "#000000";
-            core.pub('Color', "#000000", true);
-        }
-    }
+    onData: (val) => { if (window.colorPicker && val.startsWith("#")) window.colorPicker.color.hexString = val; }
 };
