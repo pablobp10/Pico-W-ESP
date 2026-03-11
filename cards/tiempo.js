@@ -1,7 +1,7 @@
 export const TiempoCard = {
     id: "Tiempo",
     category: "info",
-    defaultSize: "1x1",
+    defaultSize: "1x1", // ⬅️ Vuelve a nacer en 1x1 por defecto
     customAccion: {
         titulo: "Pronóstico Semanal",
         icono: "fa-solid fa-calendar-week",
@@ -11,35 +11,43 @@ export const TiempoCard = {
             const weeklyDiv = document.getElementById('weekly-forecast');
             
             if (card.classList.contains('modo-semana')) {
+                // CIERRA LA SEMANA
                 card.classList.remove('modo-semana');
-                card.style.gridRowEnd = ""; // Vuelve a su alto original
+                card.style.gridRowEnd = ""; 
                 weeklyDiv.classList.remove('active');
             } else {
+                // ABRE LA SEMANA (Fuerza 2 filas de alto)
                 card.classList.add('modo-semana');
-                card.style.gridRowEnd = "span 2"; // Crece hacia abajo
+                card.style.gridRowEnd = "span 2"; 
                 weeklyDiv.classList.add('active');
                 
-                if (window.lastCoords) {
-                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${window.lastCoords.lat}&longitude=${window.lastCoords.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
-                    fetch(url).then(r => r.json()).then(d => {
+                const lat = window.lastCoords ? window.lastCoords.lat : 42.431;
+                const lon = window.lastCoords ? window.lastCoords.lon : -8.644;
+                
+                weeklyDiv.innerHTML = '<div style="text-align:center; margin-top:20px"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+                
+                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`)
+                    .then(r => r.json())
+                    .then(d => {
                         let html = '';
                         const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                        for(let i=1; i<6; i++) { // Próximos 5 días
+                        for(let i=1; i<6; i++) { 
                             const date = new Date(d.daily.time[i]);
                             const tMax = Math.round(d.daily.temperature_2m_max[i]);
                             const tMin = Math.round(d.daily.temperature_2m_min[i]);
                             const icon = getWeatherIcon(d.daily.weathercode[i]);
                             html += `
-                                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border);">
-                                    <span style="width:30px; font-weight:bold; color:var(--text-sec)">${dias[date.getDay()]}</span>
-                                    <i class="${icon.icon}" style="color:${icon.color}; font-size:1.2rem;"></i>
-                                    <span style="font-weight:bold; color:var(--text-main)">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid var(--border);">
+                                    <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.8rem">${dias[date.getDay()]}</span>
+                                    <i class="${icon.icon}" style="color:${icon.color}; font-size:1rem;"></i>
+                                    <span style="font-weight:bold; color:var(--text-main); font-size:0.9rem">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
                                 </div>
                             `;
                         }
                         weeklyDiv.innerHTML = html;
+                    }).catch(e => {
+                        weeklyDiv.innerHTML = '<div style="text-align:center; color:#ff453a; font-size:0.8rem;">Error de red</div>';
                     });
-                }
             }
         }
     },
@@ -47,35 +55,35 @@ export const TiempoCard = {
         <style>
             #tiempo-wrapper {
                 display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; 
-                height: 100%; width: 100%; box-sizing: border-box; padding: 10px;
+                height: 100%; width: 100%; box-sizing: border-box; padding: 5px; /* Padding reducido al mínimo */
             }
             #tiempo-top {
-                display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; width: 100%; height: 100%;
+                display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; 
+                width: 100%; height: 100%; gap: 2px;
             }
             #weather-city { 
-                font-size: clamp(0.7rem, 15cqmin, 1.2rem); /* Aumentado para 1x1 */
-                font-weight: 700; color: var(--text-sec); 
+                font-size: clamp(0.6rem, 15cqmin, 1rem); 
+                font-weight: 800; color: var(--text-sec); 
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-                text-align: center; margin-bottom: 2px;
+                text-align: center; margin: 0; line-height: 1.2;
             }
             #weather-icon { 
-                font-size: clamp(2rem, 35cqmin, 5rem); 
+                font-size: clamp(1.8rem, 35cqmin, 4rem); 
                 filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); 
-                display: flex; align-items: center; justify-content: center;
+                display: flex; align-items: center; justify-content: center; margin: 0;
             }
             #weather-temp { 
-                font-size: clamp(1.5rem, 30cqmin, 4.5rem); 
+                font-size: clamp(1.2rem, 30cqmin, 3.5rem); 
                 font-weight: 800; line-height: 1; margin: 0;
             }
             
-            #weekly-forecast { display: none; width: 100%; padding: 0 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; font-size: 0.9rem;}
-            #weekly-forecast.active { display: flex; }
-            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+            #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
+            #weekly-forecast.active { display: flex !important; }
+            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
             
             @container (aspect-ratio > 1.2) {
-                #tiempo-top { flex-direction: row; justify-content: space-around; padding: 15px; }
-                #weather-city { position: absolute; top: 10px; left: 15px; text-align: left; width: auto; }
-                #weather-icon { margin: 0; }
+                #tiempo-top { flex-direction: row; justify-content: space-around; padding: 10px; }
+                #weather-city { position: absolute; top: 10px; left: 10px; text-align: left; width: auto; }
             }
         </style>
         
@@ -85,15 +93,14 @@ export const TiempoCard = {
                 <div id="weather-icon"><i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b;"></i></div>
                 <div id="weather-temp" class="val-text">--°</div>
             </div>
-            <div id="weekly-forecast">Cargando pronóstico...</div>
+            <div id="weekly-forecast"></div>
         </div>
     `,
     
     onInit: (core) => {
         window.fetchWeather = async (lat, lon, name) => {
-            window.lastCoords = { lat, lon }; // Guardamos para la gráfica semanal
+            window.lastCoords = { lat, lon }; 
             const urlDirecta = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
-            const urlBypass = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlDirecta)}`;
             
             document.getElementById('weather-city').innerText = name;
 
@@ -111,12 +118,7 @@ export const TiempoCard = {
                 if (!res.ok) throw new Error("Bloqueado");
                 pintarClima(await res.json());
             } catch (e1) {
-                try {
-                    let resBypass = await fetch(urlBypass);
-                    pintarClima(await resBypass.json());
-                } catch (e2) {
-                    document.getElementById('weather-city').innerText = "ERROR API";
-                }
+                document.getElementById('weather-city').innerText = "ERR. RED";
             }
         };
 
@@ -148,7 +150,7 @@ export const TiempoCard = {
 
     abrirAjustes: (core) => {
         let ciudadActual = document.getElementById('weather-city').innerText;
-        if (ciudadActual === "DETECTANDO..." || ciudadActual === "UBICACIÓN") ciudadActual = "";
+        if (ciudadActual === "DETECTANDO..." || ciudadActual === "UBICACIÓN" || ciudadActual === "ERR. RED") ciudadActual = "";
         
         let nuevaCiudad = prompt("Escribe una ciudad (déjalo en blanco para GPS):", ciudadActual);
         if (nuevaCiudad !== null) { 
