@@ -22,6 +22,7 @@ import { SintetizadorCard } from './cards/sintetizador.js';
 import { OCRCard } from './cards/ocr.js';
 import { ConscienciaCard } from './cards/mood.js';
 import { GeneradorPrompt } from './prompt.js';
+import { createClient } from 'https://esm.run/@supabase/supabase-js';
 
 export class Core {
     constructor() {
@@ -37,11 +38,12 @@ export class Core {
         this.rol = "guest";
         this.editMode = false;
         
-        this.llave = {
-            "pablo": "eyJlIjoib04zNWc3M29tdTBLRjVucWhsaklGalJ0L0tpeEpOc0Jra0hFSFhBcUE3NW15Ukp2YWRtWGMzTUtJZ0hsWC83VVozNWd0bDNoV3liZVVEYlV0QTBQV2hVRkE4RkgwdFBRRU9OS3oyMWFZU0ZaSVJ6N0tsbDlZZjc2VkQrVm53SjUiLCJkIjoiMnFqODlNUE5HdG5Na0x3MWdsRC94TnY1Z2F0STkrQldrWjhOOHBBK3hPellCdjdINnNFaHY4QklZUmczTld6cFpKVzdBYmxjZVJsNHhNcmhpM1FqSmxsWlBRbUhoaEwzVlV4OXpDd1JFZzJJaDQrSmxYRDVLQmNxQjVaVkxmbThwSVYwSTN1MUFsMFZMd2pFZ0VxcUlNSlZLa0FYN3liSm1ZcDVadUsrL2hyZGg1T0h3aDFYcmlVWFVSVnpmbVY2MldORUtTR3JscVVKdmdlWjA0WGF4WmtMbTk4MlF5Z2ZXQWZTYXFJQloyWjVQdTdIQ3dJb3VvQ2xGSm9qS0NMUUIwaXMzUXdSQXRPbVltUzhKdmt0ZDRyTWhZc3E1V2tGOUFFanpkUFc1TysybHRhN2N4NUREZjJZWUwyNXhBMU1ZcFFIazh4SE13L05vazMyYlg0VHkreHIrY0s1MTBVRFNCbUI2cDlsb1UwV2lVajhqdjNEOFZneHZMYko2R2NQa2ExVXRiK2tkbFlPRkFWNTVNMlhvWnYvSDAyZlpHNnhKLy8zZ3VCTUJMdz0ifQ==",
-            "invitado": "eyJlIjoiMnhDUHNMUUtZNnF5Zlp6MDhkMWNGcW84NmltRXgwZVgzbnNKQjJuU3MyQWJwcGsvQzFFakhSMzdpbUpKZmlmRlQ4cVVrOFdJdHpGSUNReHRuMEhMK1BZak9kUjMrUytCRVM4VS80YklCbU9jeU1OeU5aenJwdkxsWnAvZDJqVkgiLCJkIjoiR1R5a2hxMFR4dzZVa0tuLzN1NUkyaWM4d3BiZk05eENaQUE1cHZ4NDRsSEZCRW1maG94dC9jZGIrY3FnenN0dmNkdmV0OW1paUY3OHhHMFFhb1VMN3hsZEhNMkp3M2FLTW9jWVBrWHRsWXZ5UlRkVXRmWVBEN29KVzh2R2dlWlNSVHBiaUduVFRHQUhOc2ZKY1BQUTBkUThHWElFVFBRdjM4QnV6M25UMlNyODN1bldEMS9QeEkvcVJRR2NETXQrNVNvQTFHcnMra3N3MC9RRDJUM3pHZTFJTFd5aVlTT3VLS3M4WjdsRWZmTGs3aXJOa1BnRkk2anpKUnoxL3VNQVZORFZVSEtadGJvdTk2bjNJcjdkb2MrQ1UvNG9aeURPRnBGQnR4aThzd1lpQ2ZxTU1oNTEvV2c0dHVXblVUMWljVUVXQytUcDZwOExTSjlrWTRNa2FtSjVaamUwV1cwTnl6d09vNHRIV3NrYkxwWUNsSkdYcjBYYmgxOEdTRkcvYzVmMU5xT3paYmJkVEdHVEZHbXNMMFA4QmwzK0dYUC93eXA3MFd4ZDZxQT0ifQ==",
-            "admin": "eyJlIjoicXkxZnpFTWIvRkdZbkRkMEVVM1RGcDVNT3VLQXNvbStMakErYzRqOEJranZtb0VWYUE2MlVlZTJKczhrMkdyU1U4NXFSZmc1ZjduY21ueHNmNnVzWXZHVzNtb3YxV1p2NnBlM3ZkekVGWXFOTzM4Z0FpU1MwQUhRclU2Q2ZRRmEiLCJkIjoiSFN6MVZpOUJsaEpuMFB2aFhTNDBPQWVGY0JXYWdsdWx6SFIrTFFMMFVXbzJwTGxUMGdPVUJBTVIwQlE3SDlBRE1RY0g4ZSs0Zkh5NWZWcU1yU2lSeXp5UlhUNlErMzBPd3NqK3RhcTFibDRKS2VLSkRtVW5JMGVWZWJpMkNiY0tDdG9ZSjJFd0RwKzdUNnlvWkIrZmZXbXpwbHV4Z2QyM0FUb2pWSjRtOEZMNnlIak9QMWcxcXJkNHdDRjlHRkJKNlZxVkkrS1pYVDZ5bWtmdUozNWxSYlQ2R1d0MTRQK1BtVTJQeUJtOTJsL2V4dGg1bFVLK3dBK1oycFliZGpXZm5nQ05yUE51bDk4aThjT3M2VTRYWWc9PSJ9"
-        };
+        // 🚀 CONEXIÓN A LA NUBE SUPABASE
+        const supabaseUrl = 'https://TU-PROYECTO.supabase.co'; // Pon tu URL real
+        const supabaseKey = 'TU_ANON_KEY'; // Pon tu clave anon real
+        this.supabase = createClient(supabaseUrl, supabaseKey);
+        
+        this.usuarioLogueado = null;
         
         this.brokers = [
             { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" },
@@ -798,55 +800,69 @@ export class Core {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         const pinInputEl = document.getElementById('pin-input');
-        const pin = pinInputEl.value.trim(); 
-        
-        if(!this.llave[u]) {
-            document.getElementById('error-msg').innerText = "Usuario no encontrado";
-            document.getElementById('error-msg').style.display = 'block';
-            return;
-        }
+        const pin = pinInputEl.value.trim();
+        const errorMsg = document.getElementById('error-msg');
+        const loginBox = document.querySelector('.login-box');
 
-        let txtDesencriptado = ""; // Lo guardamos aquí para usarlo después
+        // Formateamos para Supabase (Si escribes "pablo", busca "pablo@pico.os")
+        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
 
-        // 🛡️ BLOQUE 1: EXCLUSIVO PARA CRIPTOGRAFÍA Y WEBAUTHN
         try {
-            const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(this.llave[u]));
+            // 1. Validar identidad en Supabase
+            const { data: authData, error: authError } = await this.supabase.auth.signInWithPassword({
+                email: emailAuth,
+                password: p
+            });
+
+            if (authError) throw new Error("Credenciales inválidas en la Nube.");
+            this.usuarioLogueado = authData.user;
+
+            // 2. Descargar el Maletín de la Nube
+            const { data: perfil, error: dbError } = await this.supabase
+                .from('perfiles')
+                .select('maletin_encriptado, rol')
+                .eq('id', this.usuarioLogueado.id)
+                .single();
+            
+            if (perfil.rol === 'pendiente') {
+                throw new Error("Tu cuenta está en revisión. Espera autorización.");
+            }
+            
+            if (dbError || !perfil) throw new Error("Perfil no encontrado.");
+
+            this.rol = perfil.rol;
+
+            // 3. DESENCRIPTAR (Tu código criptográfico original intacto)
+            const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(perfil.maletin_encriptado));
             const boveda = JSON.parse(rawJsonStr); 
 
+            let txtDesencriptado = "";
             let ghostKey = localStorage.getItem('pico_gk_' + u);
             const tieneBio = localStorage.getItem(`pico_bio_${u}`);
-            
-            // 🆕 REGLA MAESTRA: Comprobamos si ya nos identificamos en esta sesión
             const sesionVerificada = sessionStorage.getItem('pico_sesion_ok') === 'true';
 
-            // Solo exigimos seguridad biométrica o PIN si NO hay una sesión activa
             if (!sesionVerificada) {
-                // 1. SI TIENE BIOMETRÍA GUARDADA, PEDIMOS HUELLA
                 if (ghostKey && tieneBio) {
                     this.notificar("Esperando credencial biométrica...", "🛡️");
                     const bioOk = await this.verificarBiometria(u);
                     if (!bioOk) throw new Error("BIO_FAIL");
                 }
 
-                // 2. SI NO HAY LLAVE FANTASMA (Primera vez en este dispositivo), PEDIMOS PIN MAESTRO
                 if (!ghostKey) {
                     if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
                         pinInputEl.style.display = 'block';
                         pinInputEl.focus(); 
-                        
-                        // Si estábamos en auto-login, volvemos a mostrar la pantalla
                         const loginScreen = document.getElementById('login-screen');
                         if(loginScreen) {
                             loginScreen.style.opacity = '1';
                             loginScreen.style.pointerEvents = 'auto';
                         }
-                        return; // Cortamos ejecución para que escriba el PIN
+                        return;
                     }
 
                     if (!pin) {
-                        const err = document.getElementById('error-msg');
-                        err.innerText = "⚠️ Introduce tu PIN Maestro";
-                        err.style.display = 'block';
+                        errorMsg.innerText = "⚠️ Introduce tu PIN Maestro";
+                        errorMsg.style.display = 'block';
                         return;
                     }
 
@@ -854,6 +870,7 @@ export class Core {
                     const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
                     const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
                     const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
+                    
                     const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
                     ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
                     
@@ -862,77 +879,39 @@ export class Core {
                 }
             }
 
-            // 4. DESENCRIPTAMOS LA BÓVEDA REAL (Con la ghostKey que ya tenemos)
             const keyData = CryptoJS.SHA256(p + ghostKey);
             const rawData = CryptoJS.enc.Base64.parse(boveda.d);
             const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
             const cipherData = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
+            
             const decData = CryptoJS.AES.decrypt({ciphertext: cipherData}, keyData, { iv: ivData });
             txtDesencriptado = decData.toString(CryptoJS.enc.Utf8);
             
-            if (!txtDesencriptado) throw new Error("DATA_FAIL");
+            if (!txtDesencriptado) throw new Error("Fallo de Desencriptación Local");
             
-            // 🆕 GUARDAMOS EL PASAPORTE TEMPORAL: Esta pestaña ya es de confianza
+            // 4. ARRANQUE DEL SISTEMA
             sessionStorage.setItem('pico_sesion_ok', 'true');
-
-        } catch (error) {  
-  
-            // 🚨 SÓLO ENTRA AQUÍ SI LA CLAVE O EL PIN SON REALMENTE FALSOS
-            console.error("🔒 Error criptográfico real:", error);
-            
-            let fails = parseInt(localStorage.getItem('pico_fails_' + u) || "0");
-            fails++;
-            localStorage.setItem('pico_fails_' + u, fails);
-
-            const errorMsg = document.getElementById('error-msg');
-            if (fails >= 5) {
-                localStorage.removeItem('pico_gk_' + u);
-                localStorage.removeItem('pico_fails_' + u);
-                errorMsg.innerText = "❌ Demasiados fallos. Dispositivo desvinculado.";
-            } else {
-                errorMsg.innerText = `Contraseña o PIN incorrectos. (Quedan ${5 - fails} intentos)`; 
-            }
-            
-            const loginBox = document.querySelector('.login-box');
-            errorMsg.style.display = 'block'; 
-            loginBox.classList.remove('error-shake');
-            void loginBox.offsetWidth; loginBox.classList.add('error-shake');
-            return; // Detenemos la función aquí
-        }
-
-        // 🚀 BLOQUE 2: ARRANQUE DEL SISTEMA (Sólo se ejecuta si pasaste el Bloque 1)
-        try {
-            this.conf = JSON.parse(txtDesencriptado); 
-            
-            // Clave correcta: limpiamos el historial de fallos
-            localStorage.removeItem('pico_fails_' + u);
-
-            this.rol = this.conf.rol;
+            this.conf = JSON.parse(txtDesencriptado);
             this.apiKeys = this.conf.apis || {}; 
 
             localStorage.setItem("u", u); 
-            localStorage.setItem("p", p); // Opcional, ya casi ni lo necesitamos
+            localStorage.setItem("p", p);
             
             document.getElementById('login-screen').style.display = 'none';
             if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
-            if (this.conf.v1_compat) {
-                if (typeof this.initLegacyProtocol === 'function') this.initLegacyProtocol();
-                return;
-            }
-
-            // Arrancar servidor MQTT normal
             this.conectar();
-            
-                } catch (error) {
-            // 🐛 SI LLEGAS AQUÍ, LA CONTRASEÑA ERA CORRECTA PERO FALLÓ OTRA COSA
-            console.error("💥 ERROR INTERNO AL ARRANCAR EL SISTEMA:", error);
-            if (window.saveLog) {
-                // 🛡️ CORREGIDO: Comillas invertidas añadidas
-                window.saveLog(`💥 Fallo de arranque: ${error.message || error}`, "#ff453a");
-            } // 🛡️ CORREGIDO: Llave de cierre del 'if' añadida
-        } // Esta cierra el catch
-    } // Esta cierra la función login
+            this.comprobarSolicitudesPendientes();
+
+        } catch (error) {  
+            console.error("🔒 Error:", error.message);
+            errorMsg.innerText = "❌ Acceso Denegado.";
+            errorMsg.style.display = 'block'; 
+            loginBox.classList.remove('error-shake');
+            void loginBox.offsetWidth; 
+            loginBox.classList.add('error-shake');
+        }
+    }
 
     async registrarBiometria(u) {
         if (!window.PublicKeyCredential) return;
@@ -981,8 +960,66 @@ export class Core {
             return false; 
         }
     }
+
+    // 📝 FUNCIÓN PARA EL NUEVO FORMULARIO DE REGISTRO
+    async registrarUsuario(u, p1, p2) {
+        if (p1 !== p2) {
+            this.notificar("Las contraseñas no coinciden", "❌");
+            return false;
+        }
+        if (p1.length < 6) {
+            this.notificar("La contraseña debe tener 6 caracteres mínimo", "⚠️");
+            return false;
+        }
+
+        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
+
+        try {
+            // Supabase lo registra. El Trigger SQL que creamos le asignará rol='pendiente' automáticamente
+            const { data, error } = await this.supabase.auth.signUp({
+                email: emailAuth,
+                password: p1
+            });
+
+            if (error) throw error;
+
+            this.notificar("Solicitud enviada al Administrador.", "⏳");
+            return true; // Éxito. Ahora toca esperar a que el admin lo apruebe.
+
+        } catch (error) {
+            console.error("Error en registro:", error.message);
+            if (error.message.includes("already registered")) {
+                this.notificar("Ese usuario ya existe", "⚠️");
+            } else {
+                this.notificar("Fallo al enviar solicitud", "❌");
+            }
+            return false;
+        }
+    }
+
+    // 📡 EL RADAR DE APROBACIONES (Se ejecuta cuando TÚ haces login)
+    async comprobarSolicitudesPendientes() {
+        if (this.rol !== 'admin') return; // Solo tú puedes ver esto
+
+        try {
+            const { data, error } = await this.supabase
+                .from('perfiles')
+                .select('id, rol')
+                .eq('rol', 'pendiente');
+
+            if (data && data.length > 0) {
+                // Hacemos que la notificación sea persistente o muy visible
+                setTimeout(() => {
+                    this.notificar(`Tienes ${data.length} solicitud(es) de acceso esperando.`, "🔔");
+                    this.vibra("doble");
+                }, 3000); // Aparece 3 segundos después de que entres al OS
+            }
+        } catch (error) {
+            console.error("Fallo al leer radar de aprobaciones", error);
+        }
+    }
     
-        ejecutarComandoLocal(app, accion) {
+    ejecutarComandoLocal(app, accion) {
         // 1. AÑADIMOS "Consciencia" e "IA" a los comandos de interfaz
         const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA", "Consciencia", "IA"];
         
