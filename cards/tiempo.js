@@ -53,14 +53,16 @@ export const TiempoCard = {
                 font-weight: 800; color: var(--text-sec); 
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
                 text-align: center; margin: 0 0 auto 0; width: 100%;
+                transform: translateY(-5px);
             }
             #weather-icon { 
-                font-size: clamp(2.5rem, 35cqmin, 4rem); 
+                font-size: clamp(2.25rem, 30cqmin, 3.6rem); 
                 display: flex; align-items: center; justify-content: center; margin: auto 0;
             }
             #weather-temp { 
                 font-size: clamp(1.2rem, 22cqmin, 2.5rem); 
                 font-weight: 800; line-height: 1; margin: auto 0 2px 0;
+                transform: translateY(5px)
             }
             
             #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
