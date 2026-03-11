@@ -1264,6 +1264,8 @@ export class Core {
                 console.log("📱 Arquitectura Móvil detectada. Cargando Transformers.js...");
                 const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
                 env.allowLocalModels = false;
+                env.useBrowserCache = true;
+                env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
                 
                 // Usamos un modelo ligero optimizado para tareas y JSON
                 const modelo = 'Xenova/Qwen1.5-0.5B-Chat'; 
@@ -1305,7 +1307,7 @@ export class Core {
             } 
             else if (this.esMovil && this.localEngineWASM) {
                 // 📱 INFERENCIA EN MÓVIL (Parseo Manual)
-                
+                await new Promise(resolve => setTimeout(resolve, 800));
                 // Los modelos pequeños de Transformers.js necesitan instrucciones más directas para no salirse del guion.
                 const promptMovil = `<|im_start|>system\n${promptSistema}\nATENCIÓN: Tu única salida debe ser exclusivamente un bloque JSON válido. Nada de texto extra.<|im_end|>\n<|im_start|>user\n${orden}<|im_end|>\n<|im_start|>assistant\n`;
                 
