@@ -459,7 +459,7 @@ export class Core {
         const colAlto = construirCilindro(altosDisponibles);
 
         overlay.innerHTML = `
-            <button id="btn-cerrar-tamano" style="position:absolute; top:10px; right:15px; background:none; border:none; color:#ff453a; font-size:1.5rem; cursor:pointer; padding:5px; z-index:100;"><i class="fa-solid fa-xmark"></i></button>
+            <button id="btn-cerrar-tamano" style="position:absolute; top:15px; left:50%; transform:translateX(-50%); background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.3); border-radius:50%; color:#ff453a; width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; cursor:pointer; z-index:100;"><i class="fa-solid fa-xmark"></i></button>
             <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px; z-index:100;">DIMENSIONES</div>
             <div style="display:flex; gap: 20px; align-items:center; z-index:100;">
                 <div style="display:flex; flex-direction:column; align-items:center;">
