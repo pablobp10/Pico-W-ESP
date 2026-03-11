@@ -3,16 +3,42 @@ export const TiempoCard = {
     category: "info",
     
     html: `
-        <div style="display:flex; flex-direction:column; justify-content:space-between; align-items:center; height:100%; width:100%;">
-            <div id="weather-city" style="font-size: 0.75rem; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">
-                <i class="fa-solid fa-location-dot"></i> DETECTANDO...
-            </div>
-            <div id="weather-icon" style="font-size: 3rem; flex-grow: 1; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
-                <i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b; font-size:2rem"></i>
-            </div>
-            <div id="weather-temp" class="val-text" style="font-size: 2.2rem; margin-bottom: 5px; line-height: 1;">--°</div>
+        <style>
+            #tiempo-wrapper {
+                display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; 
+                height: 100%; width: 100%; box-sizing: border-box; padding: 5cqmin;
+            }
+            #weather-city { 
+                font-size: clamp(0.6rem, 10cqmin, 1.2rem); /* Crece con la tarjeta, pero con límites */
+                font-weight: 700; color: var(--text-sec); 
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%;
+            }
+            #weather-icon { 
+                font-size: clamp(2rem, 40cqmin, 6rem); 
+                filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); 
+                display: flex; align-items: center; justify-content: center;
+            }
+            #weather-temp { 
+                font-size: clamp(1.5rem, 30cqmin, 5rem); 
+                font-weight: 800; line-height: 1; margin: 0;
+            }
+            
+            /* 🪄 MAGIA: Si la tarjeta se hace apaisada (ej: 2x1 o 3x1), cambiamos la estructura a horizontal */
+            @container (aspect-ratio > 1.2) {
+                #tiempo-wrapper { flex-direction: row; justify-content: space-around; padding-top: 15cqh; }
+                #weather-city { position: absolute; top: 10cqh; left: 10cqw; }
+                #weather-icon { font-size: clamp(2rem, 50cqh, 6rem); margin: 0; }
+                #weather-temp { font-size: clamp(1.5rem, 40cqh, 5rem); }
+            }
+        </style>
+        
+        <div id="tiempo-wrapper">
+            <div id="weather-city"><i class="fa-solid fa-location-dot"></i> DETECTANDO...</div>
+            <div id="weather-icon"><i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b;"></i></div>
+            <div id="weather-temp" class="val-text">--°</div>
         </div>
     `,
+    
     onInit: (core) => {
         window.fetchWeather = async (lat, lon, name) => {
             const urlDirecta = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
