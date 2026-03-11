@@ -12,11 +12,15 @@ export const TiempoCard = {
             
             if (card.classList.contains('modo-semana')) {
                 card.classList.remove('modo-semana');
+                // Restauramos el tamaño quitando el forzado manual
+                card.style.gridColumnEnd = ""; 
                 card.style.gridRowEnd = ""; 
                 weeklyDiv.classList.remove('active');
             } else {
                 card.classList.add('modo-semana');
-                card.style.gridRowEnd = "span 2"; 
+                // Forzamos el tamaño exactamente a 2 de ancho x 3 de alto
+                card.style.gridColumnEnd = "span 2"; 
+                card.style.gridRowEnd = "span 3"; 
                 weeklyDiv.classList.add('active');
                 
                 const lat = window.lastCoords ? window.lastCoords.lat : 42.431;
@@ -35,10 +39,10 @@ export const TiempoCard = {
                             const tMin = Math.round(d.daily.temperature_2m_min[i]);
                             const iconData = getWeatherIcon(d.daily.weathercode[i]);
                             html += `
-                                <div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid var(--border);">
-                                    <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.8rem">${dias[date.getDay()]}</span>
-                                    <div style="font-size:1.4rem; display:flex; justify-content:center; align-items:center;">${iconData.html}</div>
-                                    <span style="font-weight:bold; color:var(--text-main); font-size:0.9rem">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border);">
+                                    <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.9rem">${dias[date.getDay()]}</span>
+                                    <div style="font-size:1.6rem; display:flex; justify-content:center; align-items:center;">${iconData.html}</div>
+                                    <span style="font-weight:bold; color:var(--text-main); font-size:1.1rem">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
                                 </div>
                             `;
                         }
@@ -74,9 +78,9 @@ export const TiempoCard = {
                 font-weight: 800; line-height: 1; margin: auto 0 2px 0;
             }
             
-            #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
+            #weekly-forecast { display: none !important; width: 100%; padding: 10px 15px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
             #weekly-forecast.active { display: flex !important; }
-            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px; }
+            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 5px; }
             
             @container (aspect-ratio > 1.2) {
                 #tiempo-top { flex-direction: row; justify-content: space-around; padding: 10px; }
@@ -177,32 +181,22 @@ export const TiempoCard = {
     }
 };
 
-// 🌟 MOTOR DE CONSTRUCCIÓN DE ICONOS MULTICAPA
 function getWeatherIcon(code) {
     const baseStyle = "width:1em; height:1em; line-height:1em; display:inline-block;";
     
-    // 0: Despejado (Sol brillante con pulso)
-    if (code === 0) return {
-        html: `<i class="fa-solid fa-sun w-sun"></i>`
-    };
-    
-    // 1-3: Nubes y claros (Sol asomando por detrás de la nube)
+    if (code === 0) return { html: `<i class="fa-solid fa-sun w-sun"></i>` };
     if (code >= 1 && code <= 3) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-sun fa-stack-1x w-sun" style="transform: translate(0.3em, -0.3em) scale(0.7);"></i>
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud"></i>
                </span>`
     };
-    
-    // 45-48: Niebla
     if (code >= 45 && code <= 48) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud-dark" style="transform: translateY(-0.1em);"></i>
                  <i class="fa-solid fa-smog fa-stack-1x w-cloud" style="transform: translateY(0.2em); opacity:0.8;"></i>
                </span>`
     };
-    
-    // 51-67: Lluvia / Llovizna (Gotas animadas cayendo)
     if (code >= 51 && code <= 67) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud-dark"></i>
@@ -210,8 +204,6 @@ function getWeatherIcon(code) {
                  <i class="fa-solid fa-droplet fa-stack-1x w-rain" style="transform: translate(0.2em, 0.3em) scale(0.4); animation-delay:0.5s;"></i>
                </span>`
     };
-    
-    // 71-77: Nieve
     if (code >= 71 && code <= 77) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud"></i>
@@ -219,16 +211,12 @@ function getWeatherIcon(code) {
                  <i class="fa-regular fa-snowflake fa-stack-1x w-snow" style="transform: translate(0.2em, 0.3em) scale(0.4); animation-delay:1.5s;"></i>
                </span>`
     };
-    
-    // 80-82: Chubascos fuertes
     if (code >= 80 && code <= 82) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud-dark"></i>
                  <i class="fa-solid fa-cloud-showers-heavy fa-stack-1x w-rain" style="transform: translateY(0.1em) scale(0.8);"></i>
                </span>`
     };
-    
-    // 95-99: Tormenta eléctrica (Rayo con efecto flash)
     if (code >= 95 && code <= 99) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud-dark"></i>
@@ -236,8 +224,5 @@ function getWeatherIcon(code) {
                </span>`
     };
     
-    // Por defecto (Desconocido)
-    return {
-        html: `<i class="fa-solid fa-circle-question" style="color:#9ca3af;"></i>`
-    };
+    return { html: `<i class="fa-solid fa-circle-question" style="color:#9ca3af;"></i>` };
 }
