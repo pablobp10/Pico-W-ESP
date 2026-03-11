@@ -282,157 +282,146 @@ export class Core {
         tarjetasFiltradas.forEach((card, index) => {
             // 1. EL CONTENEDOR PRINCIPAL
             const div = document.createElement('div');
-            
-            // Si hay un tamaño guardado lo usamos, si no, el por defecto de la tarjeta, si no, 1x1
             let currentSize = savedSizes[card.id] || card.defaultSize || '1x1';
             div.className = `card cascade-in size-${currentSize}`;
-            
             div.style.animationDelay = `${index * 50}ms`;
             div.style.setProperty('--order', index);
             if(card.adminOnly) div.classList.add('admin-only');
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
-            
             div.style.position = "relative";
             div.style.overflow = "hidden";
             div.style.padding = "0"; 
 
-            // 2. EL MENÚ OCULTO (Base inferior)
-            const cardMenu = document.createElement('div');
-            cardMenu.style.cssText = "position: absolute; top: 0; right: 0; width: 60px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; background: rgba(50, 215, 75, 0.1); border-left: 1px solid var(--primary);";
-            
-            cardMenu.innerHTML = `
-                <button class="btn-c-ajustes" style="background:none; border:none; color:var(--text-main); font-size:1.2rem; cursor:pointer;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
-                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.2rem; cursor:pointer;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
-                <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.2rem; cursor:pointer;" title="Cerrar"><i class="fa-solid fa-chevron-right"></i></button>
-            `;
-
-            // 3. LA CAPA DE CONTENIDO (La que se desliza)
+            // 2. LA CAPA DE CONTENIDO (Ahora va primero para quedar al fondo)
             const cardContent = document.createElement('div');
-            cardContent.style.cssText = "position: relative; z-index: 2; width: 100%; height: 100%; background: var(--card-bg); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 15px; box-sizing: border-box; border-radius: 20px;";
+            cardContent.style.cssText = "position: relative; z-index: 1; width: 100%; height: 100%; background: var(--card-bg); padding: 15px; box-sizing: border-box; border-radius: 20px;";
             cardContent.innerHTML = card.html;
 
-            div.appendChild(cardMenu);
+            // 3. EL MENÚ OCULTO (El Efecto Iris: Cristal Oscuro Superpuesto)
+            const cardMenu = document.createElement('div');
+            cardMenu.style.cssText = `
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 25px; 
+                background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); 
+                z-index: 10; pointer-events: none; 
+                clip-path: circle(0px at 50% 50%); 
+                transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            `;
+            
+            // Botones más grandes y blancos para destacar sobre el cristal oscuro
+            cardMenu.innerHTML = `
+                <button class="btn-c-ajustes" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
+                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.8rem; cursor:pointer;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
+                <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.8rem; cursor:pointer;" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+            `;
+
             div.appendChild(cardContent);
+            div.appendChild(cardMenu);
             grid.appendChild(div);
 
-            // 4. LÓGICA DE PULSACIÓN LARGA (Filtro Antitemblores)
+            // 4. LÓGICA DE PULSACIÓN LARGA (Cálculo Espacial del Iris)
             let pressTimer;
             let startX = 0, startY = 0;
+            let localX = 0, localY = 0; // Coordenadas relativas al interior de la tarjeta
             let isDragging = false; 
 
             const activarMenu = () => {
-                cardContent.style.transform = "translateX(-60px)";
+                cardMenu.style.pointerEvents = "auto"; // Habilitamos los clics
+                cardMenu.style.clipPath = `circle(150% at ${localX}px ${localY}px)`; // Explotamos el círculo
                 this.vibra("doble");
             };
 
+            const cerrarIris = () => {
+                cardMenu.style.pointerEvents = "none";
+                cardMenu.style.clipPath = `circle(0px at ${localX}px ${localY}px)`; // Contraemos el círculo
+            };
+
             const iniciarToque = (e) => {
-                // Si estamos editando o tocamos dentro de un botón/input real, abortar
                 if(this.editMode || e.target.closest('button') || e.target.tagName === 'INPUT') return;
                 
                 isDragging = false;
-                // Guardamos la coordenada X e Y exacta donde aterriza el dedo
+                
+                // Atrapamos dónde has tocado en la pantalla global
                 startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
                 startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
                 
+                // Traducimos ese toque a coordenadas internas de la tarjeta
+                const rect = div.getBoundingClientRect();
+                localX = startX - rect.left;
+                localY = startY - rect.top;
+
+                // Movemos el "centro" del círculo invisible a tu dedo instantáneamente (sin transición)
+                cardMenu.style.transition = 'none';
+                cardMenu.style.clipPath = `circle(0px at ${localX}px ${localY}px)`;
+                void cardMenu.offsetWidth; // Forzamos al navegador a dibujar el cambio
+                
+                // Le devolvemos la fluidez para cuando explote
+                cardMenu.style.transition = 'clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+
                 clearTimeout(pressTimer);
-                // Bajamos de 800ms a 700ms para que se sienta más ágil
                 pressTimer = setTimeout(() => {
                     if(!isDragging) activarMenu();
                 }, 700); 
             };
 
-            const cancelarToque = () => {
-                clearTimeout(pressTimer);
-            };
+            const cancelarToque = () => clearTimeout(pressTimer);
 
             const marcarArrastre = (e) => { 
                 if (isDragging) return;
                 const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
                 const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                
-                // 🛡️ ZONA MUERTA: Solo cancela si el dedo se mueve más de 10 píxeles
                 if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
-                    isDragging = true; 
-                    clearTimeout(pressTimer); 
+                    isDragging = true; clearTimeout(pressTimer); 
                 }
             };
 
-            // 🛡️ ANTI-SECUESTRO: Bloquea el menú de "Copiar/Pegar" del móvil
-            cardContent.oncontextmenu = (e) => {
-                if(!this.editMode) e.preventDefault(); 
-            };
+            cardContent.oncontextmenu = (e) => { if(!this.editMode) e.preventDefault(); };
 
-            // Sensores Táctiles (Móviles)
             cardContent.addEventListener('touchstart', iniciarToque, {passive: true});
             cardContent.addEventListener('touchend', cancelarToque);
-            cardContent.addEventListener('touchcancel', cancelarToque); // Por si el SO interrumpe
+            cardContent.addEventListener('touchcancel', cancelarToque);
             cardContent.addEventListener('touchmove', marcarArrastre, {passive: true});
-            
-            // Sensores Ratón (PC)
             cardContent.addEventListener('mousedown', iniciarToque);
             cardContent.addEventListener('mouseup', cancelarToque);
             cardContent.addEventListener('mouseleave', cancelarToque);
             cardContent.addEventListener('mousemove', marcarArrastre);
 
             // 5. EVENTOS DEL MENÚ OCULTO
-
-            // Botón Cerrar
-            cardMenu.querySelector('.btn-c-cerrar').onclick = () => {
-                cardContent.style.transform = "translateX(0px)";
+            cardMenu.querySelector('.btn-c-cerrar').onclick = (e) => {
+                e.stopPropagation();
+                cerrarIris();
             };
 
-            // Botón Ajustes (Delega en el JS de la tarjeta)
-            cardMenu.querySelector('.btn-c-ajustes').onclick = () => {
-                cardContent.style.transform = "translateX(0px)";
-                if (card.abrirAjustes) {
-                    card.abrirAjustes(this); // Le pasamos el 'core'
-                } else {
-                    this.notificar(`Esta tarjeta no tiene ajustes`, "ℹ️");
-                }
+            cardMenu.querySelector('.btn-c-ajustes').onclick = (e) => {
+                e.stopPropagation();
+                cerrarIris();
+                if (card.abrirAjustes) card.abrirAjustes(this); 
+                else this.notificar(`Esta tarjeta no tiene ajustes`, "ℹ️");
             };
 
-            // 📏 BOTÓN REDIMENSIONAR (Límites inteligentes por pantalla)
-            cardMenu.querySelector('.btn-c-tamano').onclick = () => {
+            cardMenu.querySelector('.btn-c-tamano').onclick = (e) => {
+                e.stopPropagation();
                 const anchoPantalla = window.innerWidth;
-                
                 let maxW, maxH;
-                
-                // ⬇️ AJUSTE: Si es móvil (menos de 600px), permitimos hasta 2 de ancho
-                if (anchoPantalla <= 600) {
-                    maxW = 2; // Móvil: Ancho máximo 2 tarjetas
-                    maxH = 4; // Móvil: Alto máximo 4 tarjetas
-                } else if (anchoPantalla <= 1024) {
-                    maxW = 4; // Tablet: Ancho máximo 4
-                    maxH = 6;
-                } else {
-                    maxW = 10; // PC: Libre
-                    maxH = 10;
-                }
-
-                // Generamos los arrays dinámicamente: [1, 2, 3...]
+                if (anchoPantalla <= 600) { maxW = 2; maxH = 4; } else if (anchoPantalla <= 1024) { maxW = 4; maxH = 6; } else { maxW = 10; maxH = 10; }
                 const anchosDisponibles = Array.from({length: maxW}, (_, i) => i + 1);
                 const altosDisponibles = Array.from({length: maxH}, (_, i) => i + 1);
-
-                // Deslizamos la tarjeta a su sitio antes de abrir el overlay
-                cardContent.style.transform = "translateX(0px)";
                 
-                // Invocamos el cilindro infinito con los límites calculados
+                // Primero cerramos el Iris visualmente
+                cerrarIris();
+                
+                // Y luego abrimos tu menú 3D de redimensionar
                 this.abrirSelectorRadialDoble(cardContent, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
-                    // Aplicar el cambio visual
                     div.classList.remove(`size-${currentSize}`);
                     div.classList.add(`size-${nuevoTamano}`);
                     currentSize = nuevoTamano;
-
-                    // Guardar persistentemente
                     savedSizes[card.id] = nuevoTamano;
                     localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
-
                     this.vibra("tick");
                     if (this.sortable) this.toggleEdit(); 
                 });
             };
-
 
             // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
@@ -471,17 +460,16 @@ export class Core {
         const colAlto = construirCilindro(altosDisponibles);
 
         overlay.innerHTML = `
-            <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px;">DIMENSIONES</div>
-            <div style="display:flex; gap: 20px; align-items:center;">
+            <button id="btn-cerrar-tamano" style="position:absolute; top:10px; right:15px; background:none; border:none; color:#ff453a; font-size:1.5rem; cursor:pointer; padding:5px; z-index:100;"><i class="fa-solid fa-xmark"></i></button>
+            <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px; z-index:100;">DIMENSIONES</div>
+            <div style="display:flex; gap: 20px; align-items:center; z-index:100;">
                 <div style="display:flex; flex-direction:column; align-items:center;">
                     <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-left-right"></i> ANCHO</div>
                     <div class="radial-viewport" id="viewport-ancho" style="width: 60px;">
                         <div class="radial-cylinder" id="cylinder-ancho">${colAncho.html}</div>
                     </div>
                 </div>
-                
                 <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px;">×</div>
-
                 <div style="display:flex; flex-direction:column; align-items:center;">
                     <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-up-down"></i> ALTO</div>
                     <div class="radial-viewport" id="viewport-alto" style="width: 60px;">
@@ -489,7 +477,7 @@ export class Core {
                     </div>
                 </div>
             </div>
-            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:25px; background:var(--primary); color:white; border-radius:20px; padding:10px 25px; font-weight:bold;">Aplicar</button>
+            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:25px; background:var(--primary); color:white; border-radius:20px; padding:10px 30px; font-weight:bold; border:none; cursor:pointer; z-index:100;">Aplicar</button>
         `;
 
         tarjetaContenedor.appendChild(overlay);
@@ -562,18 +550,36 @@ export class Core {
         const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
         const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 3. Botón Aplicar Final
-        overlay.querySelector('#btn-aplicar-tamano').onclick = () => {
-            const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                overlay.remove();
-                callback(tamanoElegido); 
-            }, 200);
-        };
-    }
+        // 3. GESTIÓN AISLADA DE BOTONES PARA SALIR (Soluciona los toques fantasma)
+        const btnAplicar = overlay.querySelector('#btn-aplicar-tamano');
+        const btnCerrar = overlay.querySelector('#btn-cerrar-tamano');
 
-    
+        const cerrarMenu = () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 200);
+        };
+
+        // Bloqueamos la propagación para que la tarjeta de fondo no se coma el clic
+        const aislarToque = (e) => e.stopPropagation();
+        
+        // Botón Aplicar (Guarda el tamaño)
+        btnAplicar.addEventListener('mousedown', aislarToque);
+        btnAplicar.addEventListener('touchstart', aislarToque, {passive: true});
+        btnAplicar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
+            cerrarMenu();
+            callback(tamanoElegido); // Esto es lo que aplica y guarda el tamaño
+        });
+
+        // Botón Cerrar "X" (Sale sin guardar)
+        btnCerrar.addEventListener('mousedown', aislarToque);
+        btnCerrar.addEventListener('touchstart', aislarToque, {passive: true});
+        btnCerrar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cerrarMenu(); 
+        });
+    }
 
     async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
