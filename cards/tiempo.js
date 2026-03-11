@@ -1,7 +1,19 @@
 export const TiempoCard = {
     id: "Tiempo",
     category: "info",
-    
+    customAccion: {
+        titulo: "Pronóstico Semanal",
+        icono: "fa-solid fa-calendar-week",
+        color: "#f59e0b", // Naranja cálido
+        ejecutar: (core) => {
+            // Aquí puedes lanzar un modal, un gráfico de Chart.js, o una alerta
+            const ciudadActual = document.getElementById('weather-city').innerText;
+            core.notificar(Cargando gráfico semanal para ${ciudadActual}..., "📊");
+            
+            // Ejemplo de llamada a la API semanal (Open-Meteo tiene daily forecast)
+            fetch(https://api.open-meteo.com/v1/forecast?latitude=...&daily=temperature_2m_max,temperature_2m_min)
+        }
+    },
     html: `
         <style>
             #tiempo-wrapper {
@@ -120,20 +132,6 @@ export const TiempoCard = {
         }
     }
 };
-
-customAccion: {
-        titulo: "Pronóstico Semanal",
-        icono: "fa-solid fa-calendar-week",
-        color: "#f59e0b", // Naranja cálido
-        ejecutar: (core) => {
-            // Aquí puedes lanzar un modal, un gráfico de Chart.js, o una alerta
-            const ciudadActual = document.getElementById('weather-city').innerText;
-            core.notificar(Cargando gráfico semanal para ${ciudadActual}..., "📊");
-            
-            // Ejemplo de llamada a la API semanal (Open-Meteo tiene daily forecast)
-            fetch(https://api.open-meteo.com/v1/forecast?latitude=...&daily=temperature_2m_max,temperature_2m_min)
-        }
-    },
 
 function getWeatherIcon(code) {
     if (code === 0) return { icon: "fa-solid fa-sun", color: "#f59e0b" };
