@@ -982,31 +982,28 @@ export class Core {
         }
     }
     
-    ejecutarComandoLocal(app, accion) {
-        // Lista de módulos que son puro software de interfaz (no existen en la Pico)
-        const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA"];
+        ejecutarComandoLocal(app, accion) {
+        // 1. AÑADIMOS "Consciencia" e "IA" a los comandos de interfaz
+        const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA", "Consciencia", "IA"];
         
         // 🎲 EMULADOR DE HARDWARE VIRTUAL (Tarjetas matemáticas o de red externa)
-        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista"];
+        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista", "Macros"];
 
         // 1. Interceptamos el Hardware Virtual PRIMERO
         if (hardwareVirtual.includes(app)) {
             if (this.logHUD) this.logHUD(`Simulando hardware virtual: ${app} -> ${accion}`, "out");
             
             if (app === "Dado" && accion === "roll") {
-                // Generamos un número aleatorio del 1 al 6 en el propio navegador
                 const resultado = Math.floor(Math.random() * 6) + 1;
-                // Lo publicamos en MQTT retenido para que todas las pantallas conectadas lo vean
                 this.pub("Dado", resultado, true); 
-            } else {
-                // Para el resto (Pomodoro, Qr, Reloj, Tiempo, Calculadora) publicamos el valor directo en el bus
+            } else if (app !== "Macros") {
                 this.pub(app, accion, true); 
             }
             return true; // Devolvemos true para que la orden NO viaje a la placa Pico
         }
 
         // 2. Interceptamos los comandos de Interfaz Web (DOM)
-        if (!comandosLocales.includes(app)) return false; // Si tampoco es local, devuelve false para que vaya a la Pico
+        if (!comandosLocales.includes(app)) return false; // 🚀 SI ES LA PLANTA, EL LED O EL SINTETIZADOR, SE VA A LA PICO
 
         if (this.logHUD) this.logHUD(`Ejecutando directriz interna: ${app} -> ${accion}`, "out");
 
@@ -1028,7 +1025,6 @@ export class Core {
                 this.comprobarActualizaciones();
                 break;
             case "Vista":
-                // Cambia entre las pantallas principales
                 const grid = document.getElementById('dashboard-grid');
                 const plano = document.getElementById('plano-view');
                 const macros = document.getElementById('macros-view');
@@ -1037,7 +1033,6 @@ export class Core {
                 if (macros) macros.style.display = (accion === 'macros') ? 'flex' : 'none';
                 break;
             case "Filtro":
-                // Simula hacer clic en las pastillas de filtro superiores
                 this.filtroActual = accion;
                 this.renderGrid();
                 document.querySelectorAll('.filter-pill').forEach(b => {
@@ -1055,16 +1050,42 @@ export class Core {
                 if (accion === "logout") { sessionStorage.clear(); location.reload(); }
                 break;
             case "VozIA":
-                // Nuevo flag de silencio absoluto
                 this.iaSilenciada = (accion === "mute");
                 if (this.iaSilenciada) this.notificar("Voz de JARVIS desactivada", "🔇");
                 else this.notificar("Voz de JARVIS restaurada", "🔊");
                 break;
+                
+            // 🧬 NUEVO: Control de la propia IA sobre su personalidad
+            case "Consciencia":
+                const modos = {
+                    'logico': { nombre: 'LÓGICO', color: '#0a84ff', icon: 'fa-brain' },
+                    'ironico': { nombre: 'IRÓNICO', color: '#f59e0b', icon: 'fa-face-rolling-eyes' },
+                    'defensa': { nombre: 'DEFENSA', color: '#ff453a', icon: 'fa-skull' },
+                    'zen': { nombre: 'MODO ZEN', color: '#32d74b', icon: 'fa-leaf' }
+                };
+                if(modos[accion]) {
+                    localStorage.setItem('pico_ai_modo', accion);
+                    // Actualizamos la UI de la tarjeta buscando su instancia
+                    const cardConsc = this.cards.find(c => c.id === 'Consciencia');
+                    if(cardConsc && cardConsc.onData) cardConsc.onData(modos[accion]);
+                    
+                    this.notificar(`Personalidad alterada a: ${modos[accion].nombre}`, "🧬");
+                    this.pub('Sistema/Consciencia', accion, true);
+                }
+                break;
+                
+            // 🧠 NUEVO: Control de la IA sobre su memoria de chat local
+            case "IA":
+                if (accion === "clear" || accion === "limpiar") {
+                    window.iaMensajes = [];
+                    const chatBox = document.getElementById('chat-history');
+                    if (chatBox) chatBox.innerHTML = '<div style="text-align:center; color:var(--text-sec); margin-top:10px;">Memoria neuronal purgada.</div>';
+                    this.notificar("Memoria de IA reiniciada", "🧠");
+                }
+                break;
         }
-        return true; // Devuelve true confirmando que la web ya se encargó de este comando
+        return true; 
     }
-
-    // 💻 ENRUTADOR VIRTUAL (Intercepta comandos de la IA destinados a la Web)
     
     
     // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
