@@ -411,6 +411,7 @@ export class Core {
                 
                 // Le pasamos el 'div' principal para que el carrusel lo cubra todo
                 this.abrirSelectorRadialDoble(div, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
+                    cerrarIris();
                     div.classList.remove(`size-${currentSize}`);
                     div.classList.add(`size-${nuevoTamano}`);
                     currentSize = nuevoTamano;
