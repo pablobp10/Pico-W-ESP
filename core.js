@@ -297,22 +297,30 @@ export class Core {
             cardContent.style.cssText = "position: relative; z-index: 1; width: 100%; height: 100%; background: var(--card-bg); padding: 15px; box-sizing: border-box; border-radius: 20px;";
             cardContent.innerHTML = card.html;
 
-            // 3. EL MENÚ OCULTO (El Efecto Iris: Cristal Oscuro Superpuesto)
+            // 3. EL MENÚ OCULTO (Efecto Iris con Botón Personalizado)
             const cardMenu = document.createElement('div');
             cardMenu.style.cssText = `
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-                display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 25px; 
+                display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px; 
                 background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); 
                 z-index: 10; pointer-events: none; 
                 clip-path: circle(0px at 50% 50%); 
                 transition: clip-path 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             `;
             
-            // Botones más grandes y blancos para destacar sobre el cristal oscuro
+            // Verificamos si la tarjeta tiene un botón personalizado
+            const btnCustomHtml = card.customAccion ? `
+                <button class="btn-c-custom" style="background:none; border:none; color:${card.customAccion.color || '#32d74b'}; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="${card.customAccion.titulo}">
+                    <i class="${card.customAccion.icono}"></i>
+                </button>
+            ` : '';
+
+            // Ensamblaje de 3 o 4 botones
             cardMenu.innerHTML = `
-                <button class="btn-c-ajustes" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
-                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.8rem; cursor:pointer;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
-                <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.8rem; cursor:pointer;" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+                ${btnCustomHtml}
+                <button class="btn-c-ajustes" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
+                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
+                <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
             `;
 
             div.appendChild(cardContent);
@@ -421,6 +429,14 @@ export class Core {
                     if (this.sortable) this.toggleEdit(); 
                 });
             };
+
+            if (card.customAccion) {
+                cardMenu.querySelector('.btn-c-custom').onclick = (e) => {
+                    e.stopPropagation();
+                    cerrarIris();
+                    card.customAccion.ejecutar(this); // Lanza la función de la tarjeta
+                };
+            }
             
             // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
