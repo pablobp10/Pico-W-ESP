@@ -151,6 +151,31 @@ export class Core {
         document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
 
+        // Lógica de alternancia Login / Registro
+        const linkToggle = document.getElementById('link-toggle-register');
+        let isRegistering = false;
+        
+        if (linkToggle) {
+            linkToggle.onclick = (e) => {
+                e.preventDefault();
+                isRegistering = !isRegistering;
+                document.getElementById('pass2-input').style.display = isRegistering ? 'block' : 'none';
+                document.getElementById('btn-login').style.display = isRegistering ? 'none' : 'block';
+                document.getElementById('btn-register-submit').style.display = isRegistering ? 'block' : 'none';
+                document.getElementById('pass-input').placeholder = isRegistering ? "Contraseña nueva" : "Contraseña o PIN";
+                linkToggle.innerText = isRegistering ? "Volver al Login" : "Crear usuario nuevo";
+                document.getElementById('error-msg').style.display = 'none';
+            };
+        }
+
+        // Ejecutar el registro
+        document.getElementById('btn-register-submit').onclick = () => {
+            const u = document.getElementById('user-input').value.trim();
+            const p1 = document.getElementById('pass-input').value.trim();
+            const p2 = document.getElementById('pass2-input').value.trim();
+            this.registrarUsuario(u, p1, p2);
+        };
+        
         const btnBio = document.getElementById('btn-bio');
         if (btnBio) {
             btnBio.onclick = () => {
@@ -641,6 +666,125 @@ export class Core {
         overlay.addEventListener('touchmove', arrastreCierre, {passive: false});
     }
 
+    // 📝 1. FORMULARIO DE REGISTRO
+    async registrarUsuario(u, p1, p2) {
+        if (!u) return this.notificar("Falta el usuario", "❌");
+        if (p1 !== p2) return this.notificar("Las contraseñas no coinciden", "❌");
+        if (p1.length < 6) return this.notificar("Mínimo 6 caracteres", "⚠️");
+
+        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
+        const btn = document.getElementById('btn-register-submit');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+            // Supabase registra la cuenta de forma segura
+            const { data, error } = await this.supabase.auth.signUp({ email: emailAuth, password: p1 });
+            if (error) throw error;
+
+            this.notificar("Solicitud enviada al Administrador.", "⏳");
+            document.getElementById('link-toggle-register').click(); // Volver al login visualmente
+            
+            // Limpiamos los campos
+            document.getElementById('user-input').value = "";
+            document.getElementById('pass-input').value = "";
+            document.getElementById('pass2-input').value = "";
+
+        } catch (error) {
+            if (error.message.includes("already registered")) this.notificar("Ese usuario ya existe", "⚠️");
+            else this.notificar("Fallo al registrar", "❌");
+        } finally {
+            btn.innerHTML = 'ENVIAR SOLICITUD';
+        }
+    }
+
+    // 📡 2. RADAR DE APROBACIONES (El Admin lo ejecuta al entrar)
+    async comprobarSolicitudesPendientes() {
+        if (this.rol !== 'admin') return;
+
+        try {
+            const { data, error } = await this.supabase.from('perfiles').select('id, rol').eq('rol', 'pendiente');
+            
+            if (data && data.length > 0) {
+                setTimeout(() => {
+                    this.notificar(`Tienes ${data.length} solicitud(es) de acceso. Abre la consola HUD.`, "🔔");
+                    this.vibra("doble");
+                    
+                    // Inyectamos un botón temporal en el HUD para ejecutar la forja
+                    const hud = document.getElementById('hud-console');
+                    if (hud) {
+                        const btnId = `btn-approve-${data[0].id}`;
+                        this.logHUD(`NUEVO USUARIO ESPERANDO. <button id="${btnId}" style="background:#bf5af2; color:white; border:none; padding:2px 5px; cursor:pointer;">Aprobar Primero</button>`, "info");
+                        
+                        setTimeout(() => {
+                            const btn = document.getElementById(btnId);
+                            if(btn) btn.onclick = () => this.ejecutarForjaAutomatica(data[0].id);
+                        }, 100);
+                    }
+                }, 3000); 
+            }
+        } catch (error) { console.error("Error radar:", error); }
+    }
+
+    // 🧰 3. FORJA AUTOMÁTICA DE DOBLE BÓVEDA (Adaptación de tu código)
+    async ejecutarForjaAutomatica(userId) {
+        // Pedimos los datos al Admin mediante prompts nativos del navegador
+        const alias = prompt("Escribe el nombre de usuario (ej: hermano):");
+        if (!alias) return;
+        
+        const pass = prompt(`Escribe la contraseña que el usuario ${alias} escogió al registrarse:`);
+        if (!pass) return;
+
+        const pin = prompt(`Inventa un PIN Maestro de 4 números para ${alias}:`);
+        if (!pin) return;
+
+        try {
+            this.notificar("Forjando Bóveda Criptográfica...", "⚙️");
+
+            // 1. Clonar la configuración actual pero quitarle los permisos y claves pesadas
+            const nuevaConf = {
+                topic: this.conf.topic,
+                tk: this.conf.tk, // Mantienen el mismo token de la Pico
+                rol: "guest",
+                apis: { google: "", groq: "", openrouter: "" } // Limpiamos tus claves de IA
+            };
+
+            // 2. ALGORITMO ORIGINAL DEL USUARIO (Doble Bóveda)
+            const ghostKey = CryptoJS.lib.WordArray.random(32).toString();
+
+            const keyData = CryptoJS.SHA256(pass + ghostKey);
+            const ivData = CryptoJS.lib.WordArray.random(16);
+            const encData = CryptoJS.AES.encrypt(JSON.stringify(nuevaConf), keyData, {iv: ivData, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
+            const payloadData = CryptoJS.enc.Base64.stringify(ivData.concat(encData.ciphertext));
+
+            const keyEnv = CryptoJS.SHA256(pass + pin);
+            const ivEnv = CryptoJS.lib.WordArray.random(16);
+            const encEnv = CryptoJS.AES.encrypt(ghostKey, keyEnv, {iv: ivEnv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
+            const payloadEnv = CryptoJS.enc.Base64.stringify(ivEnv.concat(encEnv.ciphertext));
+
+            const finalJSON = JSON.stringify({ e: payloadEnv, d: payloadData });
+            const maletinBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(finalJSON));
+
+            // 3. Subir el maletín y desbloquear la cuenta
+            const { error } = await this.supabase
+                .from('perfiles')
+                .update({ 
+                    maletin_encriptado: maletinBase64, 
+                    rol: 'guest',
+                    updated_at: new Date()
+                })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            this.notificar("Usuario autorizado y encriptado con éxito", "✅");
+            this.logHUD(`USUARIO APROBADO: Pásale su PIN temporal: ${pin}`, "out");
+
+        } catch (error) {
+            console.error("Fallo de encriptación:", error);
+            this.notificar("Fallo al forjar el maletín", "❌");
+        }
+    }
+    
     async conectar() {
         if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
 
