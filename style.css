@@ -74,6 +74,7 @@ h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; whi
     display: block; /* Fundamental para que funcione el absolute del menú */
     transition: all 0.2s ease; box-sizing: border-box;
     height: 100%;
+    container-type: size;
 }
 
 /* --- TODAS LAS COMBINACIONES DINÁMICAS POSIBLES (1x1 a 10x10) --- */
