@@ -1222,9 +1222,9 @@ export class Core {
         }, 600000); 
     }
 
-    // ⚙️ 1. PRECARGA DEL MOTOR LOCAL (Se ejecuta al pulsar el botón)
+        // ⚙️ 1. PRECARGA DEL MOTOR LOCAL (HÍBRIDO PC/MÓVIL)
     async precargarMotorLocal() {
-        if (this.localEngine) return true; // Si ya está cargado, no hace nada
+        if (this.localEngine || this.localEngineWASM) return true;
 
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
@@ -1239,52 +1239,104 @@ export class Core {
             `);
         }
 
+        // 🕵️‍♂️ DETECTOR DE ENTORNO: Evaluamos si es un PC o un Móvil
+        this.esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
         try {
-            const versionIA = this.versiones["@mlc-ai/web-llm"];
-            const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
-            
-            // 🛡️ ESCUDO ANTI-CRASH: Limitamos el context_window a 1024 para no pasar de 128MB
-            this.localEngine = await CreateMLCEngine("SmolLM-135M-Instruct-q4f16_1-MLC", {
-                initProgressCallback: (progress) => {
-                    const pct = Math.round(progress.progress * 100);
-                    const textEl = document.getElementById('ia-dl-text');
-                    const barEl = document.getElementById('ia-dl-bar');
-                    // WebLLM guarda todo en caché (IndexedDB) automáticamente.
-                    // Si ya está descargado, esto pasará del 0 al 100% en 2 segundos.
-                    if(textEl) textEl.innerText = `Caché Local: ${pct}%`;
-                    if(barEl) barEl.style.width = `${pct}%`;
-                },
-                chatOpts: { context_window_size: 1024 } // <-- El truco mágico
-            });
-            
+            if (!this.esMovil) {
+                // 🖥️ MODO PC: Usamos WebLLM (WebGPU - Alta Potencia)
+                console.log("🖥️ Arquitectura PC detectada. Cargando WebLLM...");
+                const versionIA = this.versiones["@mlc-ai/web-llm"];
+                const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
+                
+                this.localEngine = await CreateMLCEngine("SmolLM-135M-Instruct-q4f16_1-MLC", {
+                    initProgressCallback: (progress) => {
+                        const pct = Math.round(progress.progress * 100);
+                        const textEl = document.getElementById('ia-dl-text');
+                        const barEl = document.getElementById('ia-dl-bar');
+                        if(textEl) textEl.innerText = `WebGPU (PC): ${pct}%`;
+                        if(barEl) barEl.style.width = `${pct}%`;
+                    },
+                    chatOpts: { context_window_size: 1024 } 
+                });
+            } else {
+                // 📱 MODO MÓVIL: Usamos Transformers.js (WebGL/WASM - Alta Compatibilidad para Opera)
+                console.log("📱 Arquitectura Móvil detectada. Cargando Transformers.js...");
+                const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
+                env.allowLocalModels = false;
+                
+                // Usamos un modelo ligero optimizado para tareas y JSON
+                const modelo = 'Xenova/Qwen1.5-0.5B-Chat'; 
+                
+                this.localEngineWASM = await pipeline('text-generation', modelo, {
+                    progress_callback: (x) => {
+                        if (x.status === 'downloading' || x.status === 'progress') {
+                            const textEl = document.getElementById('ia-dl-text');
+                            const barEl = document.getElementById('ia-dl-bar');
+                            if(textEl) textEl.innerText = `WebGL (Móvil): ${Math.round(x.progress)}%`;
+                            if(barEl) barEl.style.width = `${x.progress}%`;
+                        }
+                    }
+                });
+            }
+
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
             return true;
 
         } catch (e) {
-            // Añadimos e.message para que la consola nos dé el texto real y no un {}
-            console.error("Fallo al montar GPU Local:", e.message || e);
+            console.error("Fallo crítico al montar Motor Local:", e.message || e);
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
             return false;
         }
     }
 
-    // 🧠 2. EJECUCIÓN PURA (Ya no descarga nada, solo piensa)
+    // 🧠 2. EJECUCIÓN PURA (Enrutador de Inferencia Híbrido)
     async procesarConWebLLM(promptSistema, orden, modo) {
         try {
-            // Verificamos por seguridad que el motor exista
-            if (!this.localEngine) throw new Error("Motor no inicializado");
+            let textoCrudo = "";
 
-            const reply = await this.localEngine.chat.completions.create({
-                messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
-                response_format: { type: "json_object" }
-            });
-            this.desplegarPayloadCuantico(reply.choices[0].message.content, orden, modo);
+            if (!this.esMovil && this.localEngine) {
+                // 🖥️ INFERENCIA EN PC (Nativo JSON)
+                const reply = await this.localEngine.chat.completions.create({
+                    messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
+                    response_format: { type: "json_object" }
+                });
+                textoCrudo = reply.choices[0].message.content;
+            } 
+            else if (this.esMovil && this.localEngineWASM) {
+                // 📱 INFERENCIA EN MÓVIL (Parseo Manual)
+                
+                // Los modelos pequeños de Transformers.js necesitan instrucciones más directas para no salirse del guion.
+                const promptMovil = `<|im_start|>system\n${promptSistema}\nATENCIÓN: Tu única salida debe ser exclusivamente un bloque JSON válido. Nada de texto extra.<|im_end|>\n<|im_start|>user\n${orden}<|im_end|>\n<|im_start|>assistant\n`;
+                
+                const respuesta = await this.localEngineWASM(promptMovil, {
+                    max_new_tokens: 200,
+                    temperature: 0.1, // Frialdad máxima para evitar alucinaciones y forzar JSON
+                    repetition_penalty: 1.1,
+                    do_sample: false
+                });
+                
+                let outputStr = respuesta[0].generated_text.replace(promptMovil, "").trim();
+                
+                // 🛡️ Extractor de JSON Automático: Los modelos móviles a veces envuelven el JSON en texto.
+                const jsonMatch = outputStr.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    textoCrudo = jsonMatch[0];
+                } else {
+                    throw new Error("El motor móvil no devolvió un JSON válido");
+                }
+            } else {
+                throw new Error("Ningún motor local inicializado");
+            }
+
+            this.desplegarPayloadCuantico(textoCrudo, orden, modo);
 
         } catch(e) { 
-            console.error("Fallo de Inferencia Local:", e); 
+            console.error("Fallo de Inferencia Local:", e);
             this.notificar("Colapso lógico en IA Local", "❌");
         }
     }
+
     
     // --- 6. MOTOR DE INFERENCIA CUÁNTICO (CHAIN-OF-THOUGHT & PERSONALIDAD) ---
     async ejecutarInferencia(orden, modo = "reactivo") {
