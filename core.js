@@ -297,11 +297,12 @@ export class Core {
             cardContent.style.cssText = "position: relative; z-index: 1; width: 100%; height: 100%; background: var(--card-bg); padding: 15px; box-sizing: border-box; border-radius: 20px;";
             cardContent.innerHTML = card.html;
 
-            // 3. EL MENÚ OCULTO (Efecto Iris con Botón Personalizado)
+            // 3. EL MENÚ OCULTO (Efecto Iris en Grid 2x2)
             const cardMenu = document.createElement('div');
             cardMenu.style.cssText = `
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-                display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px; 
+                display: grid; grid-template-columns: repeat(2, max-content); 
+                gap: 15px; justify-content: center; align-content: center; 
                 background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); 
                 z-index: 10; pointer-events: none; 
                 clip-path: circle(0px at 50% 50%); 
