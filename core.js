@@ -15,7 +15,7 @@ import { ColorCard } from './cards/color.js';
 import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
-import { TesmostatoCard } from './cards/termostato.js';
+import { TermostatoCard } from './cards/termostato.js';
 import { PlantaCard } from './cards/planta.js';
 import { EnergiaCard } from './cards/energia.js';
 import { SintetizadorCard } from './cards/sintetizador.js';
