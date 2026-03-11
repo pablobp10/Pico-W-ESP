@@ -547,51 +547,70 @@ export class Core {
         const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
         const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s EN EL FONDO
+        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s (Con Filtro Antitemblores)
         let closeTimer;
         let isClosing = false;
+        let startX = 0, startY = 0; // Coordenadas para medir el temblor
 
         const iniciarCierre = (e) => {
-            // Solo iniciamos si el dedo toca exactamente el fondo oscuro
+            // Solo iniciamos si toca el fondo oscuro (ignora los rodillos)
             if (e.target === overlay) {
                 isClosing = false;
+                
+                // Guardamos el punto exacto de impacto
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                
                 clearTimeout(closeTimer);
                 
-                // Temporizador de 200ms de pulsación continua
+                // Temporizador de 200ms
                 closeTimer = setTimeout(() => {
                     if (!isClosing) {
                         isClosing = true;
                         e.stopPropagation();
                         const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
                         
-                        this.vibra("tick"); // Feedback físico de que ha guardado
+                        this.vibra("tick");
                         
-                        // Transición visual de salida
                         overlay.style.opacity = '0';
                         setTimeout(() => {
                             overlay.remove();
-                            callback(tamanoElegido); // Aplica el tamaño
+                            callback(tamanoElegido);
                         }, 200);
                     }
-                }, 200); // <-- Los 0.2 segundos que pediste
+                }, 200); 
             }
         };
 
         const cancelarCierre = () => {
-            clearTimeout(closeTimer); // Si suelta antes de 0.2s o mueve el dedo, se cancela
+            clearTimeout(closeTimer);
         };
+
+        const arrastreCierre = (e) => {
+            if (isClosing || startX === 0) return;
+            const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            
+            // 🛡️ ZONA MUERTA: Solo cancela los 0.2s si el dedo se desliza más de 10 píxeles
+            if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
+                cancelarCierre();
+            }
+        };
+
+        // Bloqueo del secuestro táctil de Android/iOS
+        overlay.oncontextmenu = (e) => e.preventDefault();
 
         // Sensores de Ratón
         overlay.addEventListener('mousedown', iniciarCierre);
         overlay.addEventListener('mouseup', cancelarCierre);
         overlay.addEventListener('mouseleave', cancelarCierre);
-        overlay.addEventListener('mousemove', cancelarCierre);
+        overlay.addEventListener('mousemove', arrastreCierre);
 
         // Sensores Táctiles
         overlay.addEventListener('touchstart', iniciarCierre, {passive: true});
         overlay.addEventListener('touchend', cancelarCierre);
         overlay.addEventListener('touchcancel', cancelarCierre);
-        overlay.addEventListener('touchmove', cancelarCierre, {passive: true});
+        overlay.addEventListener('touchmove', arrastreCierre, {passive: true});
     }
 
     async conectar() {
