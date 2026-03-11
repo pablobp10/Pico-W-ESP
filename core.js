@@ -1279,6 +1279,7 @@ export class Core {
                     
                     // ⚠️ IMPORTANTE: Hemos quitado device: 'webgpu' para evitar el crash letal
                     this.localEngineWASM = await pipeline('text-generation', modelo, {
+                        device: 'webgpu',
                         progress_callback: (x) => {
                             if (x.status === 'downloading' || x.status === 'progress') {
                                 const tEl = document.getElementById('ia-dl-text');
