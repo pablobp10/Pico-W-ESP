@@ -62,7 +62,7 @@ export const TiempoCard = {
             #weather-temp { 
                 font-size: clamp(1.2rem, 22cqmin, 2.5rem); 
                 font-weight: 800; line-height: 1; margin: auto 0 2px 0;
-                transform: translateY(5px)
+                transform: translateY(5px);
             }
             
             #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
