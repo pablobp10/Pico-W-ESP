@@ -407,11 +407,10 @@ export class Core {
                 const anchosDisponibles = Array.from({length: maxW}, (_, i) => i + 1);
                 const altosDisponibles = Array.from({length: maxH}, (_, i) => i + 1);
                 
-                // Primero cerramos el Iris visualmente
-                cerrarIris();
+                // ❌ Ya no cerramos el Iris aquí. Se queda abierto esperando debajo.
                 
-                // Y luego abrimos tu menú 3D de redimensionar
-                this.abrirSelectorRadialDoble(cardContent, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
+                // Le pasamos el 'div' principal para que el carrusel lo cubra todo
+                this.abrirSelectorRadialDoble(div, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
                     div.classList.remove(`size-${currentSize}`);
                     div.classList.add(`size-${nuevoTamano}`);
                     currentSize = nuevoTamano;
@@ -421,7 +420,7 @@ export class Core {
                     if (this.sortable) this.toggleEdit(); 
                 });
             };
-
+            
             // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
                 if(card.onInit) card.onInit(this);
@@ -431,22 +430,23 @@ export class Core {
         });
     }
     
-        // 🎡 MOTOR DEL CARRUSEL DOBLE INFINITO (Dinámico por pantalla)
+        // ==========================================================
+    // 🎡 MOTOR DEL CARRUSEL DOBLE (Guardado Automático al tocar fuera)
+    // ==========================================================
     abrirSelectorRadialDoble(tarjetaContenedor, anchosDisponibles, altosDisponibles, tamanoActual, callback) {
         const overlay = document.createElement('div');
         overlay.className = 'radial-overlay';
+        overlay.style.zIndex = '20'; // ⬅️ IMPORTANTE: Flota por encima del Iris
         
         const currentAncho = parseInt(tamanoActual.split('x')[0]);
         const currentAlto = parseInt(tamanoActual.split('x')[1]);
 
-        // Función auxiliar para construir el HTML de un cilindro
         const construirCilindro = (valores) => {
             let caras = [...valores];
-            // Repetimos hasta tener al menos 12 caras para un círculo suave
             while (caras.length < 12) { caras = caras.concat(valores); }
             const numFaces = caras.length;
             const theta = 360 / numFaces;
-            const radio = Math.round(20 / Math.tan(Math.PI / numFaces)); // 20 es la mitad de cellHeight(40)
+            const radio = Math.round(20 / Math.tan(Math.PI / numFaces)); 
             
             let html = '';
             caras.forEach((val, i) => {
@@ -458,32 +458,31 @@ export class Core {
         const colAncho = construirCilindro(anchosDisponibles);
         const colAlto = construirCilindro(altosDisponibles);
 
+        // HTML SIN BOTONES
         overlay.innerHTML = `
-            <button id="btn-cerrar-tamano" style="position:absolute; top:15px; left:50%; transform:translateX(-50%); background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.3); border-radius:50%; color:#ff453a; width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; cursor:pointer; z-index:100;"><i class="fa-solid fa-xmark"></i></button>
-            <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px; z-index:100;">DIMENSIONES</div>
+            <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px; z-index:100; pointer-events:none;">DIMENSIONES</div>
             <div style="display:flex; gap: 20px; align-items:center; z-index:100;">
                 <div style="display:flex; flex-direction:column; align-items:center;">
-                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-left-right"></i> ANCHO</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px; pointer-events:none;"><i class="fa-solid fa-arrows-left-right"></i> ANCHO</div>
                     <div class="radial-viewport" id="viewport-ancho" style="width: 60px;">
                         <div class="radial-cylinder" id="cylinder-ancho">${colAncho.html}</div>
                     </div>
                 </div>
-                <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px;">×</div>
+                <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px; z-index:100; pointer-events:none;">×</div>
                 <div style="display:flex; flex-direction:column; align-items:center;">
-                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px;"><i class="fa-solid fa-arrows-up-down"></i> ALTO</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px; pointer-events:none;"><i class="fa-solid fa-arrows-up-down"></i> ALTO</div>
                     <div class="radial-viewport" id="viewport-alto" style="width: 60px;">
                         <div class="radial-cylinder" id="cylinder-alto">${colAlto.html}</div>
                     </div>
                 </div>
             </div>
-            <button id="btn-aplicar-tamano" class="pico-btn" style="margin-top:25px; background:var(--primary); color:white; border-radius:20px; padding:10px 30px; font-weight:bold; border:none; cursor:pointer; z-index:100;">Aplicar</button>
+            <div style="color:var(--text-sec); font-size:0.75rem; margin-top:30px; pointer-events:none; opacity:0.8;">Toca el fondo para guardar</div>
         `;
 
         tarjetaContenedor.appendChild(overlay);
         void overlay.offsetWidth; 
         overlay.style.opacity = '1';
 
-        // Lógica de estado para ambos cilindros
         const setupCilindro = (tipo, colData, valorInicial) => {
             const cylinder = overlay.querySelector(`#cylinder-${tipo}`);
             const viewport = overlay.querySelector(`#viewport-${tipo}`);
@@ -517,7 +516,7 @@ export class Core {
                 if (!isDragging) return;
                 e.preventDefault();
                 const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                anguloActual = anguloInicial - ((currentY - startY) * 0.6); // Sensibilidad de giro
+                anguloActual = anguloInicial - ((currentY - startY) * 0.6); 
                 cylinder.style.transform = `rotateX(${anguloActual}deg)`;
                 iluminarCara();
             };
@@ -538,7 +537,6 @@ export class Core {
             window.addEventListener('touchmove', onMove, {passive: false});
             window.addEventListener('touchend', onEnd);
 
-            // Devolvemos una función para leer el valor final elegido
             return () => {
                 let idx = Math.round(anguloActual / colData.theta) % colData.numFaces;
                 if (idx < 0) idx += colData.numFaces;
@@ -549,35 +547,51 @@ export class Core {
         const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
         const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 3. GESTIÓN AISLADA DE BOTONES PARA SALIR (Soluciona los toques fantasma)
-        const btnAplicar = overlay.querySelector('#btn-aplicar-tamano');
-        const btnCerrar = overlay.querySelector('#btn-cerrar-tamano');
+        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s EN EL FONDO
+        let closeTimer;
+        let isClosing = false;
 
-        const cerrarMenu = () => {
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 200);
+        const iniciarCierre = (e) => {
+            // Solo iniciamos si el dedo toca exactamente el fondo oscuro
+            if (e.target === overlay) {
+                isClosing = false;
+                clearTimeout(closeTimer);
+                
+                // Temporizador de 200ms de pulsación continua
+                closeTimer = setTimeout(() => {
+                    if (!isClosing) {
+                        isClosing = true;
+                        e.stopPropagation();
+                        const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
+                        
+                        this.vibra("tick"); // Feedback físico de que ha guardado
+                        
+                        // Transición visual de salida
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.remove();
+                            callback(tamanoElegido); // Aplica el tamaño
+                        }, 200);
+                    }
+                }, 200); // <-- Los 0.2 segundos que pediste
+            }
         };
 
-        // Bloqueamos la propagación para que la tarjeta de fondo no se coma el clic
-        const aislarToque = (e) => e.stopPropagation();
-        
-        // Botón Aplicar (Guarda el tamaño)
-        btnAplicar.addEventListener('mousedown', aislarToque);
-        btnAplicar.addEventListener('touchstart', aislarToque, {passive: true});
-        btnAplicar.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
-            cerrarMenu();
-            callback(tamanoElegido); // Esto es lo que aplica y guarda el tamaño
-        });
+        const cancelarCierre = () => {
+            clearTimeout(closeTimer); // Si suelta antes de 0.2s o mueve el dedo, se cancela
+        };
 
-        // Botón Cerrar "X" (Sale sin guardar)
-        btnCerrar.addEventListener('mousedown', aislarToque);
-        btnCerrar.addEventListener('touchstart', aislarToque, {passive: true});
-        btnCerrar.addEventListener('click', (e) => {
-            e.stopPropagation();
-            cerrarMenu(); 
-        });
+        // Sensores de Ratón
+        overlay.addEventListener('mousedown', iniciarCierre);
+        overlay.addEventListener('mouseup', cancelarCierre);
+        overlay.addEventListener('mouseleave', cancelarCierre);
+        overlay.addEventListener('mousemove', cancelarCierre);
+
+        // Sensores Táctiles
+        overlay.addEventListener('touchstart', iniciarCierre, {passive: true});
+        overlay.addEventListener('touchend', cancelarCierre);
+        overlay.addEventListener('touchcancel', cancelarCierre);
+        overlay.addEventListener('touchmove', cancelarCierre, {passive: true});
     }
 
     async conectar() {
