@@ -3,16 +3,15 @@ export const FindCard = {
     defaultSize: "1x1",
     html: `
         <style>
-            #find-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 5cqmin; }
-            #find-icon { font-size: clamp(2.5rem, 35cqmin, 8rem); color: #0ea5e9; margin: 0; }
-            #bat-val { font-size: clamp(0.8rem, 12cqmin, 2rem); font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin: 2cqmin 0; }
-            #btn-beep { padding: clamp(10px, 6cqmin, 20px); font-size: clamp(0.8rem, 10cqmin, 1.5rem); width: 100%; border-radius: clamp(8px, 4cqmin, 16px); background: #0ea5e9; }
+            #find-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
+            #find-icon { font-size: clamp(2rem, 25cqmin, 4rem); color: #0ea5e9; margin: 0; }
+            #bat-val { font-size: clamp(0.7rem, 10cqmin, 1.2rem); font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin: 5px 0; }
+            #btn-beep { padding: clamp(6px, 4cqmin, 14px); font-size: clamp(0.7rem, 8cqmin, 1.2rem); width: 100%; border-radius: 12px; background: #0ea5e9; margin: 0; }
             
             @container (aspect-ratio > 1.2) {
                 #find-wrapper { flex-direction: row; justify-content: space-around; }
-                #find-icon { font-size: clamp(2.5rem, 60cqh, 8rem); width: 40%; text-align: center; }
-                .find-controls { width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10cqmin; }
-                #btn-beep { margin: 0; }
+                #find-icon { font-size: clamp(2rem, 50cqh, 6rem); width: 40%; text-align: center; }
+                .find-controls { width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
             }
         </style>
         
@@ -24,6 +23,7 @@ export const FindCard = {
             </div>
         </div>
     `,
+    
     onInit: (core) => {
         document.getElementById('btn-beep').onclick = () => core.pub('Find','beep',false);
         if(navigator.getBattery) navigator.getBattery().then(b=>document.getElementById('bat-val').innerText=Math.round(b.level*100)+"%");
