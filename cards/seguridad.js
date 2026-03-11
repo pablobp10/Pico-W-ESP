@@ -3,15 +3,15 @@ export const SeguridadCard = {
     defaultSize: "1x1",
     html: `
         <style>
-            #sec-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
-            #icon-Seguridad { font-size: clamp(2rem, 30cqmin, 6rem); margin-top: 5px; transition: color 0.3s; color: #32d74b; }
-            #val-Seguridad { font-size: clamp(0.9rem, 15cqmin, 2.5rem); font-weight: 800; margin: 5px 0; transition: color 0.3s; color: var(--text-main); }
-            #btn-panic { width: 100%; padding: clamp(6px, 6cqmin, 20px); font-size: clamp(0.7rem, 8cqmin, 1.5rem); background: #ff453a; border-radius: clamp(8px, 4cqmin, 16px); margin:0; border:none; color:white; cursor:pointer;}
+            #sec-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 5px; } /* Padding reducido */
+            #icon-Seguridad { font-size: clamp(1.2rem, 18cqmin, 3.5rem); margin-top: 0; transition: color 0.3s; color: #32d74b; } /* Escudo mucho más pequeño */
+            #val-Seguridad { font-size: clamp(0.8rem, 12cqmin, 1.8rem); font-weight: 800; margin: 2px 0; transition: color 0.3s; color: var(--text-main); }
+            #btn-panic { width: 100%; padding: clamp(6px, 4cqmin, 14px); font-size: clamp(0.6rem, 7cqmin, 1.1rem); background: #ff453a; border-radius: clamp(6px, 3cqmin, 12px); margin:0; border:none; color:white; cursor:pointer;}
             
             @container (aspect-ratio > 1.2) {
-                #sec-wrapper { flex-direction: row; justify-content: space-around; }
-                #icon-Seguridad { font-size: clamp(2.5rem, 50cqh, 8rem); width: 40%; text-align: center; }
-                .sec-controls { width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
+                #sec-wrapper { flex-direction: row; justify-content: space-around; padding: 10px; }
+                #icon-Seguridad { font-size: clamp(2rem, 40cqh, 6rem); width: 40%; text-align: center; }
+                .sec-controls { width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
             }
         </style>
         
