@@ -1260,26 +1260,44 @@ export class Core {
                     chatOpts: { context_window_size: 1024 } 
                 });
             } else {
-                // 📱 MODO MÓVIL: Usamos Transformers.js (WebGL/WASM - Alta Compatibilidad para Opera)
-                console.log("📱 Arquitectura Móvil detectada. Cargando Transformers.js...");
-                const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
-                env.allowLocalModels = false;
-                env.useBrowserCache = true;
-                env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+                // 📱 MODO MÓVIL: Usamos Transformers.js (Alta Compatibilidad)
+                console.log("📱 Arquitectura Móvil detectada.");
                 
-                // Usamos un modelo ligero optimizado para tareas y JSON
-                const modelo = 'Xenova/Qwen1.5-0.5B-Chat'; 
-                
-                this.localEngineWASM = await pipeline('text-generation', modelo, {
-                    progress_callback: (x) => {
-                        if (x.status === 'downloading' || x.status === 'progress') {
-                            const textEl = document.getElementById('ia-dl-text');
-                            const barEl = document.getElementById('ia-dl-bar');
-                            if(textEl) textEl.innerText = `WebGL (Móvil): ${Math.round(x.progress)}%`;
-                            if(barEl) barEl.style.width = `${x.progress}%`;
+                try {
+                    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
+                    
+                    env.allowLocalModels = false;
+                    env.useBrowserCache = true;
+                    
+                    // 🛡️ Limitamos los hilos para no asfixiar el móvil
+                    env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+                    
+                    const textEl = document.getElementById('ia-dl-text');
+                    if(textEl) textEl.innerText = "Iniciando motor WASM...";
+
+                    const modelo = 'Xenova/Qwen1.5-0.5B-Chat'; 
+                    
+                    // ⚠️ IMPORTANTE: Hemos quitado device: 'webgpu' para evitar el crash letal
+                    this.localEngineWASM = await pipeline('text-generation', modelo, {
+                        progress_callback: (x) => {
+                            if (x.status === 'downloading' || x.status === 'progress') {
+                                const tEl = document.getElementById('ia-dl-text');
+                                const bEl = document.getElementById('ia-dl-bar');
+                                if(tEl) tEl.innerText = `Cargando IA: ${Math.round(x.progress)}%`;
+                                if(bEl) bEl.style.width = `${x.progress}%`;
+                            }
                         }
+                    });
+                } catch (err) {
+                    console.error("Error fatal en IA Móvil:", err);
+                    const textEl = document.getElementById('ia-dl-text');
+                    if(textEl) {
+                        textEl.innerText = "Fallo de compatibilidad";
+                        textEl.style.color = "#ff453a";
                     }
-                });
+                    // 🚨 CHIVATO VISUAL: Si falla, te saltará este aviso en el móvil
+                    alert("Error IA Móvil: " + err.message); 
+                }
             }
 
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
