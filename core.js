@@ -15,6 +15,12 @@ import { ColorCard } from './cards/color.js';
 import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
+import { TesmostatoCard } from './cards/termostato.js';
+import { PlantaCard } from './cards/planta.js';
+import { EnergiaCard } from './cards/energia.js';
+import { SintetizadorCard } from './cards/sintetizador.js';
+import { OCRCard } from './cards/ocr.js';
+import { ConscienciaCard } from './cards/mood.js';
 import { GeneradorPrompt } from './prompt.js';
 
 export class Core {
@@ -22,7 +28,8 @@ export class Core {
         this.cards = [
             TiempoCard, ListaCard, MegafonoCard, LedCard, SensoresCard,
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
-            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard
+            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TesmostatoCard,
+            PlantaCard,EnergiaCard,SintetizadorCard,OCRCard,ConscienciaCard
         ];
 
         this.conf = null;
