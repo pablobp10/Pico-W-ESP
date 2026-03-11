@@ -15,7 +15,6 @@ import { ColorCard } from './cards/color.js';
 import { MedidorCard } from './cards/medidor.js';
 import { QrCard } from './cards/qr.js';
 import { TestCard } from './cards/test.js';
-import { TerminalCard } from './cards/terminal.js';
 import { GeneradorPrompt } from './prompt.js';
 
 export class Core {
@@ -23,7 +22,7 @@ export class Core {
         this.cards = [
             TiempoCard, ListaCard, MegafonoCard, LedCard, SensoresCard,
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
-            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TerminalCard
+            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard
         ];
 
         this.conf = null;
@@ -1899,6 +1898,7 @@ export class Core {
         document.getElementById('btn-nav-macros').onclick = () => { document.getElementById('macros-view').style.display = 'flex'; menu.classList.remove('open'); };
         document.getElementById('btn-nav-nfc').onclick = () => this.leerNFC();
         document.getElementById('btn-nav-radar').onclick = () => this.iniciarRadarBluetooth();
+        document.getElementById('btn-nav-terminal').onclick = () => { this.toggleHUD(); menu.classList.remove('open')}; 
     }
 
     // --- FUNCIÓN 1: PRESENCIA MULTIJUGADOR ---
