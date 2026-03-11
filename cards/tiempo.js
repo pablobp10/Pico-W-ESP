@@ -10,46 +10,31 @@ export const TiempoCard = {
             const card = document.getElementById('card-Tiempo');
             const weeklyDiv = document.getElementById('weekly-forecast');
             
-            if (card.classList.contains('modo-semana')) {
+            // Leemos el tamaño guardado oficialmente en el sistema
+            let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
+            let currentSize = savedSizes['Tiempo'] || "1x1";
+            
+            if (currentSize === "2x3" && card.classList.contains('modo-semana')) {
+                // 1. CONTRAER A 1x1 Y GUARDAR
+                card.classList.remove('size-2x3');
+                card.classList.add('size-1x1');
+                savedSizes['Tiempo'] = '1x1';
+                localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
+                
                 card.classList.remove('modo-semana');
-                // Restauramos el tamaño quitando el forzado manual
-                card.style.gridColumnEnd = ""; 
-                card.style.gridRowEnd = ""; 
                 weeklyDiv.classList.remove('active');
             } else {
+                // 2. EXPANDIR A 2x3 Y GUARDAR
+                card.classList.remove(`size-${currentSize}`);
+                card.classList.add('size-2x3');
+                savedSizes['Tiempo'] = '2x3';
+                localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
+                
                 card.classList.add('modo-semana');
-                // Forzamos el tamaño exactamente a 2 de ancho x 3 de alto
-                card.style.gridColumnEnd = "span 2"; 
-                card.style.gridRowEnd = "span 3"; 
                 weeklyDiv.classList.add('active');
                 
-                const lat = window.lastCoords ? window.lastCoords.lat : 42.431;
-                const lon = window.lastCoords ? window.lastCoords.lon : -8.644;
-                
-                weeklyDiv.innerHTML = '<div style="text-align:center; margin-top:20px"><i class="fa-solid fa-spinner fa-spin"></i></div>';
-                
-                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`)
-                    .then(r => r.json())
-                    .then(d => {
-                        let html = '';
-                        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                        for(let i=1; i<6; i++) { 
-                            const date = new Date(d.daily.time[i]);
-                            const tMax = Math.round(d.daily.temperature_2m_max[i]);
-                            const tMin = Math.round(d.daily.temperature_2m_min[i]);
-                            const iconData = getWeatherIcon(d.daily.weathercode[i]);
-                            html += `
-                                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border);">
-                                    <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.9rem">${dias[date.getDay()]}</span>
-                                    <div style="font-size:1.6rem; display:flex; justify-content:center; align-items:center;">${iconData.html}</div>
-                                    <span style="font-weight:bold; color:var(--text-main); font-size:1.1rem">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
-                                </div>
-                            `;
-                        }
-                        weeklyDiv.innerHTML = html;
-                    }).catch(e => {
-                        weeklyDiv.innerHTML = '<div style="text-align:center; color:#ff453a; font-size:0.8rem;">Error de red</div>';
-                    });
+                // Disparamos la carga de datos
+                if (window.fetchWeeklyWeather) window.fetchWeeklyWeather();
             }
         }
     },
@@ -78,9 +63,9 @@ export const TiempoCard = {
                 font-weight: 800; line-height: 1; margin: auto 0 2px 0;
             }
             
-            #weekly-forecast { display: none !important; width: 100%; padding: 10px 15px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
+            #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
             #weekly-forecast.active { display: flex !important; }
-            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 5px; }
+            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px; }
             
             @container (aspect-ratio > 1.2) {
                 #tiempo-top { flex-direction: row; justify-content: space-around; padding: 10px; }
@@ -89,7 +74,7 @@ export const TiempoCard = {
                 #weather-temp { margin: 0; }
             }
 
-            /* 🎨 CSS PARA ICONOS MULTICAPA DE ALTA FIDELIDAD */
+            /* 🎨 CSS PARA ICONOS MULTICAPA */
             .w-sun { color: #facc15; filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.6)); animation: w-pulse 3s infinite alternate; }
             .w-cloud { color: #e2e8f0; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1)); }
             .w-cloud-dark { color: #64748b; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
@@ -114,6 +99,38 @@ export const TiempoCard = {
     `,
     
     onInit: (core) => {
+        // Función global para pedir la semana (así podemos llamarla al recargar si ya estaba abierta)
+        window.fetchWeeklyWeather = () => {
+            const weeklyDiv = document.getElementById('weekly-forecast');
+            const lat = window.lastCoords ? window.lastCoords.lat : 42.431;
+            const lon = window.lastCoords ? window.lastCoords.lon : -8.644;
+            
+            weeklyDiv.innerHTML = '<div style="text-align:center; margin-top:20px"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+            
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`)
+                .then(r => r.json())
+                .then(d => {
+                    let html = '';
+                    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                    for(let i=1; i<6; i++) { 
+                        const date = new Date(d.daily.time[i]);
+                        const tMax = Math.round(d.daily.temperature_2m_max[i]);
+                        const tMin = Math.round(d.daily.temperature_2m_min[i]);
+                        const iconData = getWeatherIcon(d.daily.weathercode[i]);
+                        html += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid var(--border);">
+                                <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.8rem">${dias[date.getDay()]}</span>
+                                <div style="font-size:1.4rem; display:flex; justify-content:center; align-items:center;">${iconData.html}</div>
+                                <span style="font-weight:bold; color:var(--text-main); font-size:0.9rem">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
+                            </div>
+                        `;
+                    }
+                    weeklyDiv.innerHTML = html;
+                }).catch(e => {
+                    weeklyDiv.innerHTML = '<div style="text-align:center; color:#ff453a; font-size:0.8rem;">Error de red</div>';
+                });
+        };
+
         window.fetchWeather = async (lat, lon, name) => {
             window.lastCoords = { lat, lon }; 
             const urlDirecta = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
@@ -133,6 +150,16 @@ export const TiempoCard = {
                 pintarClima(await res.json());
             } catch (e1) {
                 document.getElementById('weather-city').innerText = "ERR. RED";
+            }
+
+            // 🧠 Magia persistente: Al terminar de cargar hoy, miramos si el usuario dejó la tarjeta en 2x3 para cargar la semana automáticamente
+            let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
+            if (savedSizes['Tiempo'] === '2x3') {
+                const card = document.getElementById('card-Tiempo');
+                const weeklyDiv = document.getElementById('weekly-forecast');
+                if(card) card.classList.add('modo-semana');
+                if(weeklyDiv) weeklyDiv.classList.add('active');
+                window.fetchWeeklyWeather();
             }
         };
 
