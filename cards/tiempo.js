@@ -1,58 +1,97 @@
 export const TiempoCard = {
     id: "Tiempo",
     category: "info",
+    defaultSize: "1x1",
     customAccion: {
         titulo: "Pronóstico Semanal",
         icono: "fa-solid fa-calendar-week",
-        color: "#f59e0b", // Naranja cálido
+        color: "#f59e0b",
         ejecutar: (core) => {
-            // Aquí puedes lanzar un modal, un gráfico de Chart.js, o una alerta
-            const ciudadActual = document.getElementById('weather-city').innerText;
-            core.notificar(Cargando gráfico semanal para ${ciudadActual}..., "📊");
+            const card = document.getElementById('card-Tiempo');
+            const weeklyDiv = document.getElementById('weekly-forecast');
             
-            // Ejemplo de llamada a la API semanal (Open-Meteo tiene daily forecast)
-            fetch(https://api.open-meteo.com/v1/forecast?latitude=...&daily=temperature_2m_max,temperature_2m_min)
+            if (card.classList.contains('modo-semana')) {
+                card.classList.remove('modo-semana');
+                card.style.gridRowEnd = ""; // Vuelve a su alto original
+                weeklyDiv.classList.remove('active');
+            } else {
+                card.classList.add('modo-semana');
+                card.style.gridRowEnd = "span 2"; // Crece hacia abajo
+                weeklyDiv.classList.add('active');
+                
+                if (window.lastCoords) {
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${window.lastCoords.lat}&longitude=${window.lastCoords.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                    fetch(url).then(r => r.json()).then(d => {
+                        let html = '';
+                        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                        for(let i=1; i<6; i++) { // Próximos 5 días
+                            const date = new Date(d.daily.time[i]);
+                            const tMax = Math.round(d.daily.temperature_2m_max[i]);
+                            const tMin = Math.round(d.daily.temperature_2m_min[i]);
+                            const icon = getWeatherIcon(d.daily.weathercode[i]);
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border);">
+                                    <span style="width:30px; font-weight:bold; color:var(--text-sec)">${dias[date.getDay()]}</span>
+                                    <i class="${icon.icon}" style="color:${icon.color}; font-size:1.2rem;"></i>
+                                    <span style="font-weight:bold; color:var(--text-main)">${tMax}° <span style="color:var(--text-sec); font-weight:normal">${tMin}°</span></span>
+                                </div>
+                            `;
+                        }
+                        weeklyDiv.innerHTML = html;
+                    });
+                }
+            }
         }
     },
     html: `
         <style>
             #tiempo-wrapper {
                 display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; 
-                height: 100%; width: 100%; box-sizing: border-box; padding: 5cqmin;
+                height: 100%; width: 100%; box-sizing: border-box; padding: 10px;
+            }
+            #tiempo-top {
+                display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; width: 100%; height: 100%;
             }
             #weather-city { 
-                font-size: clamp(0.6rem, 10cqmin, 1.2rem); /* Crece con la tarjeta, pero con límites */
+                font-size: clamp(0.7rem, 15cqmin, 1.2rem); /* Aumentado para 1x1 */
                 font-weight: 700; color: var(--text-sec); 
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+                text-align: center; margin-bottom: 2px;
             }
             #weather-icon { 
-                font-size: clamp(2rem, 40cqmin, 6rem); 
+                font-size: clamp(2rem, 35cqmin, 5rem); 
                 filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); 
                 display: flex; align-items: center; justify-content: center;
             }
             #weather-temp { 
-                font-size: clamp(1.5rem, 30cqmin, 5rem); 
+                font-size: clamp(1.5rem, 30cqmin, 4.5rem); 
                 font-weight: 800; line-height: 1; margin: 0;
             }
             
-            /* 🪄 MAGIA: Si la tarjeta se hace apaisada (ej: 2x1 o 3x1), cambiamos la estructura a horizontal */
+            #weekly-forecast { display: none; width: 100%; padding: 0 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; font-size: 0.9rem;}
+            #weekly-forecast.active { display: flex; }
+            #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+            
             @container (aspect-ratio > 1.2) {
-                #tiempo-wrapper { flex-direction: row; justify-content: space-around; padding-top: 15cqh; }
-                #weather-city { position: absolute; top: 10cqh; left: 10cqw; }
-                #weather-icon { font-size: clamp(2rem, 50cqh, 6rem); margin: 0; }
-                #weather-temp { font-size: clamp(1.5rem, 40cqh, 5rem); }
+                #tiempo-top { flex-direction: row; justify-content: space-around; padding: 15px; }
+                #weather-city { position: absolute; top: 10px; left: 15px; text-align: left; width: auto; }
+                #weather-icon { margin: 0; }
             }
         </style>
         
         <div id="tiempo-wrapper">
-            <div id="weather-city"><i class="fa-solid fa-location-dot"></i> DETECTANDO...</div>
-            <div id="weather-icon"><i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b;"></i></div>
-            <div id="weather-temp" class="val-text">--°</div>
+            <div id="tiempo-top">
+                <div id="weather-city"><i class="fa-solid fa-location-dot"></i> DETECTANDO...</div>
+                <div id="weather-icon"><i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b;"></i></div>
+                <div id="weather-temp" class="val-text">--°</div>
+            </div>
+            <div id="weekly-forecast">Cargando pronóstico...</div>
         </div>
     `,
     
     onInit: (core) => {
         window.fetchWeather = async (lat, lon, name) => {
+            window.lastCoords = { lat, lon }; // Guardamos para la gráfica semanal
             const urlDirecta = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
             const urlBypass = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlDirecta)}`;
             
@@ -69,7 +108,7 @@ export const TiempoCard = {
 
             try {
                 let res = await fetch(urlDirecta);
-                if (!res.ok) throw new Error("Bloqueado por Firewall");
+                if (!res.ok) throw new Error("Bloqueado");
                 pintarClima(await res.json());
             } catch (e1) {
                 try {
@@ -81,9 +120,7 @@ export const TiempoCard = {
             }
         };
 
-        // 🧠 Leemos la base de datos local para ver si el usuario forzó una ciudad
         let ciudadGuardada = localStorage.getItem('pico_tiempo_ciudad');
-        
         if (ciudadGuardada) {
             TiempoCard.onData(ciudadGuardada);
         } else if (navigator.geolocation) {
@@ -96,7 +133,6 @@ export const TiempoCard = {
         }
     },
     
-    // 🧠 LA MAGIA: Interceptamos si la IA (o el usuario) manda el nombre de una ciudad
     onData: (val) => {
         if (typeof val === 'string' && val.trim() !== "" && val !== "get") {
             fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1`)
@@ -110,24 +146,20 @@ export const TiempoCard = {
         }
     },
 
-    // ⚙️ AJUSTES PROPIOS DE LA TARJETA
     abrirAjustes: (core) => {
         let ciudadActual = document.getElementById('weather-city').innerText;
         if (ciudadActual === "DETECTANDO..." || ciudadActual === "UBICACIÓN") ciudadActual = "";
         
-        let nuevaCiudad = prompt("Escribe una ciudad para forzar el clima (déjalo en blanco para usar GPS):", ciudadActual);
-        
+        let nuevaCiudad = prompt("Escribe una ciudad (déjalo en blanco para GPS):", ciudadActual);
         if (nuevaCiudad !== null) { 
             if (nuevaCiudad.trim() === "") {
-                // Borramos la ciudad y forzamos reinicio para que pille el GPS
                 localStorage.removeItem('pico_tiempo_ciudad');
                 core.notificar("Restaurando GPS...", "🛰️");
                 TiempoCard.onInit(core); 
             } else {
-                // Guardamos la nueva ciudad y la buscamos
                 localStorage.setItem('pico_tiempo_ciudad', nuevaCiudad);
                 TiempoCard.onData(nuevaCiudad); 
-                core.notificar(`Buscando clima en ${nuevaCiudad}...`, "🔎");
+                core.notificar(`Buscando clima...`, "🔎");
             }
         }
     }
