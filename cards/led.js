@@ -9,7 +9,7 @@ export const LedCard = {
             #led-wrapper { display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; box-sizing: border-box; padding: 4cqmin; }
             .led-top { display: flex; justify-content: space-between; align-items: center; flex-grow: 1; padding: 0 2cqmin; position: relative;}
             .led-custom-name { position: absolute; top: -5cqmin; left: 2cqmin; font-size: clamp(0.6rem, 6cqmin, 1rem); font-weight: bold; color: var(--text-sec); text-transform: uppercase; }
-            .led-icon { font-size: clamp(2.5rem, 35cqmin, 8rem); margin: 0; transition: color 0.3s, filter 0.3s; }
+            .led-icon { font-size: clamp(1.5rem, 20cqmin, 4rem); margin: 0; transition: color 0.3s, filter 0.3s; }
             #val-Led { font-weight: 800; font-size: clamp(1.5rem, 25cqmin, 6rem); color: var(--text-main); line-height: 1; }
             #btn-Led { margin-top: 3cqmin; width: 100%; padding: clamp(10px, 6cqmin, 24px); font-size: clamp(0.8rem, 8cqmin, 2rem); border-radius: clamp(8px, 4cqmin, 16px); }
             
