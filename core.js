@@ -547,39 +547,40 @@ export class Core {
         const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
         const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s (Con Filtro Antitemblores)
+        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s (Blindaje Total)
         let closeTimer;
         let isClosing = false;
-        let startX = 0, startY = 0; // Coordenadas para medir el temblor
+        let startX = 0, startY = 0;
 
         const iniciarCierre = (e) => {
-            // Solo iniciamos si toca el fondo oscuro (ignora los rodillos)
-            if (e.target === overlay) {
-                isClosing = false;
-                
-                // Guardamos el punto exacto de impacto
-                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                
-                clearTimeout(closeTimer);
-                
-                // Temporizador de 200ms
-                closeTimer = setTimeout(() => {
-                    if (!isClosing) {
-                        isClosing = true;
-                        e.stopPropagation();
-                        const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
-                        
-                        this.vibra("tick");
-                        
-                        overlay.style.opacity = '0';
-                        setTimeout(() => {
-                            overlay.remove();
-                            callback(tamanoElegido);
-                        }, 200);
-                    }
-                }, 200); 
-            }
+            // 1. Si el usuario toca los rodillos, ignoramos para que giren normal
+            if (e.target.closest('.radial-viewport')) return;
+
+            // 2. Si toca fuera, bloqueamos cualquier menú o scroll nativo del móvil
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation();
+
+            isClosing = false;
+            startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            
+            clearTimeout(closeTimer);
+            
+            // 3. Lanzamos el temporizador exacto de 200ms
+            closeTimer = setTimeout(() => {
+                if (!isClosing) {
+                    isClosing = true;
+                    const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
+                    
+                    this.vibra("tick");
+                    
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.remove();
+                        callback(tamanoElegido);
+                    }, 200);
+                }
+            }, 200); 
         };
 
         const cancelarCierre = () => {
@@ -591,13 +592,13 @@ export class Core {
             const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
             
-            // 🛡️ ZONA MUERTA: Solo cancela los 0.2s si el dedo se desliza más de 10 píxeles
+            // Zona muerta de 10px para que no se cancele por el temblor natural del dedo
             if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
-                cancelarCierre();
+                clearTimeout(closeTimer);
             }
         };
 
-        // Bloqueo del secuestro táctil de Android/iOS
+        // Bloqueo del menú contextual (click derecho / pulsación larga nativa)
         overlay.oncontextmenu = (e) => e.preventDefault();
 
         // Sensores de Ratón
@@ -606,11 +607,11 @@ export class Core {
         overlay.addEventListener('mouseleave', cancelarCierre);
         overlay.addEventListener('mousemove', arrastreCierre);
 
-        // Sensores Táctiles
-        overlay.addEventListener('touchstart', iniciarCierre, {passive: true});
+        // 🛡️ Sensores Táctiles (passive: false es VITAL para que funcione el preventDefault)
+        overlay.addEventListener('touchstart', iniciarCierre, {passive: false});
         overlay.addEventListener('touchend', cancelarCierre);
         overlay.addEventListener('touchcancel', cancelarCierre);
-        overlay.addEventListener('touchmove', arrastreCierre, {passive: true});
+        overlay.addEventListener('touchmove', arrastreCierre, {passive: false});
     }
 
     async conectar() {
