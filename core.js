@@ -28,7 +28,7 @@ export class Core {
         this.cards = [
             TiempoCard, ListaCard, MegafonoCard, LedCard, SensoresCard,
             PomodoroCard, DadoCard, CalculadoraCard, FiestaCard, FindCard,
-            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TesmostatoCard,
+            RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TermostatoCard,
             PlantaCard,EnergiaCard,SintetizadorCard,OCRCard,ConscienciaCard
         ];
 
