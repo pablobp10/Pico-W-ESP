@@ -193,18 +193,6 @@ export class Core {
             });
         }
         
-        // 👁️ VIGILANTE DE TECLADO PARA EL PIN MÁGICO
-        document.getElementById('user-input').addEventListener('input', (e) => {
-            const u = e.target.value.trim();
-            const pinInput = document.getElementById('pin-input');
-            
-            // Si el usuario existe en tu diccionario de llaves y NO tiene la Llave Fantasma guardada
-            if (this.llave[u] && !localStorage.getItem('pico_gk_' + u)) {
-                pinInput.style.display = 'block'; // Mostrar PIN
-            } else {
-                pinInput.style.display = 'none';  // Ocultar PIN
-            }
-        });
         document.querySelectorAll('.filter-pill').forEach(btn => {
         btn.addEventListener('click', (e) => {
             // Cambiar estilos de los botones
