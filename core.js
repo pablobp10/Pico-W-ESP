@@ -145,45 +145,44 @@ export class Core {
         this.initBaseDeDatos()
         this.initInterruptorIA();
         
+        // --- 1. LOGIN Y HUELLA ---
         document.getElementById('btn-login').onclick = () => this.login();
+        document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
+        
+        const btnHuella = document.getElementById('btn-huella');
+        if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
+
+        // --- 2. MENÚ DE USUARIO (Barra Lateral) ---
+        const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
+        if(btnEliminarHuella) btnEliminarHuella.onclick = (e) => {
+            e.stopPropagation(); // Evita que se abra el menú de ajustes al hacer clic aquí
+            localStorage.removeItem('pico_huella_token');
+            this.actualizarUIHuella();
+            this.notificar("Huella desvinculada del dispositivo", "🗑️");
+        };
+
+        const userProfileMenu = document.getElementById('user-profile-menu');
+        if(userProfileMenu) {
+            userProfileMenu.onclick = (e) => {
+                if (e.target.closest('#btn-eliminar-huella')) return; // Ignorar si pulsó el botón de borrar
+                // Abrimos el menú de ajustes de la barra superior
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('settings-menu').classList.add('open');
+                this.vibra("tick");
+            };
+        }
+
+        // --- 3. AJUSTES Y CERRAR SESIÓN ---
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
-        document.getElementById('btn-logout').onclick = () => { sessionStorage.clear(); location.reload(); };
-        document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
-
-        // Lógica de alternancia Login / Registro
-        const linkToggle = document.getElementById('link-toggle-register');
-        let isRegistering = false;
         
-        if (linkToggle) {
-            linkToggle.onclick = (e) => {
-                e.preventDefault();
-                isRegistering = !isRegistering;
-                document.getElementById('pass2-input').style.display = isRegistering ? 'block' : 'none';
-                document.getElementById('btn-login').style.display = isRegistering ? 'none' : 'block';
-                document.getElementById('btn-register-submit').style.display = isRegistering ? 'block' : 'none';
-                document.getElementById('pass-input').placeholder = isRegistering ? "Contraseña nueva" : "Contraseña o PIN";
-                linkToggle.innerText = isRegistering ? "Volver al Login" : "Crear usuario nuevo";
-                document.getElementById('error-msg').style.display = 'none';
-            };
-        }
+        const btnLogoutMenu = document.getElementById('btn-logout');
+        const btnCerrarBarra = document.getElementById('btn-cerrar-sesion'); 
+        if(btnLogoutMenu) btnLogoutMenu.onclick = () => this.cerrarSesion();
+        if(btnCerrarBarra) btnCerrarBarra.onclick = () => this.cerrarSesion();
 
-        // Ejecutar el registro
-        document.getElementById('btn-register-submit').onclick = () => {
-            const u = document.getElementById('user-input').value.trim();
-            const p1 = document.getElementById('pass-input').value.trim();
-            const p2 = document.getElementById('pass2-input').value.trim();
-            this.registrarUsuario(u, p1, p2);
-        };
-        
-        const btnBio = document.getElementById('btn-bio');
-        if (btnBio) {
-            btnBio.onclick = () => {
-                const u = localStorage.getItem("u");
-                if (u) this.registrarBiometria(u);
-                else this.notificar("Inicia sesión primero", "⚠️");
-            };
-        }
+        // Refresco visual inicial
+        setTimeout(() => this.actualizarUIHuella(), 500);
         
         const swJarvis = document.getElementById('sw-jarvis');
         if (swJarvis) {
@@ -202,8 +201,9 @@ export class Core {
             this.filtroActual = e.target.dataset.filter;
             this.vibra('tick');
             this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada.
+            });
         });
-    });
+        
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -949,6 +949,8 @@ export class Core {
             // Leemos el JSON en texto plano (Solo contiene la URL del servidor Render)
             this.conf = JSON.parse(perfil.maletin_encriptado); 
             
+            const displayUser = document.getElementById('display-username');
+            if (displayUser) displayUser.innerText = u.split('@')[0];
             sessionStorage.setItem('pico_sesion_ok', 'true');
             localStorage.setItem("u", u); 
             localStorage.setItem("p", p);
@@ -964,110 +966,96 @@ export class Core {
         }
     }
 
-    async registrarBiometria(u) {
-        if (!window.PublicKeyCredential) return;
-        try {
-            const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-            const cred = await navigator.credentials.create({
-                publicKey: {
-                    challenge: challenge,
-                    rp: { name: "Pico OS", id: window.location.hostname },
-                    user: { id: new Uint8Array(16), name: u, displayName: u },
-                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-                    authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
-                    timeout: 60000
-                }
-            });
+    cerrarSesion() {
+        // 1. EL TRUCO: Borramos la contraseña para evitar el auto-login indeseado, 
+        // pero mantenemos el usuario ('u') para que no tengas que escribir tu correo de nuevo.
+        localStorage.removeItem('p');
+        sessionStorage.removeItem('pico_sesion_ok');
+
+        // 2. Cerramos el túnel seguro con Render
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.close();
+        }
+
+        // 3. Ocultamos la interfaz principal y mostramos la pantalla de login en primer plano
+        document.getElementById('pass-input').value = ""; // Vaciamos la caja de contraseña visualmente
+        const loginScreen = document.getElementById('login-screen');
+        if(loginScreen) {
+            loginScreen.style.display = 'flex';
+            loginScreen.style.opacity = '1';
+            loginScreen.style.pointerEvents = 'auto';
+        }
+        
+        // 4. Cerramos cualquier menú que estuviera abierto
+        document.getElementById('side-menu').classList.remove('open');
+        const settingsMenu = document.getElementById('settings-menu');
+        if(settingsMenu) settingsMenu.classList.remove('open');
+
+        this.notificar("Sesión cerrada", "🔒");
+    }
+
+    async manejarHuella() {
+        const huellaGuardada = localStorage.getItem('pico_huella_token');
+        
+        if (!huellaGuardada) {
+            // FASE 1: ASOCIAR HUELLA (Primera vez)
+            const u = document.getElementById('user-input').value.trim();
+            const p = document.getElementById('pass-input').value.trim();
             
-            // 🛠️ LA MAGIA: Guardamos el ID exacto de la huella que acabamos de crear
-            const rawId = Array.from(new Uint8Array(cred.rawId));
-            localStorage.setItem(`pico_bio_id_${u}`, JSON.stringify(rawId));
-            localStorage.setItem(`pico_bio_${u}`, 'true');
+            if (!u || !p) return this.notificar("Escribe tu usuario y contraseña primero para vincular la huella", "⚠️");
             
-            this.notificar("Biometría enlazada con éxito", "🔒");
-            this.vibra("doble");
-        } catch (e) { 
-            console.warn("Registro biométrico cancelado."); 
-        }
-    }
-
-    // 🛠️ Añade el parámetro 'u' (usuario) a la función para saber qué ID buscar
-    async verificarBiometria(u) {
-        try {
-            const savedId = JSON.parse(localStorage.getItem(`pico_bio_id_${u}`));
-            if (!savedId) return false;
-
-            const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-            const assertion = await navigator.credentials.get({
-                publicKey: { 
-                    challenge: challenge, 
-                    // 🛠️ Le decimos a Android exactamente qué huella queremos usar
-                    allowCredentials: [{ id: new Uint8Array(savedId), type: 'public-key' }],
-                    userVerification: "required" 
-                }
-            });
-            return !!assertion;
-        } catch (e) { 
-            return false; 
-        }
-    }
-
-    // 📝 FUNCIÓN PARA EL NUEVO FORMULARIO DE REGISTRO
-    async registrarUsuario(u, p1, p2) {
-        if (p1 !== p2) {
-            this.notificar("Las contraseñas no coinciden", "❌");
-            return false;
-        }
-        if (p1.length < 6) {
-            this.notificar("La contraseña debe tener 6 caracteres mínimo", "⚠️");
-            return false;
-        }
-
-        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
-
-        try {
-            // Supabase lo registra. El Trigger SQL que creamos le asignará rol='pendiente' automáticamente
-            const { data, error } = await this.supabase.auth.signUp({
-                email: emailAuth,
-                password: p1
-            });
-
-            if (error) throw error;
-
-            this.notificar("Solicitud enviada al Administrador.", "⏳");
-            return true; // Éxito. Ahora toca esperar a que el admin lo apruebe.
-
-        } catch (error) {
-            console.error("Error en registro:", error.message);
-            if (error.message.includes("already registered")) {
-                this.notificar("Ese usuario ya existe", "⚠️");
-            } else {
-                this.notificar("Fallo al enviar solicitud", "❌");
+            try {
+                const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                await navigator.credentials.create({
+                    publicKey: {
+                        challenge: challenge,
+                        rp: { name: "Pico OS" },
+                        user: { id: new Uint8Array(16), name: u, displayName: u },
+                        pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                        timeout: 60000
+                    }
+                });
+                
+                // Guardamos las credenciales ofuscadas, separadas de localStorage('p')
+                localStorage.setItem('pico_huella_token', btoa(JSON.stringify({ u: u, p: p })));
+                this.actualizarUIHuella();
+                this.notificar("Huella vinculada con éxito. Ya puedes entrar tocando el icono.", "✅");
+                
+            } catch (err) {
+                this.notificar("Registro biométrico cancelado", "❌");
             }
-            return false;
+            
+        } else {
+            // FASE 2: INICIAR SESIÓN CON HUELLA (Siguientes veces)
+            try {
+                const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                await navigator.credentials.get({
+                    publicKey: { challenge: challenge, timeout: 60000, userVerification: "required" }
+                });
+                
+                // Si la huella pasa, leemos las credenciales guardadas y hacemos login
+                const creds = JSON.parse(atob(huellaGuardada));
+                document.getElementById('user-input').value = creds.u;
+                document.getElementById('pass-input').value = creds.p;
+                this.login(); // Disparamos el login automáticamente
+                
+            } catch (err) {
+                this.notificar("Huella no reconocida o cancelada", "❌");
+            }
         }
     }
 
-    // 📡 EL RADAR DE APROBACIONES (Se ejecuta cuando TÚ haces login)
-    async comprobarSolicitudesPendientes() {
-        if (this.rol !== 'admin') return; // Solo tú puedes ver esto
-
-        try {
-            const { data, error } = await this.supabase
-                .from('perfiles')
-                .select('id, rol')
-                .eq('rol', 'pendiente');
-
-            if (data && data.length > 0) {
-                // Hacemos que la notificación sea persistente o muy visible
-                setTimeout(() => {
-                    this.notificar(`Tienes ${data.length} solicitud(es) de acceso esperando.`, "🔔");
-                    this.vibra("doble");
-                }, 3000); // Aparece 3 segundos después de que entres al OS
-            }
-        } catch (error) {
-            console.error("Fallo al leer radar de aprobaciones", error);
-        }
+    actualizarUIHuella() {
+        const tieneHuella = localStorage.getItem('pico_huella_token');
+        const btnLoginHuella = document.getElementById('btn-huella');
+        const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
+        
+        // Pintar el botón del login de verde si ya hay huella
+        if (btnLoginHuella) btnLoginHuella.style.color = tieneHuella ? "#10b981" : "#8b5cf6";
+        
+        // Mostrar el botón de borrar en el menú del usuario si hay huella
+        if (btnEliminarHuella) btnEliminarHuella.style.display = tieneHuella ? "block" : "none";
     }
     
     ejecutarComandoLocal(app, accion) {
@@ -1135,7 +1123,7 @@ export class Core {
                 else if (accion === "toggle") this.toggleHUD();
                 break;
             case "Sesion":
-                if (accion === "logout") { sessionStorage.clear(); location.reload(); }
+                if (accion === "logout") this.cerrarSesion(); 
                 break;
             case "VozIA":
                 this.iaSilenciada = (accion === "mute");
