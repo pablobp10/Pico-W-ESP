@@ -31,12 +31,17 @@ export const DadoCard = {
             </div>
         </div>
     `,
-    onInit: (core) => {
+
+        onInit: (core) => {
         document.getElementById('btn-dado').onclick = () => {
             const caras = parseInt(localStorage.getItem('pico_dado_faces')) || 6;
-            core.pub('Dado', Math.floor(Math.random() * caras) + 1, false);
+            const resultado = Math.floor(Math.random() * caras) + 1;
+            
+            // 🔄 ACTUALIZADO: Usamos cmd para enviarlo por el túnel WebSocket a Render
+            core.cmd('Dado', resultado);
         };
     },
+
     onData: (val) => {
         const num = parseInt(val);
         if(!isNaN(num)) {
