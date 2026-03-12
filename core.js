@@ -155,8 +155,9 @@ export class Core {
         // --- 2. MENÚ DE USUARIO (Barra Lateral) ---
         const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
         if(btnEliminarHuella) btnEliminarHuella.onclick = (e) => {
-            e.stopPropagation(); // Evita que se abra el menú de ajustes al hacer clic aquí
+            e.stopPropagation(); 
             localStorage.removeItem('pico_huella_token');
+            localStorage.removeItem('pico_bio_id'); // ⬅️ NUEVO: Borramos también el ID
             this.actualizarUIHuella();
             this.notificar("Huella desvinculada del dispositivo", "🗑️");
         };
@@ -996,51 +997,70 @@ export class Core {
 
     async manejarHuella() {
         const huellaGuardada = localStorage.getItem('pico_huella_token');
+        const bioId = localStorage.getItem('pico_bio_id');
         
-        if (!huellaGuardada) {
-            // FASE 1: ASOCIAR HUELLA (Primera vez)
+        // Si falta alguno de los dos datos, forzamos un registro nuevo
+        if (!huellaGuardada || !bioId) {
+            
+            // FASE 1: REGISTRO (Primera vez)
             const u = document.getElementById('user-input').value.trim();
             const p = document.getElementById('pass-input').value.trim();
             
-            if (!u || !p) return this.notificar("Escribe tu usuario y contraseña primero para vincular la huella", "⚠️");
+            if (!u || !p) return this.notificar("Escribe tu usuario y contraseña primero", "⚠️");
             
             try {
                 const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
-                await navigator.credentials.create({
+                const cred = await navigator.credentials.create({
                     publicKey: {
                         challenge: challenge,
-                        rp: { name: "Pico OS" },
+                        rp: { name: "Pico OS", id: window.location.hostname }, // Identificador del dominio
                         user: { id: new Uint8Array(16), name: u, displayName: u },
-                        pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                        pubKeyCredParams: [{alg: -7, type: "public-key"}, {alg: -257, type: "public-key"}],
                         authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
                         timeout: 60000
                     }
                 });
                 
-                // Guardamos las credenciales ofuscadas, separadas de localStorage('p')
+                // 1. Guardamos el DNI único de esta huella (rawId)
+                const rawId = Array.from(new Uint8Array(cred.rawId));
+                localStorage.setItem('pico_bio_id', JSON.stringify(rawId));
+                
+                // 2. Guardamos las credenciales ofuscadas
                 localStorage.setItem('pico_huella_token', btoa(JSON.stringify({ u: u, p: p })));
+                
                 this.actualizarUIHuella();
-                this.notificar("Huella vinculada con éxito. Ya puedes entrar tocando el icono.", "✅");
+                this.notificar("Huella vinculada con éxito", "✅");
                 
             } catch (err) {
+                console.error("Fallo al crear credencial:", err);
                 this.notificar("Registro biométrico cancelado", "❌");
             }
             
         } else {
-            // FASE 2: INICIAR SESIÓN CON HUELLA (Siguientes veces)
+            // FASE 2: LOGIN CON HUELLA (Siguientes veces)
             try {
+                const savedId = JSON.parse(bioId);
                 const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                
+                // Pedimos permiso al móvil enseñándole exactamente el DNI de la huella que queremos
                 await navigator.credentials.get({
-                    publicKey: { challenge: challenge, timeout: 60000, userVerification: "required" }
+                    publicKey: {
+                        challenge: challenge,
+                        rpId: window.location.hostname,
+                        allowCredentials: [{ id: new Uint8Array(savedId), type: 'public-key' }],
+                        timeout: 60000,
+                        userVerification: "required"
+                    }
                 });
                 
-                // Si la huella pasa, leemos las credenciales guardadas y hacemos login
+                // Si el usuario pone el dedo y acierta, inyectamos los datos y pa' dentro
                 const creds = JSON.parse(atob(huellaGuardada));
                 document.getElementById('user-input').value = creds.u;
                 document.getElementById('pass-input').value = creds.p;
-                this.login(); // Disparamos el login automáticamente
+                this.login(); 
                 
             } catch (err) {
+                console.error("Fallo al leer credencial:", err);
                 this.notificar("Huella no reconocida o cancelada", "❌");
             }
         }
