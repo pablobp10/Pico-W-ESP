@@ -274,15 +274,20 @@ export class Core {
 
         this.brokers.forEach((b, idx) => {
             const item = document.createElement('div');
-            item.className = `dropdown-item ${idx===this.brIdx?'selected':''}`;
+            item.className = `dropdown-item ${idx === this.brIdx ? 'selected' : ''}`;
             item.innerText = b.name;
             item.onclick = () => {
                 this.brIdx = idx;
                 current.innerText = b.name;
                 menu.classList.remove('open');
-                this.setupBrokerMenu();
-                if(this.mqtt) this.mqtt.disconnect();
-                setTimeout(()=>this.conectar(), 500);
+                this.setupBrokerMenu(); 
+                
+                this.notificar(`Enrutando servidor a ${b.name}...`, "🔀");
+                
+                // Disparamos la orden al servidor Python
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: b.h }));
+                }
             };
             menu.appendChild(item);
         });
@@ -788,55 +793,46 @@ export class Core {
     }
     
     async conectar() {
-        if (this.conf.v1_compat) { this.initLegacyProtocol(); return; }
+        const wsUrl = this.conf.escudo_url;
+        if (!wsUrl) return this.notificar("Falta URL del Escudo", "❌");
 
-        const b = this.brokers[this.brIdx];
+        this.ws = new WebSocket(wsUrl);
         const dot = document.getElementById('mqtt-dot');
-        if (dot) dot.className = "dot orange";
-        const id = "Web_" + parseInt(Math.random() * 100000);
-        
-        try {
-            // Asumimos que inicializarModulos ya puso la v1.0.1 en window.Paho
-            this.mqtt = new window.Paho.MQTT.Client(b.h, Number(b.p), "/mqtt", id);
-        } catch (e) {
-            console.error("❌ Fallo crítico al instanciar MQTT. ¿Versión incorrecta en RAM?", e);
-            if (window.saveLog) window.saveLog("Motor MQTT no instanciable", "#ff453a");
-            return;
-        }
-        
-        this.mqtt.onConnectionLost = (e) => {
+
+        this.ws.onopen = () => {
+            this.setNetworkStatus(true);
+            if (dot) dot.className = "dot green";
+            
+            // IMPORTANTE: Al conectar, la web le impone al servidor qué broker debe usar
+            const brokerElegido = this.brokers[this.brIdx].h;
+            this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: brokerElegido }));
+        };
+
+        this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.tipo === "mqtt") {
+                const app = data.topic.split("/").pop();
+                let val = data.payload;
+                try { val = JSON.parse(val); } catch(e){}
+                
+                if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) this.updatePicoStatus(val);
+                this.cards.forEach(c => {
+                    if(c.id === app || (c.subs && c.subs.includes(app))) {
+                        if(c.onData) c.onData(val, app, this);
+                    }
+                });
+            } else if (data.tipo === "ia_voz") {
+                this.hablarJARVIS(data.texto);
+                this.notificar(data.texto, "🗣️");
+            }
+        };
+
+        this.ws.onclose = () => {
             this.setNetworkStatus(false);
             if (dot) dot.className = "dot red";
-            setTimeout(() => { this.brIdx = (this.brIdx+1)%this.brokers.length; this.conectar(); }, 3000);
+            setTimeout(() => this.conectar(), 3000); 
         };
-
-        this.mqtt.onMessageArrived = (msg) => {
-            const topic = msg.destinationName;
-            const app = topic.split("/").pop();
-            let val = msg.payloadString;
-            try { val = JSON.parse(val); } catch(e){}
-            if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) this.updatePicoStatus(val);
-            this.cards.forEach(c => {
-                if(c.id === app || (c.subs && c.subs.includes(app))) {
-                    if(c.onData) c.onData(val, app, this);
-                }
-            });
-        };
-
-        this.mqtt.connect({
-            useSSL: true, timeout: 3,
-            onSuccess: () => {
-                this.setNetworkStatus(true);
-                if (dot) dot.className = "dot green";
-                this.updatePicoStatus("BUSCANDO");
-                this.mqtt.subscribe(this.conf.topic + "estado/#");
-                setTimeout(() => this.cmd('Led', 'get'), 500); 
-            },
-            onFailure: () => { 
-                if (dot) dot.className = "dot red"; 
-                setTimeout(() => this.conectar(), 3000); 
-            }
-        });
     }
 
     initLegacyProtocol() {
@@ -945,117 +941,38 @@ export class Core {
     async login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
-        const pinInputEl = document.getElementById('pin-input');
-        const pin = pinInputEl.value.trim();
-        const errorMsg = document.getElementById('error-msg');
-        const loginBox = document.querySelector('.login-box');
-
-        // Formateamos para Supabase (Si escribes "pablo", busca "pablo@pico.os")
         const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
 
         try {
-            // 1. Validar identidad en Supabase
             const { data: authData, error: authError } = await this.supabase.auth.signInWithPassword({
-                email: emailAuth,
-                password: p
+                email: emailAuth, password: p
             });
-
-            if (authError) throw new Error("Credenciales inválidas en la Nube.");
+            if (authError) throw new Error("Credenciales inválidas.");
             this.usuarioLogueado = authData.user;
 
-            // 2. Descargar el Maletín de la Nube
             const { data: perfil, error: dbError } = await this.supabase
-                .from('perfiles')
-                .select('maletin_encriptado, rol')
-                .eq('id', this.usuarioLogueado.id)
-                .single();
+                .from('perfiles').select('maletin_encriptado, rol').eq('id', this.usuarioLogueado.id).single();
             
-            if (perfil.rol === 'pendiente') {
-                throw new Error("Tu cuenta está en revisión. Espera autorización.");
-            }
-            
+            if (perfil.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
             if (dbError || !perfil) throw new Error("Perfil no encontrado.");
 
             this.rol = perfil.rol;
-
-            // 3. DESENCRIPTAR (Tu código criptográfico original intacto)
-            const rawJsonStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(perfil.maletin_encriptado));
-            const boveda = JSON.parse(rawJsonStr); 
-
-            let txtDesencriptado = "";
-            let ghostKey = localStorage.getItem('pico_gk_' + u);
-            const tieneBio = localStorage.getItem(`pico_bio_${u}`);
-            const sesionVerificada = sessionStorage.getItem('pico_sesion_ok') === 'true';
-
-            if (!sesionVerificada) {
-                if (ghostKey && tieneBio) {
-                    this.notificar("Esperando credencial biométrica...", "🛡️");
-                    const bioOk = await this.verificarBiometria(u);
-                    if (!bioOk) throw new Error("BIO_FAIL");
-                }
-
-                if (!ghostKey) {
-                    if (pinInputEl.style.display === 'none' || pinInputEl.style.display === '') {
-                        pinInputEl.style.display = 'block';
-                        pinInputEl.focus(); 
-                        const loginScreen = document.getElementById('login-screen');
-                        if(loginScreen) {
-                            loginScreen.style.opacity = '1';
-                            loginScreen.style.pointerEvents = 'auto';
-                        }
-                        return;
-                    }
-
-                    if (!pin) {
-                        errorMsg.innerText = "⚠️ Introduce tu PIN Maestro";
-                        errorMsg.style.display = 'block';
-                        return;
-                    }
-
-                    const keyEnv = CryptoJS.SHA256(p + pin);
-                    const rawEnv = CryptoJS.enc.Base64.parse(boveda.e);
-                    const ivEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(0, 4), 16);
-                    const cipherEnv = CryptoJS.lib.WordArray.create(rawEnv.words.slice(4), rawEnv.sigBytes - 16);
-                    
-                    const decEnv = CryptoJS.AES.decrypt({ciphertext: cipherEnv}, keyEnv, { iv: ivEnv });
-                    ghostKey = decEnv.toString(CryptoJS.enc.Utf8);
-                    
-                    if (!ghostKey) throw new Error("PIN_FAIL");
-                    localStorage.setItem('pico_gk_' + u, ghostKey);
-                }
-            }
-
-            const keyData = CryptoJS.SHA256(p + ghostKey);
-            const rawData = CryptoJS.enc.Base64.parse(boveda.d);
-            const ivData = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4), 16);
-            const cipherData = CryptoJS.lib.WordArray.create(rawData.words.slice(4), rawData.sigBytes - 16);
             
-            const decData = CryptoJS.AES.decrypt({ciphertext: cipherData}, keyData, { iv: ivData });
-            txtDesencriptado = decData.toString(CryptoJS.enc.Utf8);
+            // Leemos el JSON en texto plano (Solo contiene la URL del servidor Render)
+            this.conf = JSON.parse(perfil.maletin_encriptado); 
             
-            if (!txtDesencriptado) throw new Error("Fallo de Desencriptación Local");
-            
-            // 4. ARRANQUE DEL SISTEMA
             sessionStorage.setItem('pico_sesion_ok', 'true');
-            this.conf = JSON.parse(txtDesencriptado);
-            this.apiKeys = this.conf.apis || {}; 
-
             localStorage.setItem("u", u); 
             localStorage.setItem("p", p);
             
             document.getElementById('login-screen').style.display = 'none';
             if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
-            this.conectar();
+            this.conectar(); // Lanza la conexión WebSocket
             this.comprobarSolicitudesPendientes();
-
         } catch (error) {  
-            console.error("🔒 Error:", error.message);
-            errorMsg.innerText = "❌ Acceso Denegado.";
-            errorMsg.style.display = 'block'; 
-            loginBox.classList.remove('error-shake');
-            void loginBox.offsetWidth; 
-            loginBox.classList.add('error-shake');
+            document.getElementById('error-msg').innerText = "❌ " + error.message;
+            document.getElementById('error-msg').style.display = 'block'; 
         }
     }
 
@@ -1271,39 +1188,15 @@ export class Core {
     }
     
     
-    // ÚNICA función de comando. Fuerza minúsculas y elimina el pasaporte de seguridad.
-    cmd(app, c) { 
-        if(!this.mqtt || !this.mqtt.isConnected()) {
-            console.log("❌ MQTT no conectado aún.");
+    cmd(app, c) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             this.colaOffline.push({app, c});
-            this.notificar("Comando en cola");
-            return;
+            return this.notificar("Sin conexión al Escudo. Orden en cola", "❌");
         }
-        
-        // 🧠 EL ARREGLO: Buscamos 'tk' (nueva V22) o 'wk' (vieja V19)
-        const token = this.conf.tk || this.conf.wk;
-        
-        if(!token) { 
-            console.error("⚠️ Error crítico: No hay llave de seguridad en this.conf");
-            return; 
-        }
-        
-        const comando = String(c).toLowerCase();
-        
-        // 🛡️ NONCE: Sello de tiempo único para evitar Ataques de Replay
-        const nonce = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-        
-        // 🛡️ FIRMA: (Comando + Nonce + TokenSecreto) -> SHA256
-        const dataToSign = comando + nonce + token;
-        const firma = CryptoJS.SHA256(dataToSign).toString(CryptoJS.enc.Hex).substring(0, 16);
-        
-        const payload = JSON.stringify({ c: comando, n: nonce, f: firma });
-        const m = new Paho.MQTT.Message(payload); 
-        m.destinationName = this.conf.topic + "comando/" + app; 
-        this.mqtt.send(m); 
-        
-        console.log("🚀 COMANDO ENVIADO A LA PICO ->", comando);
+        this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: c }));
     }
+
+    
 
     // ==========================================================
     // 🧠 SISTEMA OPERATIVO JARVIS (OMNI-CONSCIENTE + AUTÓNOMO)
@@ -1363,35 +1256,18 @@ export class Core {
         // --- 4. EL CEREBRO REACTIVO (Cuando tú le hablas) ---
     async procesarComandoIA() {
         const input = document.getElementById('ai-input');
-        const btnSend = document.getElementById('btn-ai-send');
         const orden = input.value.trim();
         if(!orden) return;
-
-        // 1. Bloqueamos la UI y mostramos el Spinner de carga
-        const iconoOriginal = btnSend.innerHTML;
-        btnSend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        btnSend.style.pointerEvents = 'none'; // Evita doble clic
+        
         input.value = ""; 
-        input.disabled = true;
-        input.placeholder = "JARVIS analizando...";
+        this.notificar("Consultando al Escudo de IA...", "🧠");
         
-        this.notificar("Cerebro Cuántico procesando...", "🧠");
-        this.vibra("tick");
-
-        this.historialIA = this.historialIA || [];
-        
-        try {
-            // 2. Esperamos a la IA con un tiempo límite imaginario
-            await this.ejecutarInferencia(orden, "reactivo");
-        } catch (e) {
-            console.error("Fallo general de inferencia:", e);
-        } finally {
-            // 3. PASE LO QUE PASE (incluso si explota WebGPU), restauramos el botón
-            btnSend.innerHTML = iconoOriginal;
-            btnSend.style.pointerEvents = 'auto';
-            input.disabled = false;
-            input.placeholder = "Ej: Apaga la luz...";
-            input.focus();
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ 
+                accion: "ia", 
+                proveedor: this.conf.ia_favorita || "google", 
+                texto: orden 
+            }));
         }
     }
 
