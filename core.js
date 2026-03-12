@@ -39,8 +39,8 @@ export class Core {
         this.editMode = false;
         
         // 🚀 CONEXIÓN A LA NUBE SUPABASE
-        const supabaseUrl = 'https://TU-PROYECTO.supabase.co'; // Pon tu URL real
-        const supabaseKey = 'TU_ANON_KEY'; // Pon tu clave anon real
+        const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co'; // Pon tu URL real
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w'; // Pon tu clave anon real
         this.supabase = createClient(supabaseUrl, supabaseKey);
         
         this.usuarioLogueado = null;
@@ -745,7 +745,9 @@ export class Core {
                 topic: this.conf.topic,
                 tk: this.conf.tk, // Mantienen el mismo token de la Pico
                 rol: "guest",
-                apis: { google: "", groq: "", openrouter: "" } // Limpiamos tus claves de IA
+                apis: { google: this.apiKeys.google, 
+                    groq: this.apiKeys.groq, 
+                    openrouter: this.apiKeys.openrouter  } // Limpiamos tus claves de IA
             };
 
             // 2. ALGORITMO ORIGINAL DEL USUARIO (Doble Bóveda)
