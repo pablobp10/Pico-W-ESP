@@ -172,15 +172,23 @@
     </header>
 
     <div id="side-menu" class="glass-element">
-        <div class="side-menu-header">Modo Experto</div>
-        <ul class="side-menu-list">
-            <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
-            <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
-            <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
-            <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
-            <li id="btn-nav-terminal"><i class="fa-solid fa-terminal"></i> Consola HUD</li>
-        </ul>
-        <div class="side-menu-footer">Sistema Ciberfísico Activo</div>
+    
+    <div id="user-profile-menu" style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 10px;">
+        <i class="fa-solid fa-circle-user" style="font-size: 3rem; color: #8b5cf6; margin-bottom: 10px;"></i>
+        <div id="display-username" style="font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Usuario</div>
+        <button id="btn-eliminar-huella" class="btn-action" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #ff6b6b; width: 100%; font-size: 0.85rem; padding: 10px; border-radius: 8px; display: none; cursor: pointer; transition: 0.3s;">
+            <i class="fa-solid fa-fingerprint" style="margin-right: 5px;"></i> Desvincular Huella
+        </button>
+    </div>
+
+    <ul class="side-menu-list">
+        <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
+        <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
+        <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
+        <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
+        <li id="btn-nav-terminal"><i class="fa-solid fa-terminal"></i> Consola HUD</li>
+    </ul>
+
     </div>
 
     <div id="plano-view" class="fullscreen-overlay glass-element" style="display: none;">
