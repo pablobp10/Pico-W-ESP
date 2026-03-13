@@ -164,11 +164,11 @@ export class Core {
 
         const userProfileMenu = document.getElementById('user-profile-menu');
         if(userProfileMenu) {
-            userProfileMenu.onclick = (e) => {
-                if (e.target.closest('#btn-eliminar-huella')) return; // Ignorar si pulsó el botón de borrar
-                // Abrimos el menú de ajustes de la barra superior
+            userProfileMenu.onclick = () => {
+                // Ocultamos el menú lateral
                 document.getElementById('side-menu').classList.remove('open');
-                document.getElementById('settings-menu').classList.add('open');
+                // Abrimos la nueva ventana de ajustes
+                this.abrirAjustesUsuario();
                 this.vibra("tick");
             };
         }
@@ -1077,6 +1077,48 @@ export class Core {
         
         // Mostrar el botón de borrar en el menú del usuario si hay huella
         if (btnEliminarHuella) btnEliminarHuella.style.display = tieneHuella ? "block" : "none";
+    }
+
+    abrirAjustesUsuario() {
+        const modal = document.getElementById('user-settings-modal');
+        if(!modal) return;
+
+        // 1. Mostrar la ventana
+        modal.style.display = 'flex';
+
+        // 2. Botón para cerrar la ventana
+        document.getElementById('btn-close-user-settings').onclick = () => {
+            modal.style.display = 'none';
+        };
+
+        // 3. Activar el botón de Desvincular Huella (ahora vive dentro del modal)
+        const btnEliminarHuella = document.getElementById('btn-eliminar-huella-modal');
+        const tieneHuella = localStorage.getItem('pico_huella_token');
+        
+        if (btnEliminarHuella) {
+            btnEliminarHuella.style.display = tieneHuella ? "block" : "none"; // Solo se muestra si hay huella
+            
+            btnEliminarHuella.onclick = () => {
+                localStorage.removeItem('pico_huella_token');
+                localStorage.removeItem('pico_bio_id');
+                this.actualizarUIHuella();
+                this.notificar("Huella desvinculada del dispositivo", "🗑️");
+                btnEliminarHuella.style.display = "none"; // Lo ocultamos al borrar
+            };
+        }
+
+        // 4. Botón de Guardar Perfil (Por ahora simulamos el guardado hasta conectar Supabase)
+        const btnSave = document.getElementById('btn-save-user-settings');
+        btnSave.onclick = () => {
+            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            
+            // Simulación de carga de 1 segundo
+            setTimeout(() => {
+                this.notificar("Ajustes preparados para Supabase", "✅");
+                modal.style.display = 'none';
+                btnSave.innerHTML = 'GUARDAR PERFIL';
+            }, 1000);
+        };
     }
     
     ejecutarComandoLocal(app, accion) {
