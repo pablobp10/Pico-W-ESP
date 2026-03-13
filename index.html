@@ -129,12 +129,111 @@
         </div>
 
         <ul class="side-menu-list">
+            <li id="btn-nav-plaza" style="color: var(--primary); font-weight: bold; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 15px; margin-bottom: 10px;">
+                <i class="fa-solid fa-users-viewfinder" style="font-size: 1.2rem; margin-right: 10px;"></i> Plaza Social
+            </li>
             <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
             <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
             <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
             <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
             <li id="btn-nav-terminal"><i class="fa-solid fa-terminal"></i> Consola HUD</li>
         </ul>
+    </div>
+        <div id="plaza-view" class="fullscreen-overlay glass-element" style="display: none;">
+        
+        <div class="overlay-header">
+            <h2><i class="fa-solid fa-users-viewfinder" style="color: var(--primary); margin-right: 10px;"></i> Plaza Social</h2>
+            <button class="close-btn" onclick="document.getElementById('plaza-view').style.display='none'">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="plaza-container" style="padding: 20px; overflow-y: auto; height: calc(100% - 70px); box-sizing: border-box; scrollbar-width: none;">
+            
+            <div id="plaza-section-requests" style="margin-bottom: 30px;">
+                <h3 style="font-size: 0.8rem; color: #ff9f0a; border-bottom: 1px solid rgba(255, 159, 10, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-bell fa-shake"></i> SOLICITUDES ENTRANTE
+                </h3>
+                
+                <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 159, 10, 0.4); background: rgba(255, 159, 10, 0.05);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative;">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Laura" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid #ff9f0a;">
+                            <span style="position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; background: #32d74b; border-radius: 50%; border: 2px solid var(--bg);"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">Laura Martínez</span>
+                            <span style="font-size: 0.75rem; color: #ff9f0a; font-weight: bold;">Quiere conectar contigo</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-action" style="background: rgba(50, 215, 75, 0.2); color: #32d74b; border: 1px solid rgba(50, 215, 75, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem;"><i class="fa-solid fa-check"></i></button>
+                        <button class="btn-action" style="background: rgba(255, 69, 58, 0.2); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="plaza-section-friends" style="margin-bottom: 30px;">
+                <h3 style="font-size: 0.8rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-group"></i> TUS CONEXIONES
+                </h3>
+                
+                <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative;">
+                            <i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: #32d74b; border-radius: 50%; border: 2px solid var(--bg); box-shadow: 0 0 8px #32d74b;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">Álex (Hermano)</span>
+                            <span style="font-size: 0.75rem; color: #32d74b;">Online en Salón</span>
+                        </div>
+                    </div>
+                    <div style="color: var(--primary); font-size: 1.2rem; opacity: 0.5; padding-right: 10px;">
+                        <i class="fa-solid fa-handshake"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div id="plaza-section-others" style="margin-bottom: 30px;">
+                <h3 style="font-size: 0.8rem; color: var(--text-sec); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-globe"></i> COMUNIDAD PICO
+                </h3>
+                
+                <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative;">
+                            <i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #555;"></i>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: #555; border-radius: 50%; border: 2px solid var(--bg);"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: bold; color: var(--text-main); font-size: 1rem;">Carlos Gómez</span>
+                            <span style="font-size: 0.75rem; color: var(--text-sec);">Desconectado</span>
+                        </div>
+                    </div>
+                    <button class="btn-action" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.4); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-user-plus"></i> Conectar
+                    </button>
+                </div>
+                
+                <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.05); opacity: 0.7;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative;">
+                            <i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #555;"></i>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: #555; border-radius: 50%; border: 2px solid var(--bg);"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: bold; color: var(--text-main); font-size: 1rem;">Marta (Invitada)</span>
+                            <span style="font-size: 0.75rem; color: var(--text-sec);">Desconectado</span>
+                        </div>
+                    </div>
+                    <button class="btn-action" disabled style="background: transparent; color: var(--text-sec); border: 1px solid rgba(255, 255, 255, 0.2); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: not-allowed;">
+                        <i class="fa-solid fa-clock"></i> Pendiente
+                    </button>
+                </div>
+
+            </div>
+        </div>
     </div>
 
     <div class="filter-bar" id="filter-bar">
