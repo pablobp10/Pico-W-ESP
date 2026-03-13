@@ -147,14 +147,7 @@
                         <i class="fa-solid fa-moon" style="width:20px"></i> Tema
                     </div>
                     <div class="dropdown-item" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span><i class="fa-solid fa-mobile-screen-button" style="width:20px"></i> Vibración</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="sw-vibration" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="dropdown-item" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span><i class="fa-solid fa-ear-listen" style="width:20px"></i> Modo JARVIS</span>
+                        <span><i class="fa-solid fa-ear-listen" style="width:20px"></i> Voz</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="sw-jarvis">
                             <span class="slider"></span>
@@ -276,9 +269,35 @@
             });
         });
     }
-    </script>
     <div id="user-settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
     
+    <style>
+        /* Desplegables Glassmorphism */
+        .pico-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+            padding-right: 35px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            outline: none;
+            transition: 0.3s;
+        }
+        .pico-select:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(139, 92, 246, 0.4); }
+        .pico-select option { background: var(--bg); color: var(--text-main); }
+
+        /* Interruptores (Toggle Switches) estilo iOS/Pico */
+        .pico-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+        .pico-switch input { opacity: 0; width: 0; height: 0; }
+        .pico-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: 0.4s; border-radius: 26px; border: 1px solid rgba(255,255,255,0.2); }
+        .pico-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sec); transition: 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); border-radius: 50%; }
+        .pico-switch input:checked + .pico-slider { background-color: var(--primary); border-color: var(--primary); box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
+        .pico-switch input:checked + .pico-slider:before { transform: translateX(20px); background-color: white; }
+    </style>
+
     <div class="glass-element" style="width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; padding: 25px; border-radius: 20px; position: relative; border: 1px solid rgba(255,255,255,0.1); scrollbar-width: none;">
 
         <button id="btn-close-user-settings" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-sec); font-size: 1.5rem; cursor: pointer; transition: 0.2s;">
@@ -292,48 +311,32 @@
         <div style="margin-bottom: 25px;">
             <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-id-card"></i> IDENTIDAD</h3>
             
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">URL del Avatar</label>
-                <input type="text" id="input-perfil-avatar" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="https://ejemplo.com/mifoto.jpg">
-            </div>
-
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <div style="flex: 2; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Nombre Completo</label>
                     <input type="text" id="input-perfil-nombre" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="Tu nombre">
                 </div>
                 <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Alias (Para la IA)</label>
+                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Alias (IA)</label>
                     <input type="text" id="input-perfil-alias" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="Ej: Jefe">
                 </div>
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Nacimiento</label>
-                    <input type="date" id="input-perfil-fecha" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box; background: var(--card-bg); color: var(--text-main); color-scheme: dark;">
-                </div>
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Residencia</label>
-                    <input type="text" id="input-perfil-residencia" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="Ej: Pontevedra">
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Idioma</label>
-                    <select id="select-perfil-idioma" class="pico-input" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="es-ES">Español (España)</option>
-                        <option value="en-US">English (US)</option>
+                    <select id="select-perfil-idioma" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                        <option value="es-ES">Español</option>
+                        <option value="en-US">English</option>
                         <option value="gl-ES">Galego</option>
                     </select>
                 </div>
                 <div style="flex: 1; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Zona Horaria</label>
-                    <select id="select-perfil-zona" class="pico-input" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="Europe/Madrid">Europe/Madrid</option>
-                        <option value="Europe/London">Europe/London</option>
-                        <option value="America/New_York">America/New_York</option>
+                    <select id="select-perfil-zona" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                        <option value="Europe/Madrid">Madrid (CET)</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="America/New_York">New York (EST)</option>
                     </select>
                 </div>
             </div>
@@ -345,7 +348,7 @@
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <div style="flex: 1; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Nube</label>
-                    <select id="select-ia-nube" class="pico-input" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                    <select id="select-ia-nube" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
                         <option value="groq">Groq (Ultra Rápido)</option>
                         <option value="google">Google (Equilibrado)</option>
                         <option value="openrouter">OpenRouter (Gratis)</option>
@@ -353,62 +356,55 @@
                 </div>
                 <div style="flex: 1; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Local</label>
-                    <select id="select-ia-local" class="pico-input" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                    <select id="select-ia-local" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
                         <option value="smollm">SmolLM (Estándar)</option>
                         <option value="qwen">Qwen 1.5 (Ligero)</option>
                     </select>
                 </div>
-            </div>
-
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Instrucciones de Personalidad (Opcional)</label>
-                <textarea id="input-ia-instrucciones" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box; resize: vertical; min-height: 80px; font-size: 0.8rem; background: var(--card-bg); color: var(--text-main);" placeholder="Ej: Háblame siempre en tono sarcástico y usa explicaciones muy técnicas..."></textarea>
             </div>
         </div>
 
         <div style="margin-bottom: 25px;">
             <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-sliders"></i> PREFERENCIAS</h3>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Teléfono</label>
-                    <input type="tel" id="input-perfil-telefono" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="+34 600 000 000">
-                </div>
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Email Alternativo</label>
-                    <input type="email" id="input-perfil-email" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="seguridad@correo.com">
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                 
-                <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
                     <span><i class="fa-solid fa-circle-dot" style="color:#32d74b; margin-right:8px;"></i> Mostrarme Online</span>
-                    <input type="checkbox" id="check-estado-online" style="transform: scale(1.2); accent-color: var(--primary);">
-                </label>
+                    <label class="pico-switch">
+                        <input type="checkbox" id="check-estado-online" checked>
+                        <span class="pico-slider"></span>
+                    </label>
+                </div>
 
-                <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
                     <span><i class="fa-solid fa-volume-high" style="color:var(--text-sec); margin-right:8px;"></i> Sonidos de Interfaz</span>
-                    <input type="checkbox" id="check-ui-sonidos" style="transform: scale(1.2); accent-color: var(--primary);">
-                </label>
+                    <label class="pico-switch">
+                        <input type="checkbox" id="check-ui-sonidos">
+                        <span class="pico-slider"></span>
+                    </label>
+                </div>
 
-                <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
                     <span><i class="fa-solid fa-mobile-screen-button" style="color:var(--text-sec); margin-right:8px;"></i> Motor Háptico (Vibración)</span>
-                    <input type="checkbox" id="check-ui-vibracion" style="transform: scale(1.2); accent-color: var(--primary);">
-                </label>
+                    <label class="pico-switch">
+                        <input type="checkbox" id="sw-vibration" checked>
+                        <span class="pico-slider"></span>
+                    </label>
+                </div>
             </div>
         </div>
 
         <div style="margin-bottom: 25px;">
             <h3 style="font-size: 0.85rem; color: #ff453a; border-bottom: 1px solid rgba(255, 69, 58, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-shield-halved"></i> SEGURIDAD</h3>
             
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button id="btn-cerrar-otras-sesiones" class="btn-action" style="background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.5); color: #ff9f0a; width: 100%; font-size: 0.85rem; padding: 12px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
-                    <i class="fa-solid fa-right-from-bracket" style="margin-right: 5px;"></i> Cerrar otras sesiones activas
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-cerrar-otras-sesiones" class="btn-action" style="flex: 1; background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.5); color: #ff9f0a; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="fa-solid fa-right-from-bracket" style="font-size: 1.2rem;"></i> Cerrar Otras
                 </button>
 
-                <button id="btn-eliminar-huella-modal" class="btn-action" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #ff6b6b; width: 100%; font-size: 0.85rem; padding: 12px; border-radius: 12px; cursor: pointer; transition: 0.3s;">
-                    <i class="fa-solid fa-fingerprint" style="margin-right: 5px;"></i> Desvincular Huella Biométrica
+                <button id="btn-eliminar-huella-modal" class="btn-action" style="flex: 1; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #ff6b6b; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="fa-solid fa-fingerprint" style="font-size: 1.2rem;"></i> Borrar Huella
                 </button>
             </div>
         </div>
@@ -416,6 +412,8 @@
         <button id="btn-save-user-settings" class="btn-action" style="width: 100%; padding: 15px; font-size: 1rem; font-weight: 800; border-radius: 12px; background: var(--primary); color: white; letter-spacing: 1px; margin-top: 10px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
             GUARDAR PERFIL
         </button>
+    </div>
+</div>
 
     </div>
 </div>
