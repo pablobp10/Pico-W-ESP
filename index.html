@@ -17,77 +17,41 @@
 <script>
     (function() {
         const logs = [];
-        
-        // Dibuja la consola cuando el HTML está listo
         window.addEventListener('DOMContentLoaded', () => {
             document.body.insertAdjacentHTML('beforeend', `
                 <div id="mobile-dev-console" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); font-family:monospace; font-size:12px; z-index:99999; padding:40px 10px 10px 10px; box-sizing:border-box; overflow-y:auto; backdrop-filter:blur(5px);">
-                    
                     <div style="position:fixed; top:10px; right:10px; display:flex; gap:10px; z-index:100000;">
                         <button onclick="
-                            if(confirm('¿⚠️ Formatear toda la memoria (Caché, SW y LocalStorage)?')) {
-                                localStorage.clear();
-                                sessionStorage.clear();
-                                if('serviceWorker' in navigator) {
-                                    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
-                                }
+                            if(confirm('¿⚠️ Formatear toda la memoria?')) {
+                                localStorage.clear(); sessionStorage.clear();
+                                if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
                                 caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
-                                alert('Sistema purgado. Reiniciando de fábrica...');
                                 window.location.reload();
                             }
-                        " style="background:#ff9f0a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.3); cursor:pointer;">💣 PURGAR</button>
-                        
-                        <button onclick="document.getElementById('mobile-dev-console').style.display='none'" style="background:#ff453a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.3); cursor:pointer;">CERRAR</button>
+                        " style="background:#ff9f0a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;">💣 PURGAR</button>
+                        <button onclick="document.getElementById('mobile-dev-console').style.display='none'" style="background:#ff453a; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;">CERRAR</button>
                     </div>
-
-                    <h3 style="color:#32d74b; margin-top:0; border-bottom:1px solid #333; padding-bottom:10px;">>_ Terminal de Depuración</h3>
+                    <h3 style="color:#32d74b; margin-top:0; border-bottom:1px solid #333; padding-bottom:10px;">>_ Terminal</h3>
                     <div id="mobile-dev-logs"></div>
                 </div>
-                <button onclick="document.getElementById('mobile-dev-console').style.display='block'" style="position:fixed; bottom:20px; right:20px; background:#1c1c1e; border:1px solid #333; color:white; padding:12px; border-radius:50%; z-index:99998; box-shadow:0 4px 10px rgba(0,0,0,0.5);">🐛</button>
+                <button onclick="document.getElementById('mobile-dev-console').style.display='block'" style="position:fixed; bottom:20px; right:20px; background:#1c1c1e; border:1px solid #333; color:white; padding:12px; border-radius:50%; z-index:99998;">🐛</button>
             `);
-            // Vuelca los logs que ocurrieron antes de que el DOM cargara
             const logContainer = document.getElementById('mobile-dev-logs');
             logs.forEach(l => logContainer.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${l}</div>`);
         });
         
-        // Función para guardar e imprimir logs
         window.saveLog = function (msg, color) {
             const str = `<span style="color:${color}">${msg}</span>`;
             logs.push(str);
             const container = document.getElementById('mobile-dev-logs');
-            if (container) {
-                container.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${str}</div>`;
-                container.parentElement.scrollTop = container.parentElement.scrollHeight; // Auto-scroll
-            }
+            if (container) { container.innerHTML += `<div style="margin-bottom:5px; border-bottom:1px solid #222; padding-bottom:5px; word-wrap:break-word;">${str}</div>`; container.parentElement.scrollTop = container.parentElement.scrollHeight; }
         }
-
-        // Secuestro de los métodos originales de la consola
         const oLog = console.log, oErr = console.error, oWarn = console.warn;
-        
-        console.log = function(...a) { 
-            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
-            saveLog(msg, "#ffffff"); oLog.apply(console, a); 
-        };
-        console.warn = function(...a) { 
-            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
-            saveLog(msg, "#ffcc00"); oWarn.apply(console, a); 
-        };
-        console.error = function(...a) { 
-            const msg = a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" ");
-            saveLog(msg, "#ff453a"); oErr.apply(console, a); 
-        };
-
-        // 🚨 EL CAZADOR DE ERRORES DE SINTAXIS
-        window.onerror = function(msg, url, line, col, error) {
-            const archivo = url.split('/').pop();
-            saveLog(`💥 ERROR CRÍTICO: ${msg}<br><span style="color:#8e8e93">Archivo: ${archivo} | Línea: ${line}</span>`, "#ff453a");
-            return false;
-        };
-
-        // Atrapa promesas fallidas (ej: Fetch errors)
-        window.onunhandledrejection = function(e) {
-            saveLog(`🌐 PROMISE REJECTION: ${e.reason}`, "#ff453a");
-        };
+        console.log = function(...a) { saveLog(a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" "), "#ffffff"); oLog.apply(console, a); };
+        console.warn = function(...a) { saveLog(a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" "), "#ffcc00"); oWarn.apply(console, a); };
+        console.error = function(...a) { saveLog(a.map(item => typeof item === 'object' ? JSON.stringify(item) : item).join(" "), "#ff453a"); oErr.apply(console, a); };
+        window.onerror = function(msg, url, line) { saveLog(`💥 ERROR: ${msg}<br><span style="color:#8e8e93">Archivo: ${url.split('/').pop()} | Línea: ${line}</span>`, "#ff453a"); return false; };
+        window.onunhandledrejection = function(e) { saveLog(`🌐 PROMISE REJECTION: ${e.reason}`, "#ff453a"); };
     })();
 </script>
     
@@ -98,7 +62,6 @@
             <h2>🔐 Pico OS </h2>
             <input type="text" id="user-input" placeholder="Usuario">
             <input type="password" id="pass-input" placeholder="Contraseña o PIN">
-            
             <input type="password" id="pass2-input" placeholder="Repetir Contraseña" style="display:none; transition: all 0.3s ease;">
             
             <div style="display: flex; gap: 10px; width: 100%; max-width: 300px; margin-top: 20px;">
@@ -112,10 +75,10 @@
             <div style="margin-top: 15px; text-align: center;">
                 <a href="#" id="link-toggle-register" style="color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: bold;">Crear usuario nuevo</a>
             </div>
-            
             <p id="error-msg" style="color:red; display:none; margin-top:10px; font-size:0.9rem">Credenciales inválidas</p>
         </div>
     </div>
+
     <header>
         <div class="header-left">
             <h1 class="pico-os-title" style="cursor: pointer;">Pico OS</h1>
@@ -124,9 +87,7 @@
                 <span id="mqtt-dot" class="dot red"></span>
                 <span id="current-broker-name">Offline</span>
                 <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; opacity:0.5"></i>
-                
-                <div class="custom-dropdown" id="broker-menu">
-                </div>
+                <div class="custom-dropdown" id="broker-menu"></div>
             </div>
 
             <div id="pico-status-container" class="pico-status" style="margin-left: 10px; cursor:default">
@@ -147,7 +108,7 @@
                         <i class="fa-solid fa-moon" style="width:20px"></i> Tema
                     </div>
                     <div class="dropdown-item" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span><i class="fa-solid fa-ear-listen" style="width:20px"></i> Voz</span>
+                        <span><i class="fa-solid fa-ear-listen" style="width:20px"></i> Modo JARVIS</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="sw-jarvis">
                             <span class="slider"></span>
@@ -162,82 +123,20 @@
     </header>
 
     <div id="side-menu" class="glass-element">
-    
-    <div id="user-profile-menu" style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 10px;">
-        <i class="fa-solid fa-circle-user" style="font-size: 3rem; color: #8b5cf6; margin-bottom: 10px;"></i>
-        <div id="display-username" style="font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Usuario</div>
+        <div id="user-profile-menu" style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 10px; cursor: pointer;">
+            <i class="fa-solid fa-circle-user" style="font-size: 3rem; color: #8b5cf6; margin-bottom: 10px;"></i>
+            <div id="display-username" style="font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Usuario</div>
+        </div>
+
+        <ul class="side-menu-list">
+            <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
+            <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
+            <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
+            <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
+            <li id="btn-nav-terminal"><i class="fa-solid fa-terminal"></i> Consola HUD</li>
+        </ul>
     </div>
 
-    <ul class="side-menu-list">
-        <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
-        <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
-        <li id="btn-nav-nfc"><i class="fa-solid fa-nfc-symbol"></i> Lector NFC</li>
-        <li id="btn-nav-radar"><i class="fa-brands fa-bluetooth"></i> Radar Proximidad</li>
-        <li id="btn-nav-terminal"><i class="fa-solid fa-terminal"></i> Consola HUD</li>
-    </ul>
-
-    </div>
-
-    <div id="plano-view" class="fullscreen-overlay glass-element" style="display: none;">
-        <div class="overlay-header">
-            <h2>Constructor Espacial 2D</h2>
-            <button class="close-btn" onclick="document.getElementById('plano-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="plano-container">
-            
-            <div class="builder-toolbar">
-                <button class="build-tool active" data-type="floor">⬜ Suelo</button>
-                <button class="build-tool" data-type="wall">⬛ Pared</button>
-                <button class="build-tool" data-type="door">🚪 Puerta</button>
-                <button class="build-tool" data-type="window">🪟 Ventana</button>
-                <button class="build-tool" data-type="erase">🧽 Borrar</button>
-                <div style="flex-grow:1"></div>
-                <button class="btn-action" id="btn-clear-grid" style="width: auto; margin:0; background: #ff453a; padding: 8px 15px;"><i class="fa-solid fa-trash"></i></button>
-            </div>
-
-            <div id="plano-workspace" class="plano-workspace">
-                <div id="plano-grid" class="plano-grid"></div>
-                
-                <div class="plano-pin" id="pin-led" style="top: 30%; left: 40%;"><i class="fa-solid fa-lightbulb"></i> LED</div>
-                <div class="plano-pin" id="pin-temp" style="top: 60%; left: 60%;"><i class="fa-solid fa-temperature-half"></i> Sensores</div>
-            </div>
-            
-        </div>
-    </div>
-
-    <div id="macros-view" class="fullscreen-overlay glass-element" style="display: none;">
-        <div class="overlay-header">
-            <h2>Compilador Semántico (IA)</h2>
-            <button class="close-btn" onclick="document.getElementById('macros-view').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="plano-container" style="padding: 20px; overflow-y: auto;">
-            
-            <div class="macro-builder">
-                <h3>Crear Nuevo Atajo</h3>
-                <div class="macro-flex-group" style="align-items: stretch;">
-                    
-                    <div style="flex: 1; min-width: 250px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px;">
-                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold;">Disparador (Atajo)</span>
-                        <button id="btn-record-key" class="btn-action" style="background: var(--card-bg); color: var(--primary); border: 1px solid var(--primary); margin: 0;">Presiona para Grabar</button>
-                        <span id="recorded-key-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">Sin asignar</span>
-                    </div>
-
-                    <div style="flex: 2; min-width: 250px; display: flex; flex-direction: column; gap: 10px;">
-                        <span style="font-size: 0.8rem; color: var(--text-sec); text-transform: uppercase; font-weight: bold; margin-left: 5px;">Acción (Lenguaje Natural)</span>
-                        <textarea id="macro-ai-prompt" placeholder="Ej: Apaga la luz principal, enciende el radar y activa el pomodoro a 25 mins..." style="flex-grow: 1; min-height: 80px; resize: none; border-radius: 8px; border: 1px solid var(--border); padding: 10px; background: var(--bg); color: var(--text-main); font-family: inherit;"></textarea>
-                        <button id="btn-compile-macro" class="btn-action" style="margin: 0;"><i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar</button>
-                    </div>
-
-                </div>
-            </div>
-
-            <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Atajos Activos</h3>
-            <ul id="macro-list" class="shopping-list">
-                <div id="macro-empty-msg" style="text-align:center; color:var(--text-sec); margin-top:20px; font-size:0.9rem;">No hay atajos compilados.</div>
-            </ul>
-        </div>
-    </div>
-    
     <div class="filter-bar" id="filter-bar">
         <button class="filter-pill active" data-filter="all">Todos</button>
         <button class="filter-pill" data-filter="luces">Luces</button>
@@ -253,169 +152,120 @@
     </div>
     
     <div class="grid" id="dashboard-grid"></div>
-
     <div class="toast-container" id="toast-area"></div>
-    
+
+    <div id="user-settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+        <style>
+            .pico-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; padding-right: 35px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; outline: none; transition: 0.3s; }
+            .pico-select:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(139, 92, 246, 0.4); }
+            .pico-select option { background: var(--bg); color: var(--text-main); }
+            .pico-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+            .pico-switch input { opacity: 0; width: 0; height: 0; }
+            .pico-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: 0.4s; border-radius: 26px; border: 1px solid rgba(255,255,255,0.2); }
+            .pico-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sec); transition: 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); border-radius: 50%; }
+            .pico-switch input:checked + .pico-slider { background-color: var(--primary); border-color: var(--primary); box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
+            .pico-switch input:checked + .pico-slider:before { transform: translateX(20px); background-color: white; }
+        </style>
+
+        <div class="glass-element" style="width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; padding: 25px; border-radius: 20px; position: relative; border: 1px solid rgba(255,255,255,0.1); scrollbar-width: none;">
+            <button id="btn-close-user-settings" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-sec); font-size: 1.5rem; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-xmark"></i></button>
+            <h2 style="margin-top: 0; margin-bottom: 25px; font-size: 1.4rem; color: var(--text-main); text-align: center;"><i class="fa-solid fa-user-astronaut" style="color: var(--primary); margin-right: 8px;"></i> Mi Perfil</h2>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-id-card"></i> IDENTIDAD</h3>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">URL del Avatar</label>
+                    <input type="text" id="input-perfil-avatar" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="https://ejemplo.com/mifoto.jpg">
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="flex: 2; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Nombre Completo</label>
+                        <input type="text" id="input-perfil-nombre" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Alias (IA)</label>
+                        <input type="text" id="input-perfil-alias" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="flex: 1; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Idioma</label>
+                        <select id="select-perfil-idioma" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                            <option value="es-ES">Español</option>
+                            <option value="en-US">English</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Zona Horaria</label>
+                        <select id="select-perfil-zona" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                            <option value="Europe/Madrid">Madrid (CET)</option>
+                            <option value="America/New_York">New York (EST)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-network-wired"></i> CEREBRO IA</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="flex: 1; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Nube</label>
+                        <select id="select-ia-nube" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                            <option value="groq">Groq (Ultra Rápido)</option>
+                            <option value="google">Google (Equilibrado)</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; text-align: left;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Local</label>
+                        <select id="select-ia-local" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
+                            <option value="smollm">SmolLM (Estándar)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-sliders"></i> PREFERENCIAS</h3>
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
+                        <span><i class="fa-solid fa-circle-dot" style="color:#32d74b; margin-right:8px;"></i> Mostrarme Online</span>
+                        <label class="pico-switch"><input type="checkbox" id="check-estado-online" checked><span class="pico-slider"></span></label>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
+                        <span><i class="fa-solid fa-volume-high" style="color:var(--text-sec); margin-right:8px;"></i> Sonidos de Interfaz</span>
+                        <label class="pico-switch"><input type="checkbox" id="check-ui-sonidos"><span class="pico-slider"></span></label>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
+                        <span><i class="fa-solid fa-mobile-screen-button" style="color:var(--text-sec); margin-right:8px;"></i> Motor Háptico (Vibración)</span>
+                        <label class="pico-switch"><input type="checkbox" id="sw-vibration" checked><span class="pico-slider"></span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 0.85rem; color: #ff453a; border-bottom: 1px solid rgba(255, 69, 58, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-shield-halved"></i> SEGURIDAD</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-cerrar-otras-sesiones" class="btn-action" style="flex: 1; background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.5); color: #ff9f0a; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                        <i class="fa-solid fa-right-from-bracket" style="font-size: 1.2rem;"></i> Cerrar Otras
+                    </button>
+                    <button id="btn-eliminar-huella-modal" class="btn-action" style="flex: 1; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #ff6b6b; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                        <i class="fa-solid fa-fingerprint" style="font-size: 1.2rem;"></i> Borrar Huella
+                    </button>
+                </div>
+            </div>
+
+            <button id="btn-save-user-settings" class="btn-action" style="width: 100%; padding: 15px; font-size: 1rem; font-weight: 800; border-radius: 12px; background: var(--primary); color: white; letter-spacing: 1px; margin-top: 10px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">GUARDAR PERFIL</button>
+        </div>
+    </div>
+
     <script type="module">
         import { Core } from './core.js';
         window.App = new Core();
     </script>
-
     <script>
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then(() => {
-                console.log('Motor PWA activado.');
-            });
-        });
+        window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
     }
-    <div id="user-settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
-    
-    <style>
-        /* Desplegables Glassmorphism */
-        .pico-select {
-            appearance: none;
-            -webkit-appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 16px;
-            padding-right: 35px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            outline: none;
-            transition: 0.3s;
-        }
-        .pico-select:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(139, 92, 246, 0.4); }
-        .pico-select option { background: var(--bg); color: var(--text-main); }
-
-        /* Interruptores (Toggle Switches) estilo iOS/Pico */
-        .pico-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
-        .pico-switch input { opacity: 0; width: 0; height: 0; }
-        .pico-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: 0.4s; border-radius: 26px; border: 1px solid rgba(255,255,255,0.2); }
-        .pico-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-sec); transition: 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); border-radius: 50%; }
-        .pico-switch input:checked + .pico-slider { background-color: var(--primary); border-color: var(--primary); box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
-        .pico-switch input:checked + .pico-slider:before { transform: translateX(20px); background-color: white; }
-    </style>
-
-    <div class="glass-element" style="width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; padding: 25px; border-radius: 20px; position: relative; border: 1px solid rgba(255,255,255,0.1); scrollbar-width: none;">
-
-        <button id="btn-close-user-settings" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-sec); font-size: 1.5rem; cursor: pointer; transition: 0.2s;">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-
-        <h2 style="margin-top: 0; margin-bottom: 25px; font-size: 1.4rem; color: var(--text-main); text-align: center;">
-            <i class="fa-solid fa-user-astronaut" style="color: var(--primary); margin-right: 8px;"></i> Mi Perfil
-        </h2>
-
-        <div style="margin-bottom: 25px;">
-            <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-id-card"></i> IDENTIDAD</h3>
-            
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 2; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Nombre Completo</label>
-                    <input type="text" id="input-perfil-nombre" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="Tu nombre">
-                </div>
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Alias (IA)</label>
-                    <input type="text" id="input-perfil-alias" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="Ej: Jefe">
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Idioma</label>
-                    <select id="select-perfil-idioma" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="es-ES">Español</option>
-                        <option value="en-US">English</option>
-                        <option value="gl-ES">Galego</option>
-                    </select>
-                </div>
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Zona Horaria</label>
-                    <select id="select-perfil-zona" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="Europe/Madrid">Madrid (CET)</option>
-                        <option value="Europe/London">London (GMT)</option>
-                        <option value="America/New_York">New York (EST)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 25px;">
-            <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-network-wired"></i> CEREBRO IA</h3>
-            
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Nube</label>
-                    <select id="select-ia-nube" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="groq">Groq (Ultra Rápido)</option>
-                        <option value="google">Google (Equilibrado)</option>
-                        <option value="openrouter">OpenRouter (Gratis)</option>
-                    </select>
-                </div>
-                <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Local</label>
-                    <select id="select-ia-local" class="pico-input pico-select" style="width: 100%; margin-top: 5px; background: var(--card-bg); color: var(--text-main); box-sizing: border-box;">
-                        <option value="smollm">SmolLM (Estándar)</option>
-                        <option value="qwen">Qwen 1.5 (Ligero)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 25px;">
-            <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-sliders"></i> PREFERENCIAS</h3>
-            
-            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
-                    <span><i class="fa-solid fa-circle-dot" style="color:#32d74b; margin-right:8px;"></i> Mostrarme Online</span>
-                    <label class="pico-switch">
-                        <input type="checkbox" id="check-estado-online" checked>
-                        <span class="pico-slider"></span>
-                    </label>
-                </div>
-
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
-                    <span><i class="fa-solid fa-volume-high" style="color:var(--text-sec); margin-right:8px;"></i> Sonidos de Interfaz</span>
-                    <label class="pico-switch">
-                        <input type="checkbox" id="check-ui-sonidos">
-                        <span class="pico-slider"></span>
-                    </label>
-                </div>
-
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-main);">
-                    <span><i class="fa-solid fa-mobile-screen-button" style="color:var(--text-sec); margin-right:8px;"></i> Motor Háptico (Vibración)</span>
-                    <label class="pico-switch">
-                        <input type="checkbox" id="sw-vibration" checked>
-                        <span class="pico-slider"></span>
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 25px;">
-            <h3 style="font-size: 0.85rem; color: #ff453a; border-bottom: 1px solid rgba(255, 69, 58, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-shield-halved"></i> SEGURIDAD</h3>
-            
-            <div style="display: flex; gap: 10px;">
-                <button id="btn-cerrar-otras-sesiones" class="btn-action" style="flex: 1; background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.5); color: #ff9f0a; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
-                    <i class="fa-solid fa-right-from-bracket" style="font-size: 1.2rem;"></i> Cerrar Otras
-                </button>
-
-                <button id="btn-eliminar-huella-modal" class="btn-action" style="flex: 1; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #ff6b6b; font-size: 0.8rem; padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
-                    <i class="fa-solid fa-fingerprint" style="font-size: 1.2rem;"></i> Borrar Huella
-                </button>
-            </div>
-        </div>
-
-        <button id="btn-save-user-settings" class="btn-action" style="width: 100%; padding: 15px; font-size: 1rem; font-weight: 800; border-radius: 12px; background: var(--primary); color: white; letter-spacing: 1px; margin-top: 10px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
-            GUARDAR PERFIL
-        </button>
-    </div>
-</div>
-
-    </div>
-</div>
+    </script>
 </body>
 </html>
