@@ -227,20 +227,21 @@ export class Core {
         };
 
         const u = localStorage.getItem("u"), p = localStorage.getItem("p");
+        const loginScreen = document.getElementById('login-screen');
+
         if(u && p) { 
-            // 🆕 Ocultamos la pantalla de login al instante para evitar el parpadeo visual
-            const loginScreen = document.getElementById('login-screen');
-            if (loginScreen) {
-                loginScreen.style.opacity = '0'; 
-                loginScreen.style.pointerEvents = 'none';
-            }
+            // Ya hay sesión: Auto-login inmediato e invisible
             document.getElementById('user-input').value = u;
             document.getElementById('pass-input').value = p;
-            
-            // Ejecutamos el login súper rápido
-            setTimeout(() => { this.login(); }, 50);
+            this.login(); 
+        } else {
+            // No hay sesión: Mostramos la pantalla de login
+            if (loginScreen) {
+                loginScreen.style.display = 'flex';
+                loginScreen.style.opacity = '1';
+                loginScreen.style.pointerEvents = 'auto';
+            }
         }
-
 
         // Activar el Cerebro IA
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
