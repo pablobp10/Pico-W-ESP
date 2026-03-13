@@ -172,6 +172,15 @@ export class Core {
                 this.vibra("tick");
             };
         }
+        
+                const btnPlaza = document.getElementById('btn-nav-plaza');
+        if(btnPlaza) {
+            btnPlaza.onclick = () => {
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('plaza-view').style.display = 'block';
+            };
+        }
+
 
         // --- 3. AJUSTES Y CERRAR SESIÓN ---
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
