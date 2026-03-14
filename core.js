@@ -244,13 +244,16 @@ export class Core {
     // 🛡️ SISTEMA DE LOGIN Y SINCRONIZACIÓN DE PERFIL (V2)
     // ==========================================================
 
-    async login() {
+        async login() {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
 
+        this.logHUD("Iniciando secuencia de Login...", "info");
+        console.log("🔍 [DEBUG LOGIN] 1. Usuario normalizado:", emailAuth);
+
         try {
-            // 1. Huella del dispositivo para el Edge Function
+            // 1. Huella del dispositivo
             let deviceId = localStorage.getItem('pico_device_id');
             if (!deviceId) {
                 deviceId = window.crypto.randomUUID ? window.crypto.randomUUID() : 'dev-' + Date.now();
@@ -258,21 +261,45 @@ export class Core {
             }
             const deviceName = this.esMovil ? "Móvil Web" : "PC Web";
 
-            // 2. Candado del Servidor (Edge Function)
+            console.log("🔍 [DEBUG LOGIN] 2. Payload preparado:", { email: emailAuth, device_id: deviceId, device_name: deviceName });
+            this.logHUD(`Llamando a Edge Function 'login-seguro'...`, "info");
+
+            // 2. Candado del Servidor (Llamada a la API)
+            const tiempoInicio = Date.now();
+            
             const { data, error } = await this.supabase.functions.invoke('login-seguro', {
                 body: { email: emailAuth, password: p, device_id: deviceId, device_name: deviceName }
             });
 
-            if (error || (data && data.error)) {
-                if (data && data.error === 'dispositivo_nuevo') throw new Error("Dispositivo bloqueado. Revisa tu correo.");
-                throw new Error(data?.error || "Credenciales inválidas o servidor caído.");
+            console.log(`🔍 [DEBUG LOGIN] 3. Respuesta recibida en ${Date.now() - tiempoInicio}ms`);
+            console.log("🔍 [DEBUG LOGIN] 4. Data cruda devuelta:", data);
+            console.log("🔍 [DEBUG LOGIN] 5. Error crudo devuelto:", error);
+
+            // Analizamos qué ha fallado exactamente
+            if (error) {
+                console.error("💥 [DEBUG LOGIN] Fallo en la Invocación (CORS o Red):", error);
+                throw new Error(`Fallo de conexión con la función: ${error.message || JSON.stringify(error)}`);
             }
+
+            if (data && data.error) {
+                console.warn("⚠️ [DEBUG LOGIN] La función se ejecutó, pero devolvió un rechazo:", data);
+                if (data.error === 'dispositivo_nuevo') throw new Error("Dispositivo bloqueado. Revisa tu correo.");
+                throw new Error(data.message || data.error || "Credenciales inválidas.");
+            }
+
+            if (!data || !data.session) {
+                console.error("💥 [DEBUG LOGIN] La función devolvió OK, pero no hay sesión:", data);
+                throw new Error("El servidor no devolvió una sesión válida.");
+            }
+
+            this.logHUD("Sesión concedida. Descargando perfil...", "info");
+            console.log("🔍 [DEBUG LOGIN] 6. Sesión OK. Token recibido.");
 
             // 3. Restaurar sesión oficial
             await this.supabase.auth.setSession(data.session);
             this.usuarioLogueado = data.user;
 
-            // 4. SINCRONIZACIÓN BIDIRECCIONAL Y LECTURA
+            // 4. SINCRONIZACIÓN BIDIRECCIONAL
             const { data: perfilNube, error: dbError } = await this.supabase
                 .from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
 
@@ -284,23 +311,20 @@ export class Core {
             const fechaLocal = localSyncDate ? new Date(localSyncDate).getTime() : 0;
 
             if (fechaNube >= fechaLocal) {
-                // Nube manda -> Descargamos
                 this.perfilDB = perfilNube;
                 localStorage.setItem('pico_perfil_cache', JSON.stringify(perfilNube));
                 localStorage.setItem('pico_last_sync', perfilNube.updated_at);
             } else {
-                // Local manda -> Subimos a Supabase
                 this.perfilDB = JSON.parse(localStorage.getItem('pico_perfil_cache'));
                 await this.guardarPerfilEnNube(this.perfilDB); 
             }
 
-            // Inicializar objeto tarjetas si es nuevo
             if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
 
             this.rol = this.perfilDB.rol;
             this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
 
-            // 5. Aplicar Datos a la UI
+            // 5. Aplicar UI
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
             
@@ -309,7 +333,6 @@ export class Core {
                 if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
             }
 
-            // Cargar Interfaz y Tema
             if(this.perfilDB.interfaz) {
                 if(this.perfilDB.interfaz.tema) document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
                 if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = this.perfilDB.interfaz.vibracion !== false;
@@ -325,19 +348,27 @@ export class Core {
                 document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             }
             
-            this.renderGrid(); // Repinta con los tamaños y orden descargados
+            this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
+            this.logHUD("Login completado con éxito.", "✅");
 
         } catch (error) {  
+            console.error("💥 [DEBUG LOGIN] CATCH FINAL:", error);
+            this.logHUD(`[ERROR]: ${error.message}`, "error");
+            
             document.getElementById('error-msg').innerText = "❌ " + error.message;
             document.getElementById('error-msg').style.display = 'block'; 
+            
             const loginBox = document.querySelector('.login-box');
-            loginBox.classList.remove('error-shake');
-            void loginBox.offsetWidth;
-            loginBox.classList.add('error-shake');
+            if (loginBox) {
+                loginBox.classList.remove('error-shake');
+                void loginBox.offsetWidth;
+                loginBox.classList.add('error-shake');
+            }
         }
     }
+
 
     async guardarPerfilEnNube(datos) {
         if(!this.usuarioLogueado) return false;
