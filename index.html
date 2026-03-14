@@ -142,7 +142,7 @@
         <div id="plaza-view" class="fullscreen-overlay glass-element" style="display: none;">
         
         <div class="overlay-header">
-            <h2><i class="fa-solid fa-users-viewfinder" style="color: var(--primary); margin-right: 10px;"></i> Plaza Social</h2>
+            <h2><i class="fa-solid fa-users-viewfinder" style="color: var(--primary); margin-right: 10px;"></i> Plaza </h2>
             <button class="close-btn" onclick="document.getElementById('plaza-view').style.display='none'">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -310,7 +310,7 @@
                 </div>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 
                 <div style="flex: 1; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Idioma</label>
@@ -328,21 +328,24 @@
                 </div>
 
                 <div style="flex: 1; text-align: left;">
-                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Zona Horaria</label>
+                    <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Estilo de Interfaz</label>
                     <div class="modal-select-wrapper">
-                        <div class="modal-select-trigger" onclick="toggleModalSelect('drop-zona')">
-                            <span id="label-zona">Madrid (CET)</span>
+                        <div class="modal-select-trigger" onclick="toggleModalSelect('drop-estilo')">
+                            <span id="label-estilo">Pico OS (Cristal)</span>
                             <i class="fa-solid fa-chevron-down" style="color: var(--primary); font-size: 0.7rem;"></i>
                         </div>
-                        <div class="modal-custom-dropdown" id="drop-zona">
-                            <div class="dropdown-item" onclick="selectModalOption('drop-zona', 'select-perfil-zona', 'label-zona', 'Europe/Madrid', 'Madrid (CET)')">Madrid (CET)</div>
-                            <div class="dropdown-item" onclick="selectModalOption('drop-zona', 'select-perfil-zona', 'label-zona', 'America/New_York', 'New York (EST)')">New York (EST)</div>
+                        <div class="modal-custom-dropdown" id="drop-estilo">
+                            <div class="dropdown-item" onclick="selectModalOption('drop-estilo', 'select-perfil-estilo', 'label-estilo', 'pico', 'Pico OS (Cristal)')"><i class="fa-solid fa-microchip" style="margin-right: 8px;"></i> Pico OS (Cristal)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-estilo', 'select-perfil-estilo', 'label-estilo', 'ios', 'Apple iOS')"><i class="fa-brands fa-apple" style="margin-right: 8px;"></i> Apple iOS</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-estilo', 'select-perfil-estilo', 'label-estilo', 'android', 'Android (Material)')"><i class="fa-brands fa-android" style="margin-right: 8px; color: #3DDC84;"></i> Android (Material)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-estilo', 'select-perfil-estilo', 'label-estilo', 'retro', 'Retro (Terminal)')"><i class="fa-solid fa-terminal" style="margin-right: 8px; color: #32d74b;"></i> Retro (Terminal)</div>
                         </div>
-                        <input type="hidden" id="select-perfil-zona" value="Europe/Madrid">
+                        <input type="hidden" id="select-perfil-estilo" value="pico">
                     </div>
                 </div>
 
             </div>
+
         </div>
 
         <div style="margin-bottom: 25px;">
