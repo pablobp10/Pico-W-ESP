@@ -267,33 +267,36 @@ export class Core {
             // 2. Candado del Servidor (Llamada a la API)
             const tiempoInicio = Date.now();
             
-            const { data, error } = await this.supabase.functions.invoke('login-seguro', {
-                body: { email: emailAuth, password: p, device_id: deviceId, device_name: deviceName }
+                        // 2. Candado del Servidor (Llamada a la API A CORAZÓN ABIERTO)
+            this.logHUD("Disparando Rayos X a la función...", "info");
+            
+            const functionUrl = 'https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro';
+            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
+
+            const req = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${anonKey}`
+                },
+                body: JSON.stringify({ email: emailAuth, password: p, device_id: deviceId, device_name: deviceName })
             });
 
-            console.log(`🔍 [DEBUG LOGIN] 3. Respuesta recibida en ${Date.now() - tiempoInicio}ms`);
-            console.log("🔍 [DEBUG LOGIN] 4. Data cruda devuelta:", data);
-            console.log("🔍 [DEBUG LOGIN] 5. Error crudo devuelto:", error);
+            const status = req.status;
+            console.log("🔍 [X-RAY] HTTP STATUS:", status);
+            this.logHUD(`[X-RAY] HTTP STATUS: ${status}`, "info");
 
-            // Analizamos qué ha fallado exactamente
-            if (error) {
-                console.error("💥 [DEBUG LOGIN] Fallo en la Invocación (CORS o Red):", error);
-                throw new Error(`Fallo de conexión con la función: ${error.message || JSON.stringify(error)}`);
+            const rawText = await req.text();
+            console.log("🔍 [X-RAY] RESPUESTA RAW:", rawText);
+            this.logHUD(`[X-RAY] RESPUESTA RAW: ${rawText}`, "info");
+
+            if (!req.ok) {
+                throw new Error(`Servidor rechazó la petición (HTTP ${status}): ${rawText}`);
             }
 
-            if (data && data.error) {
-                console.warn("⚠️ [DEBUG LOGIN] La función se ejecutó, pero devolvió un rechazo:", data);
-                if (data.error === 'dispositivo_nuevo') throw new Error("Dispositivo bloqueado. Revisa tu correo.");
-                throw new Error(data.message || data.error || "Credenciales inválidas.");
-            }
+            // Si llegamos aquí, la petición fue un éxito rotundo
+            const data = JSON.parse(rawText);
 
-            if (!data || !data.session) {
-                console.error("💥 [DEBUG LOGIN] La función devolvió OK, pero no hay sesión:", data);
-                throw new Error("El servidor no devolvió una sesión válida.");
-            }
-
-            this.logHUD("Sesión concedida. Descargando perfil...", "info");
-            console.log("🔍 [DEBUG LOGIN] 6. Sesión OK. Token recibido.");
 
             // 3. Restaurar sesión oficial
             await this.supabase.auth.setSession(data.session);
