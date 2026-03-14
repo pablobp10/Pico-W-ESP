@@ -900,3 +900,101 @@ body.offline-mode .offline-overlay { opacity: 1; pointer-events: auto; }
 .download-info { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: var(--text-main); }
 .progress-bg { background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden; }
 .progress-fill { background: #32d74b; height: 100%; width: 0%; transition: width 0.3s linear; }
+
+/* ==========================================================================
+   🎨 SISTEMA DE TEMAS VISUALES (PICO OS)
+   ========================================================================== */
+
+/* 1. TEMA POR DEFECTO: PICO OS (CRISTAL / GLASSMORPHISM) 
+   (Este es el que ya tienes, oscuro con desenfoque) */
+[data-theme="pico"] {
+    --bg: #000000;
+    --card-bg: rgba(30, 30, 35, 0.6);
+    --primary: #8b5cf6; /* Morado Pico */
+    --text-main: #ffffff;
+    --text-sec: #8e8e93;
+    --border: rgba(255, 255, 255, 0.1);
+    --font-main: system-ui, -apple-system, sans-serif;
+    --card-radius: 20px;
+    --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    --card-backdrop: blur(15px);
+}
+
+/* 2. TEMA: APPLE IOS (Limpio, brillante, colores nativos de Apple) */
+[data-theme="ios"] {
+    --bg: #f2f2f7; /* Gris claro típico del fondo de Ajustes de iOS */
+    --card-bg: #ffffff;
+    --primary: #007aff; /* Azul nativo de iOS */
+    --text-main: #000000;
+    --text-sec: #8e8e93;
+    --border: rgba(0, 0, 0, 0.05);
+    --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    --card-radius: 22px; /* Curva más suave de Apple */
+    --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    --card-backdrop: none;
+}
+
+/* Variante Oscura Automática para iOS (Si el sistema operativo está en oscuro) */
+@media (prefers-color-scheme: dark) {
+    [data-theme="ios"] {
+        --bg: #000000;
+        --card-bg: #1c1c1e;
+        --primary: #0a84ff;
+        --text-main: #ffffff;
+        --border: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* 3. TEMA: ANDROID MATERIAL (Material You: Colores pastel, sombras marcadas, esquinas redondeadas) */
+[data-theme="android"] {
+    --bg: #121212;
+    --card-bg: #1e1e1e;
+    --primary: #a8c7fa; /* Azul pastel Google Material */
+    --text-main: #e3e3e3;
+    --text-sec: #c4c7c5;
+    --border: transparent; /* Material no suele usar bordes, usa elevación */
+    --font-main: "Roboto", sans-serif;
+    --card-radius: 28px; /* Curvas muy pronunciadas (Material 3) */
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --card-backdrop: none;
+}
+
+/* 4. TEMA: RETRO TERMINAL (Modo Hacker: Negro puro, verde fosforito, fuente monoespaciada) */
+[data-theme="retro"] {
+    --bg: #000000;
+    --card-bg: #000000;
+    --primary: #00ff00; /* Verde terminal */
+    --text-main: #00ff00;
+    --text-sec: #008800;
+    --border: #00ff00;
+    --font-main: "Courier New", Courier, monospace; /* Fuente de código */
+    --card-radius: 0px; /* Cero curvas, diseño cuadrado de los 80s */
+    --card-shadow: 0 0 10px rgba(0, 255, 0, 0.2); /* Resplandor verde */
+    --card-backdrop: none;
+}
+
+/* ==========================================================================
+   Asegurarnos de que las tarjetas y la fuente usan estas variables
+   ========================================================================== */
+body {
+    background-color: var(--bg);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.card > div {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--card-shadow) !important;
+    backdrop-filter: var(--card-backdrop) !important;
+    -webkit-backdrop-filter: var(--card-backdrop) !important;
+    transition: all 0.4s ease;
+}
+
+/* Ajuste específico para que los botones y textos destaquen con el color primario */
+button, i, .val-text {
+    transition: color 0.4s ease, background-color 0.4s ease;
+}
+
