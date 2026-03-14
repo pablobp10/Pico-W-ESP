@@ -32,19 +32,18 @@ export class Core {
             RelojCard, SeguridadCard, AlmaCard, ColorCard, MedidorCard, QrCard, TestCard, TermostatoCard,
             PlantaCard,EnergiaCard,SintetizadorCard,OCRCard,ConscienciaCard
         ];
-
         this.conf = null;
+        this.perfilDB = null; // Memoria de Supabase
         this.mqtt = null;
         this.rol = "guest";
         this.editMode = false;
         
         // 🚀 CONEXIÓN A LA NUBE SUPABASE
-        const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co'; // Pon tu URL real
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w'; // Pon tu clave anon real
+        const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
         this.supabase = createClient(supabaseUrl, supabaseKey);
         
         this.usuarioLogueado = null;
-        
         this.brokers = [
             { h: "broker.hivemq.com", p: 8884, name: "HiveMQ" },
             { h: "broker.emqx.io", p: 8084, name: "EMQX" }, 
@@ -58,25 +57,21 @@ export class Core {
 
     async arranqueSeguro() {
         await this.inicializarModulos();
-        this.init(); // Ahora sí, arrancamos la UI cuando las librerías existen
+        this.init(); 
     }
 
     async inicializarModulos() {
-        // 1. Diccionario Maestro de Versiones (El radar vigilará todas)
         this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
             "@mlc-ai/web-llm": "0.2.81", 
             "paho-mqtt": "1.0.1",        
             "crypto-js": "4.2.0",
             "sortable": "1.15.0"
         };
-
-        // 2. Inyección de scripts clásicos (Sin la IA)
         this.librerias = {
             crypto: `https://cdnjs.cloudflare.com/ajax/libs/crypto-js/${this.versiones["crypto-js"]}/crypto-js.min.js`,
             mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/mqttws31.min.js`,
             sortable: `https://cdnjs.cloudflare.com/ajax/libs/Sortable/${this.versiones["sortable"]}/Sortable.min.js`
         };
-
         console.log("🚀 Inyectando módulos dinámicos en RAM...");
         
         for (const [nombre, url] of Object.entries(this.librerias)) {
@@ -91,7 +86,6 @@ export class Core {
             }
         }
         console.log("✅ Módulos listos.");
-        
         setTimeout(() => this.buscarActualizacionesSilenciosas(), 10000);
     }
 
@@ -99,8 +93,6 @@ export class Core {
         console.log("📡 Buscando parches en red mundial...");
         let hayNovedades = false;
         const nuevasVersiones = { ...this.versiones };
-
-        // 🛡️ ACTUALIZADO: El radar vigila todo, incluida la IA (ES6)
         for (const pkg of ["crypto-js", "@mlc-ai/web-llm"]) {
             try {
                 const res = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
@@ -144,7 +136,7 @@ export class Core {
         this.iniciarAgenteProactivo();
         this.initBaseDeDatos()
         this.initInterruptorIA();
-        
+
         // --- 1. LOGIN Y HUELLA ---
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
@@ -152,12 +144,12 @@ export class Core {
         const btnHuella = document.getElementById('btn-huella');
         if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
 
-        // --- 2. MENÚ DE USUARIO (Barra Lateral) ---
+        // --- 2. MENÚ DE USUARIO ---
         const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
         if(btnEliminarHuella) btnEliminarHuella.onclick = (e) => {
             e.stopPropagation(); 
             localStorage.removeItem('pico_huella_token');
-            localStorage.removeItem('pico_bio_id'); // ⬅️ NUEVO: Borramos también el ID
+            localStorage.removeItem('pico_bio_id');
             this.actualizarUIHuella();
             this.notificar("Huella desvinculada del dispositivo", "🗑️");
         };
@@ -165,22 +157,19 @@ export class Core {
         const userProfileMenu = document.getElementById('user-profile-menu');
         if(userProfileMenu) {
             userProfileMenu.onclick = () => {
-                // Ocultamos el menú lateral
                 document.getElementById('side-menu').classList.remove('open');
-                // Abrimos la nueva ventana de ajustes
                 this.abrirAjustesUsuario();
                 this.vibra("tick");
             };
         }
         
-                const btnPlaza = document.getElementById('btn-nav-plaza');
+        const btnPlaza = document.getElementById('btn-nav-plaza');
         if(btnPlaza) {
             btnPlaza.onclick = () => {
                 document.getElementById('side-menu').classList.remove('open');
                 document.getElementById('plaza-view').style.display = 'block';
             };
         }
-
 
         // --- 3. AJUSTES Y CERRAR SESIÓN ---
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
@@ -191,9 +180,8 @@ export class Core {
         if(btnLogoutMenu) btnLogoutMenu.onclick = () => this.cerrarSesion();
         if(btnCerrarBarra) btnCerrarBarra.onclick = () => this.cerrarSesion();
 
-        // Refresco visual inicial
         setTimeout(() => this.actualizarUIHuella(), 500);
-        
+
         const swJarvis = document.getElementById('sw-jarvis');
         if (swJarvis) {
             swJarvis.addEventListener('change', (e) => {
@@ -203,17 +191,15 @@ export class Core {
         }
         
         document.querySelectorAll('.filter-pill').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            // Cambiar estilos de los botones
-            document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            // Aplicar filtro y repintar
-            this.filtroActual = e.target.dataset.filter;
-            this.vibra('tick');
-            this.renderGrid(); // Volvemos a pintar la cuadrícula filtrada.
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.filtroActual = e.target.dataset.filter;
+                this.vibra('tick');
+                this.renderGrid(); 
             });
         });
-        
+
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -227,24 +213,18 @@ export class Core {
         };
 
         window.onclick = (e) => {
-            if(!document.getElementById('broker-trigger').contains(e.target)) {
-                brokerMenu.classList.remove('open');
-            }
-            if(!settingsTrigger.contains(e.target)) {
-                settingsMenu.classList.remove('open');
-            }
+            if(!document.getElementById('broker-trigger').contains(e.target)) brokerMenu.classList.remove('open');
+            if(!settingsTrigger.contains(e.target)) settingsMenu.classList.remove('open');
         };
 
         const u = localStorage.getItem("u"), p = localStorage.getItem("p");
         const loginScreen = document.getElementById('login-screen');
 
         if(u && p) { 
-            // Ya hay sesión: Auto-login inmediato e invisible
             document.getElementById('user-input').value = u;
             document.getElementById('pass-input').value = p;
             this.login(); 
         } else {
-            // No hay sesión: Mostramos la pantalla de login
             if (loginScreen) {
                 loginScreen.style.display = 'flex';
                 loginScreen.style.opacity = '1';
@@ -252,60 +232,240 @@ export class Core {
             }
         }
 
-        // Activar el Cerebro IA
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
         document.getElementById('ai-input').onkeypress = (e) => { if(e.key==='Enter') this.procesarComandoIA(); };
         
-        // Activar control offline del navegador
         window.addEventListener('online', () => this.setNetworkStatus(true));
         this.sincronizarColaOffline();
         window.addEventListener('offline', () => this.setNetworkStatus(false));
     }
 
-    setupBrokerMenu() {
-        const menu = document.getElementById('broker-menu');
-        const current = document.getElementById('current-broker-name');
-        const trigger = document.getElementById('broker-trigger');
-        const settingsMenu = document.getElementById('settings-menu');
-        
-        current.innerText = this.brokers[this.brIdx].name;
-        menu.innerHTML = "";
+    // ==========================================================
+    // 🛡️ SISTEMA DE LOGIN Y SINCRONIZACIÓN DE PERFIL (V2)
+    // ==========================================================
 
-        this.brokers.forEach((b, idx) => {
-            const item = document.createElement('div');
-            item.className = `dropdown-item ${idx === this.brIdx ? 'selected' : ''}`;
-            item.innerText = b.name;
-            item.onclick = () => {
-                this.brIdx = idx;
-                current.innerText = b.name;
-                menu.classList.remove('open');
-                this.setupBrokerMenu(); 
-                
-                this.notificar(`Enrutando servidor a ${b.name}...`, "🔀");
-                
-                // Disparamos la orden al servidor Python
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: b.h }));
+    async login() {
+        const u = document.getElementById('user-input').value.trim();
+        const p = document.getElementById('pass-input').value.trim();
+        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
+
+        try {
+            // 1. Huella del dispositivo para el Edge Function
+            let deviceId = localStorage.getItem('pico_device_id');
+            if (!deviceId) {
+                deviceId = window.crypto.randomUUID ? window.crypto.randomUUID() : 'dev-' + Date.now();
+                localStorage.setItem('pico_device_id', deviceId);
+            }
+            const deviceName = this.esMovil ? "Móvil Web" : "PC Web";
+
+            // 2. Candado del Servidor (Edge Function)
+            const { data, error } = await this.supabase.functions.invoke('login-seguro', {
+                body: { email: emailAuth, password: p, device_id: deviceId, device_name: deviceName }
+            });
+
+            if (error || (data && data.error)) {
+                if (data && data.error === 'dispositivo_nuevo') throw new Error("Dispositivo bloqueado. Revisa tu correo.");
+                throw new Error(data?.error || "Credenciales inválidas o servidor caído.");
+            }
+
+            // 3. Restaurar sesión oficial
+            await this.supabase.auth.setSession(data.session);
+            this.usuarioLogueado = data.user;
+
+            // 4. SINCRONIZACIÓN BIDIRECCIONAL Y LECTURA
+            const { data: perfilNube, error: dbError } = await this.supabase
+                .from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
+
+            if (perfilNube.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (dbError || !perfilNube) throw new Error("Perfil no encontrado.");
+
+            const localSyncDate = localStorage.getItem('pico_last_sync');
+            const fechaNube = new Date(perfilNube.updated_at).getTime();
+            const fechaLocal = localSyncDate ? new Date(localSyncDate).getTime() : 0;
+
+            if (fechaNube >= fechaLocal) {
+                // Nube manda -> Descargamos
+                this.perfilDB = perfilNube;
+                localStorage.setItem('pico_perfil_cache', JSON.stringify(perfilNube));
+                localStorage.setItem('pico_last_sync', perfilNube.updated_at);
+            } else {
+                // Local manda -> Subimos a Supabase
+                this.perfilDB = JSON.parse(localStorage.getItem('pico_perfil_cache'));
+                await this.guardarPerfilEnNube(this.perfilDB); 
+            }
+
+            // Inicializar objeto tarjetas si es nuevo
+            if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
+
+            this.rol = this.perfilDB.rol;
+            this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
+
+            // 5. Aplicar Datos a la UI
+            const displayUser = document.getElementById('display-username');
+            if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
+            
+            if (this.perfilDB.avatar_url) {
+                const iconoMenu = document.querySelector('#user-profile-menu i');
+                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
+            }
+
+            // Cargar Interfaz y Tema
+            if(this.perfilDB.interfaz) {
+                if(this.perfilDB.interfaz.tema) document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = this.perfilDB.interfaz.vibracion !== false;
+                if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = this.perfilDB.interfaz.sonidos === true;
+            }
+
+            sessionStorage.setItem('pico_sesion_ok', 'true');
+            localStorage.setItem("u", u); 
+            localStorage.setItem("p", p);
+            
+            document.getElementById('login-screen').style.display = 'none';
+            if(this.rol === 'admin' || this.rol === 'god') {
+                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            }
+            
+            this.renderGrid(); // Repinta con los tamaños y orden descargados
+            this.conectar();
+            this.comprobarSolicitudesPendientes();
+
+        } catch (error) {  
+            document.getElementById('error-msg').innerText = "❌ " + error.message;
+            document.getElementById('error-msg').style.display = 'block'; 
+            const loginBox = document.querySelector('.login-box');
+            loginBox.classList.remove('error-shake');
+            void loginBox.offsetWidth;
+            loginBox.classList.add('error-shake');
+        }
+    }
+
+    async guardarPerfilEnNube(datos) {
+        if(!this.usuarioLogueado) return false;
+        try {
+            const { data, error } = await this.supabase
+                .from('perfiles')
+                .update(datos)
+                .eq('id', this.usuarioLogueado.id)
+                .select('updated_at') 
+                .single();
+
+            if (error) throw error;
+
+            this.perfilDB = { ...this.perfilDB, ...datos };
+            localStorage.setItem('pico_perfil_cache', JSON.stringify(this.perfilDB));
+            localStorage.setItem('pico_last_sync', data.updated_at); 
+
+            return true;
+        } catch (err) {
+            console.error("Fallo al sincronizar con Supabase:", err);
+            return false;
+        }
+    }
+
+    abrirAjustesUsuario() {
+        const modal = document.getElementById('user-settings-modal');
+        if(!modal) return;
+
+        const p = this.perfilDB || {};
+        
+        // Rellenar Textos
+        if(document.getElementById('input-perfil-avatar')) document.getElementById('input-perfil-avatar').value = p.avatar_url || '';
+        if(document.getElementById('input-perfil-nombre')) document.getElementById('input-perfil-nombre').value = p.nombre || '';
+        if(document.getElementById('input-perfil-alias')) document.getElementById('input-perfil-alias').value = p.alias || '';
+        
+        // Rellenar Selectores
+        if(document.getElementById('select-perfil-idioma')) document.getElementById('select-perfil-idioma').value = p.idioma || 'es-ES';
+        if(document.getElementById('label-idioma')) document.getElementById('label-idioma').innerText = p.idioma === 'en-US' ? 'English' : 'Español';
+        
+        const ia = p.ia || { nube: 'groq', local: 'smollm' };
+        if(document.getElementById('select-ia-nube')) document.getElementById('select-ia-nube').value = ia.nube || 'groq';
+        if(document.getElementById('label-ianube')) document.getElementById('label-ianube').innerText = (ia.nube === 'google') ? 'GOOGLE (EQUILIBRADO)' : 'GROQ (ULTRA RÁPIDO)';
+        if(document.getElementById('select-ia-local')) document.getElementById('select-ia-local').value = ia.local || 'smollm';
+        if(document.getElementById('label-ialocal')) document.getElementById('label-ialocal').innerText = (ia.local === 'qwen') ? 'QWEN 1.5 (LIGERO)' : 'SMOLLM (ESTÁNDAR)';
+
+        const ui = p.interfaz || { sonidos: false, vibracion: true, tema: 'pico' };
+        if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = ui.sonidos;
+        if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = ui.vibracion;
+        if(document.getElementById('check-estado-online')) document.getElementById('check-estado-online').checked = p.estado_online !== false;
+        
+        if(document.getElementById('select-perfil-estilo')) document.getElementById('select-perfil-estilo').value = ui.tema || 'pico';
+        if(document.getElementById('label-estilo')) {
+            const nombresTemas = { 'pico': 'PICO OS (CRISTAL)', 'ios': 'APPLE IOS', 'android': 'ANDROID (MATERIAL)', 'retro': 'RETRO (TERMINAL)' };
+            document.getElementById('label-estilo').innerText = nombresTemas[ui.tema || 'pico'];
+        }
+
+        modal.style.display = 'flex';
+        document.getElementById('btn-close-user-settings').onclick = () => modal.style.display = 'none';
+
+        const btnEliminarHuella = document.getElementById('btn-eliminar-huella-modal');
+        const tieneHuella = localStorage.getItem('pico_huella_token');
+        if (btnEliminarHuella) {
+            btnEliminarHuella.style.display = tieneHuella ? "flex" : "none"; 
+            btnEliminarHuella.onclick = () => {
+                localStorage.removeItem('pico_huella_token');
+                localStorage.removeItem('pico_bio_id');
+                this.actualizarUIHuella();
+                this.notificar("Huella desvinculada del dispositivo", "🗑️");
+                btnEliminarHuella.style.display = "none";
+            };
+        }
+
+        const btnSave = document.getElementById('btn-save-user-settings');
+        btnSave.onclick = async () => {
+            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            
+            const datosActualizados = {
+                avatar_url: document.getElementById('input-perfil-avatar').value.trim() || null,
+                nombre: document.getElementById('input-perfil-nombre').value.trim() || null,
+                alias: document.getElementById('input-perfil-alias').value.trim() || null,
+                idioma: document.getElementById('select-perfil-idioma').value,
+                estado_online: document.getElementById('check-estado-online').checked,
+                ia: {
+                    nube: document.getElementById('select-ia-nube').value,
+                    local: document.getElementById('select-ia-local').value
+                },
+                interfaz: {
+                    sonidos: document.getElementById('check-ui-sonidos').checked,
+                    vibracion: document.getElementById('sw-vibration').checked,
+                    tema: document.getElementById('select-perfil-estilo').value
                 }
             };
-            menu.appendChild(item);
-        });
 
-        trigger.onclick = (e) => {
-            e.stopPropagation(); 
-            settingsMenu.classList.remove('open'); 
-            menu.classList.toggle('open');
+            const exito = await this.guardarPerfilEnNube(datosActualizados);
+
+            if (exito) {
+                this.notificar("Perfil sincronizado en la nube", "✅");
+                modal.style.display = 'none';
+                document.body.setAttribute('data-theme', datosActualizados.interfaz.tema);
+                
+                const displayUser = document.getElementById('display-username');
+                if (displayUser) displayUser.innerText = datosActualizados.alias || datosActualizados.nombre || "USUARIO";
+                
+                if (datosActualizados.avatar_url) {
+                    const avatarImg = document.querySelector('#user-profile-menu img');
+                    if (avatarImg) avatarImg.src = datosActualizados.avatar_url;
+                }
+            } else {
+                this.notificar("Guardado offline. Se subirá al recuperar conexión.", "⚠️");
+            }
+            btnSave.innerHTML = 'GUARDAR PERFIL';
         };
     }
 
+    // ==========================================================
+    // ⚙️ RENDERIZADO DE GRID CON LECTURA DESDE SUPABASE
+    // ==========================================================
+    
     renderGrid() {
         const tarjetasFiltradas = this.cards.filter(c => this.filtroActual === 'all' || c.category === this.filtroActual);
         const grid = document.getElementById('dashboard-grid');
         grid.innerHTML = "";
         
-        // 💾 Recuperar orden
-        let order = JSON.parse(localStorage.getItem('gridOrder'));
-        if(order) {
+        // 💾 Recuperar orden y tamaños de SUPABASE (O caché local si no ha entrado)
+        let order = this.perfilDB?.tarjetas?.orden || JSON.parse(localStorage.getItem('gridOrder')) || [];
+        let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
+
+        if(order.length > 0) {
             this.cards.sort((a, b) => {
                 const idxA = order.indexOf(a.id);
                 const idxB = order.indexOf(b.id);
@@ -313,16 +473,13 @@ export class Core {
             });
         }
 
-        // 💾 Recuperar tamaños guardados de sesiones anteriores
-        let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
-
         tarjetasFiltradas.forEach((card, index) => {
-            // 1. EL CONTENEDOR PRINCIPAL
             const div = document.createElement('div');
             let currentSize = savedSizes[card.id] || card.defaultSize || '1x1';
             div.className = `card cascade-in size-${currentSize}`;
             div.style.animationDelay = `${index * 50}ms`;
             div.style.setProperty('--order', index);
+ 
             if(card.adminOnly) div.classList.add('admin-only');
             div.id = `card-${card.id}`;
             div.setAttribute('data-id', card.id);
@@ -330,31 +487,28 @@ export class Core {
             div.style.overflow = "hidden";
             div.style.padding = "0"; 
 
-            // 2. LA CAPA DE CONTENIDO (Ahora va primero para quedar al fondo)
             const cardContent = document.createElement('div');
             cardContent.style.cssText = "position: relative; z-index: 1; width: 100%; height: 100%; background: var(--card-bg); padding: 15px; box-sizing: border-box; border-radius: 20px;";
             cardContent.innerHTML = card.html;
 
-            // 3. EL MENÚ OCULTO (Efecto Iris en Grid 2x2)
             const cardMenu = document.createElement('div');
             cardMenu.style.cssText = `
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                position: absolute;
+                top: 0; left: 0; width: 100%; height: 100%; 
                 display: grid; grid-template-columns: repeat(2, max-content); 
-                gap: 15px; justify-content: center; align-content: center; 
+                gap: 15px; justify-content: center; align-content: center;
                 background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); 
                 z-index: 10; pointer-events: none; 
-                clip-path: circle(0px at 50% 50%); 
+                clip-path: circle(0px at 50% 50%);
                 transition: clip-path 0.8s cubic-bezier(0.4, 0, 0.2, 1);
             `;
             
-            // Verificamos si la tarjeta tiene un botón personalizado
-            const btnCustomHtml = card.customAccion ? `
+            const btnCustomHtml = card.customAccion ?
+            `
                 <button class="btn-c-custom" style="background:none; border:none; color:${card.customAccion.color || '#32d74b'}; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="${card.customAccion.titulo}">
                     <i class="${card.customAccion.icono}"></i>
                 </button>
             ` : '';
-
-            // Ensamblaje de 3 o 4 botones
             cardMenu.innerHTML = `
                 ${btnCustomHtml}
                 <button class="btn-c-ajustes" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
@@ -366,49 +520,41 @@ export class Core {
             div.appendChild(cardMenu);
             grid.appendChild(div);
 
-            // 4. LÓGICA DE PULSACIÓN LARGA (Cálculo Espacial del Iris)
             let pressTimer;
             let startX = 0, startY = 0;
-            let localX = 0, localY = 0; // Coordenadas relativas al interior de la tarjeta
-            let isDragging = false; 
+            let localX = 0, localY = 0;
+            let isDragging = false;
 
             const activarMenu = () => {
-                cardMenu.style.pointerEvents = "auto"; // Habilitamos los clics
-                cardMenu.style.clipPath = `circle(150% at ${localX}px ${localY}px)`; // Explotamos el círculo
+                cardMenu.style.pointerEvents = "auto";
+                cardMenu.style.clipPath = `circle(150% at ${localX}px ${localY}px)`;
                 this.vibra("doble");
             };
 
             const cerrarIris = () => {
                 cardMenu.style.pointerEvents = "none";
-                cardMenu.style.clipPath = `circle(0px at ${localX}px ${localY}px)`; // Contraemos el círculo
+                cardMenu.style.clipPath = `circle(0px at ${localX}px ${localY}px)`; 
             };
 
             const iniciarToque = (e) => {
                 if(this.editMode || e.target.closest('button') || e.target.tagName === 'INPUT') return;
-                
                 isDragging = false;
                 
-                // Atrapamos dónde has tocado en la pantalla global
                 startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
                 startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                
-                // Traducimos ese toque a coordenadas internas de la tarjeta
                 const rect = div.getBoundingClientRect();
                 localX = startX - rect.left;
                 localY = startY - rect.top;
 
-                // Movemos el "centro" del círculo invisible a tu dedo instantáneamente (sin transición)
                 cardMenu.style.transition = 'none';
                 cardMenu.style.clipPath = `circle(0px at ${localX}px ${localY}px)`;
-                void cardMenu.offsetWidth; // Forzamos al navegador a dibujar el cambio
+                void cardMenu.offsetWidth; 
                 
-                // Le devolvemos la fluidez para cuando explote
                 cardMenu.style.transition = 'clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-
                 clearTimeout(pressTimer);
                 pressTimer = setTimeout(() => {
                     if(!isDragging) activarMenu();
-                }, 700); 
+                }, 700);
             };
 
             const cancelarToque = () => clearTimeout(pressTimer);
@@ -418,7 +564,8 @@ export class Core {
                 const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
                 const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
                 if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
-                    isDragging = true; clearTimeout(pressTimer); 
+                    isDragging = true;
+                    clearTimeout(pressTimer); 
                 }
             };
 
@@ -433,11 +580,7 @@ export class Core {
             cardContent.addEventListener('mouseleave', cancelarToque);
             cardContent.addEventListener('mousemove', marcarArrastre);
 
-            // 5. EVENTOS DEL MENÚ OCULTO
-            cardMenu.querySelector('.btn-c-cerrar').onclick = (e) => {
-                e.stopPropagation();
-                cerrarIris();
-            };
+            cardMenu.querySelector('.btn-c-cerrar').onclick = (e) => { e.stopPropagation(); cerrarIris(); };
 
             cardMenu.querySelector('.btn-c-ajustes').onclick = (e) => {
                 e.stopPropagation();
@@ -450,21 +593,30 @@ export class Core {
                 e.stopPropagation();
                 const anchoPantalla = window.innerWidth;
                 let maxW, maxH;
-                if (anchoPantalla <= 600) { maxW = 2; maxH = 4; } else if (anchoPantalla <= 1024) { maxW = 4; maxH = 6; } else { maxW = 10; maxH = 10; }
+                if (anchoPantalla <= 600) { maxW = 2; maxH = 4; } 
+                else if (anchoPantalla <= 1024) { maxW = 4; maxH = 6; } 
+                else { maxW = 10; maxH = 10; }
+                
                 const anchosDisponibles = Array.from({length: maxW}, (_, i) => i + 1);
                 const altosDisponibles = Array.from({length: maxH}, (_, i) => i + 1);
                 
-                // ❌ Ya no cerramos el Iris aquí. Se queda abierto esperando debajo.
-                
-                // Le pasamos el 'div' principal para que el carrusel lo cubra todo
                 this.abrirSelectorRadialDoble(div, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
                     cerrarIris();
                     div.classList.remove(`size-${currentSize}`);
                     div.classList.add(`size-${nuevoTamano}`);
+ 
                     currentSize = nuevoTamano;
+                    
+                    // 💾 GUARDADO DE TAMAÑOS EN SUPABASE Y CACHÉ
                     savedSizes[card.id] = nuevoTamano;
                     localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
+                    if (this.perfilDB) {
+                        if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = {};
+                        this.perfilDB.tarjetas.tamanos = savedSizes;
+                        this.guardarPerfilEnNube({ tarjetas: this.perfilDB.tarjetas });
+                    }
                     this.vibra("tick");
+                
                     if (this.sortable) this.toggleEdit(); 
                 });
             };
@@ -473,11 +625,10 @@ export class Core {
                 cardMenu.querySelector('.btn-c-custom').onclick = (e) => {
                     e.stopPropagation();
                     cerrarIris();
-                    card.customAccion.ejecutar(this); // Lanza la función de la tarjeta
+                    card.customAccion.ejecutar(this); 
                 };
             }
             
-            // 🛡️ INICIALIZADOR ORIGINAL BLINDADO
             try {
                 if(card.onInit) card.onInit(this);
             } catch(error) {
@@ -485,14 +636,11 @@ export class Core {
             }
         });
     }
-    
-        // ==========================================================
-    // 🎡 MOTOR DEL CARRUSEL DOBLE (Guardado Automático al tocar fuera)
-    // ==========================================================
+
     abrirSelectorRadialDoble(tarjetaContenedor, anchosDisponibles, altosDisponibles, tamanoActual, callback) {
         const overlay = document.createElement('div');
         overlay.className = 'radial-overlay';
-        overlay.style.zIndex = '20'; // ⬅️ IMPORTANTE: Flota por encima del Iris
+        overlay.style.zIndex = '20'; 
         
         const currentAncho = parseInt(tamanoActual.split('x')[0]);
         const currentAlto = parseInt(tamanoActual.split('x')[1]);
@@ -513,8 +661,7 @@ export class Core {
 
         const colAncho = construirCilindro(anchosDisponibles);
         const colAlto = construirCilindro(altosDisponibles);
-
-        // HTML SIN BOTONES
+        
         overlay.innerHTML = `
             <div style="font-weight:bold; margin-bottom:15px; color:white; letter-spacing:1px; z-index:100; pointer-events:none;">DIMENSIONES</div>
             <div style="display:flex; gap: 20px; align-items:center; z-index:100;">
@@ -567,12 +714,11 @@ export class Core {
                 anguloInicial = anguloActual;
                 cylinder.style.transition = 'none';
             };
-
             const onMove = (e) => {
                 if (!isDragging) return;
                 e.preventDefault();
                 const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-                anguloActual = anguloInicial - ((currentY - startY) * 0.6); 
+                anguloActual = anguloInicial - ((currentY - startY) * 0.6);
                 cylinder.style.transform = `rotateX(${anguloActual}deg)`;
                 iluminarCara();
             };
@@ -603,16 +749,12 @@ export class Core {
         const getValorAncho = setupCilindro('ancho', colAncho, currentAncho);
         const getValorAlto = setupCilindro('alto', colAlto, currentAlto);
 
-        // 🛡️ GUARDADO AL MANTENER PULSADO 0.2s (Blindaje Total)
         let closeTimer;
         let isClosing = false;
         let startX = 0, startY = 0;
 
         const iniciarCierre = (e) => {
-            // 1. Si el usuario toca los rodillos, ignoramos para que giren normal
             if (e.target.closest('.radial-viewport')) return;
-
-            // 2. Si toca fuera, bloqueamos cualquier menú o scroll nativo del móvil
             if (e.cancelable) e.preventDefault();
             e.stopPropagation();
 
@@ -621,49 +763,33 @@ export class Core {
             startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
             
             clearTimeout(closeTimer);
-            
-            // 3. Lanzamos el temporizador exacto de 200ms
             closeTimer = setTimeout(() => {
                 if (!isClosing) {
                     isClosing = true;
                     const tamanoElegido = `${getValorAncho()}x${getValorAlto()}`;
-                    
                     this.vibra("tick");
-                    
                     overlay.style.opacity = '0';
                     setTimeout(() => {
                         overlay.remove();
                         callback(tamanoElegido);
                     }, 200);
                 }
-            }, 200); 
+            }, 200);
         };
 
-        const cancelarCierre = () => {
-            clearTimeout(closeTimer);
-        };
-
+        const cancelarCierre = () => clearTimeout(closeTimer);
         const arrastreCierre = (e) => {
             if (isClosing || startX === 0) return;
             const currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            
-            // Zona muerta de 10px para que no se cancele por el temblor natural del dedo
-            if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) {
-                clearTimeout(closeTimer);
-            }
+            if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) clearTimeout(closeTimer);
         };
 
-        // Bloqueo del menú contextual (click derecho / pulsación larga nativa)
         overlay.oncontextmenu = (e) => e.preventDefault();
-
-        // Sensores de Ratón
         overlay.addEventListener('mousedown', iniciarCierre);
         overlay.addEventListener('mouseup', cancelarCierre);
         overlay.addEventListener('mouseleave', cancelarCierre);
         overlay.addEventListener('mousemove', arrastreCierre);
-
-        // 🛡️ Sensores Táctiles (passive: false es VITAL para que funcione el preventDefault)
         overlay.addEventListener('touchstart', iniciarCierre, {passive: false});
         overlay.addEventListener('touchend', cancelarCierre);
         overlay.addEventListener('touchcancel', cancelarCierre);
@@ -675,24 +801,18 @@ export class Core {
         if (!u) return this.notificar("Falta el usuario", "❌");
         if (p1 !== p2) return this.notificar("Las contraseñas no coinciden", "❌");
         if (p1.length < 6) return this.notificar("Mínimo 6 caracteres", "⚠️");
-
         const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
         const btn = document.getElementById('btn-register-submit');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         try {
-            // Supabase registra la cuenta de forma segura
             const { data, error } = await this.supabase.auth.signUp({ email: emailAuth, password: p1 });
             if (error) throw error;
-
             this.notificar("Solicitud enviada al Administrador.", "⏳");
-            document.getElementById('link-toggle-register').click(); // Volver al login visualmente
-            
-            // Limpiamos los campos
+            document.getElementById('link-toggle-register').click();
             document.getElementById('user-input').value = "";
             document.getElementById('pass-input').value = "";
             document.getElementById('pass2-input').value = "";
-
         } catch (error) {
             if (error.message.includes("already registered")) this.notificar("Ese usuario ya existe", "⚠️");
             else this.notificar("Fallo al registrar", "❌");
@@ -701,24 +821,19 @@ export class Core {
         }
     }
 
-    // 📡 2. RADAR DE APROBACIONES (El Admin lo ejecuta al entrar)
     async comprobarSolicitudesPendientes() {
-        if (this.rol !== 'admin') return;
-
+        if (this.rol !== 'admin' && this.rol !== 'god') return;
         try {
             const { data, error } = await this.supabase.from('perfiles').select('id, rol').eq('rol', 'pendiente');
-            
             if (data && data.length > 0) {
                 setTimeout(() => {
                     this.notificar(`Tienes ${data.length} solicitud(es) de acceso. Abre la consola HUD.`, "🔔");
                     this.vibra("doble");
                     
-                    // Inyectamos un botón temporal en el HUD para ejecutar la forja
                     const hud = document.getElementById('hud-console');
                     if (hud) {
                         const btnId = `btn-approve-${data[0].id}`;
                         this.logHUD(`NUEVO USUARIO ESPERANDO. <button id="${btnId}" style="background:#bf5af2; color:white; border:none; padding:2px 5px; cursor:pointer;">Aprobar Primero</button>`, "info");
-                        
                         setTimeout(() => {
                             const btn = document.getElementById(btnId);
                             if(btn) btn.onclick = () => this.ejecutarForjaAutomatica(data[0].id);
@@ -729,34 +844,24 @@ export class Core {
         } catch (error) { console.error("Error radar:", error); }
     }
 
-    // 🧰 3. FORJA AUTOMÁTICA DE DOBLE BÓVEDA (Adaptación de tu código)
     async ejecutarForjaAutomatica(userId) {
-        // Pedimos los datos al Admin mediante prompts nativos del navegador
         const alias = prompt("Escribe el nombre de usuario (ej: hermano):");
         if (!alias) return;
-        
         const pass = prompt(`Escribe la contraseña que el usuario ${alias} escogió al registrarse:`);
         if (!pass) return;
-
         const pin = prompt(`Inventa un PIN Maestro de 4 números para ${alias}:`);
         if (!pin) return;
 
         try {
             this.notificar("Forjando Bóveda Criptográfica...", "⚙️");
-
-            // 1. Clonar la configuración actual pero quitarle los permisos y claves pesadas
             const nuevaConf = {
                 topic: this.conf.topic,
-                tk: this.conf.tk, // Mantienen el mismo token de la Pico
+                tk: this.conf.tk, 
                 rol: "guest",
-                apis: { google: this.apiKeys.google, 
-                    groq: this.apiKeys.groq, 
-                    openrouter: this.apiKeys.openrouter  } // Limpiamos tus claves de IA
+                apis: { google: this.apiKeys?.google, groq: this.apiKeys?.groq, openrouter: this.apiKeys?.openrouter } 
             };
 
-            // 2. ALGORITMO ORIGINAL DEL USUARIO (Doble Bóveda)
             const ghostKey = CryptoJS.lib.WordArray.random(32).toString();
-
             const keyData = CryptoJS.SHA256(pass + ghostKey);
             const ivData = CryptoJS.lib.WordArray.random(16);
             const encData = CryptoJS.AES.encrypt(JSON.stringify(nuevaConf), keyData, {iv: ivData, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
@@ -770,21 +875,14 @@ export class Core {
             const finalJSON = JSON.stringify({ e: payloadEnv, d: payloadData });
             const maletinBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(finalJSON));
 
-            // 3. Subir el maletín y desbloquear la cuenta
             const { error } = await this.supabase
                 .from('perfiles')
-                .update({ 
-                    maletin_encriptado: maletinBase64, 
-                    rol: 'guest',
-                    updated_at: new Date()
-                })
+                .update({ maletin_encriptado: maletinBase64, rol: 'guest', updated_at: new Date() })
                 .eq('id', userId);
 
             if (error) throw error;
-
             this.notificar("Usuario autorizado y encriptado con éxito", "✅");
             this.logHUD(`USUARIO APROBADO: Pásale su PIN temporal: ${pin}`, "out");
-
         } catch (error) {
             console.error("Fallo de encriptación:", error);
             this.notificar("Fallo al forjar el maletín", "❌");
@@ -792,24 +890,20 @@ export class Core {
     }
     
     async conectar() {
+        if (!this.conf || !this.conf.escudo_url) return;
         const wsUrl = this.conf.escudo_url;
-        if (!wsUrl) return this.notificar("Falta URL del Escudo", "❌");
 
         this.ws = new WebSocket(wsUrl);
         const dot = document.getElementById('mqtt-dot');
-
         this.ws.onopen = () => {
             this.setNetworkStatus(true);
             if (dot) dot.className = "dot green";
-            
-            // IMPORTANTE: Al conectar, la web le impone al servidor qué broker debe usar
             const brokerElegido = this.brokers[this.brIdx].h;
             this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: brokerElegido }));
         };
 
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            
             if (data.tipo === "mqtt") {
                 const app = data.topic.split("/").pop();
                 let val = data.payload;
@@ -834,74 +928,64 @@ export class Core {
         };
     }
 
-    initLegacyProtocol() {
-        const dot = document.getElementById('mqtt-dot');
-        setTimeout(() => {
-            this.setNetworkStatus(true);
-            if (dot) dot.className = "dot green";
-            this.mqtt = {
-                isConnected: () => true,
-                send: (m) => {
-                    const topic = m.destinationName;
-                    const app = topic.split("/").pop();
-                    let payload;
-                    try { payload = JSON.parse(m.payloadString); } catch(e) { payload = {c: m.payloadString}; }
-                    const cmdVal = payload.c; 
-                    setTimeout(() => {
-                        let nextState = cmdVal.toUpperCase();
-                        if (cmdVal === "toggle") {
-                            const valEl = document.querySelector(`#card-${app} .val-text`);
-                            nextState = (valEl && valEl.innerText === "ON") ? "OFF" : "ON";
-                        } else if (cmdVal === "get") { nextState = "OFF"; }
-                        if (this.mqtt.onMessageArrived) {
-                            this.mqtt.onMessageArrived({ destinationName: this.conf.topic + "estado/" + app, payloadString: nextState, retained: false });
-                        }
-                    }, 300 + Math.random() * 100); 
+    setupBrokerMenu() {
+        const menu = document.getElementById('broker-menu');
+        const current = document.getElementById('current-broker-name');
+        const trigger = document.getElementById('broker-trigger');
+        const settingsMenu = document.getElementById('settings-menu');
+        
+        current.innerText = this.brokers[this.brIdx].name;
+        menu.innerHTML = "";
+        this.brokers.forEach((b, idx) => {
+            const item = document.createElement('div');
+            item.className = `dropdown-item ${idx === this.brIdx ? 'selected' : ''}`;
+            item.innerText = b.name;
+            item.onclick = () => {
+                this.brIdx = idx;
+                current.innerText = b.name;
+                menu.classList.remove('open');
+                this.setupBrokerMenu(); 
+                this.notificar(`Enrutando servidor a ${b.name}...`, "🔀");
+                
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: b.h }));
                 }
             };
-            setInterval(() => {
-                if (this.mqtt.onMessageArrived) this.mqtt.onMessageArrived({ destinationName: this.conf.topic + "estado/sistema_hb", payloadString: JSON.stringify({ sistema: "ONLINE", r_pct: 42, t: 36.5, rssi: -45 }) });
-            }, 15000);
-            this.updatePicoStatus(JSON.stringify({ sistema: "ONLINE", r_pct: 42, t: 36.5, rssi: -45 }));
-            setTimeout(() => this.cmd('Led', 'get'), 500);
-        }, 1500);
+            menu.appendChild(item);
+        });
+
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+            settingsMenu.classList.remove('open'); 
+            menu.classList.toggle('open');
+        };
     }
 
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
         if (!container) return;
-        
-        // Comprueba si está vivo leyendo datos de V19 o V22
-        const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined)); 
 
-        // Si hay latido, limpiamos el temporizador
+        const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined));
         clearTimeout(this.picoWatchdog);
         
         container.innerHTML = "";
-
         if (isOnline) {
-            // El margen de supervivencia de 20 segundos
             this.picoWatchdog = setTimeout(() => {
-                console.log("⏱️ Timeout: La Pico ha muerto. Sobrescribiendo estado en el Broker MQTT...");
+                console.log("⏱️ Timeout: La Pico ha muerto. Sobrescribiendo estado...");
                 this.updatePicoStatus("OFFLINE"); 
-                
-                // 💡 TU IDEA MAESTRA: La web publica el mensaje retenido en nombre de la Pico
                 if (this.mqtt && this.mqtt.isConnected()) {
-                    // Publicamos un JSON diciendo que está offline de forma retenida (true)
                     this.pub("sistema_hb", JSON.stringify({ sistema: "OFFLINE" }), true);
-                    this.pub("sistema", "OFFLINE", true); // Por si usas la versión antigua V19 a la vez
+                    this.pub("sistema", "OFFLINE", true); 
                 }
             }, 20000);
-            
+
             let ramPercent = 0;
-            // 🧠 Traductor de RAM (r_pct es V22, ram es V19)
             if (val && val.r_pct !== undefined) {
-                ramPercent = val.r_pct; 
+                ramPercent = val.r_pct;
             } else if (val && val.ram !== undefined) {
                 const totalRam = 264 * 1024;
                 ramPercent = Math.round(((totalRam - val.ram) / totalRam) * 100);
             }
-            
             if(ramPercent < 0) ramPercent = 0;
             if(ramPercent > 100) ramPercent = 100;
 
@@ -909,13 +993,11 @@ export class Core {
             if(ramPercent > 60) ramColor = "#ff9f0a";
             if(ramPercent > 85) ramColor = "#ff453a";
 
-            // 🧠 Traductor de Temperatura (t es V22, temp es V19)
             let tempValor = (val && val.t !== undefined) ? val.t : (val && val.temp);
             let tempTxt = tempValor ? tempValor + "°C" : "";
-            
             let rssi = (val && val.rssi) ? val.rssi : -60; 
             let wifiColor = "#ff453a"; 
-            if(rssi > -70) wifiColor = "#ff9f0a"; 
+            if(rssi > -70) wifiColor = "#ff9f0a";
             if(rssi > -50) wifiColor = "#32d74b"; 
 
             container.innerHTML = `
@@ -937,59 +1019,14 @@ export class Core {
         }
     }
 
-    async login() {
-        const u = document.getElementById('user-input').value.trim();
-        const p = document.getElementById('pass-input').value.trim();
-        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
-
-        try {
-            const { data: authData, error: authError } = await this.supabase.auth.signInWithPassword({
-                email: emailAuth, password: p
-            });
-            if (authError) throw new Error("Credenciales inválidas.");
-            this.usuarioLogueado = authData.user;
-
-            const { data: perfil, error: dbError } = await this.supabase
-                .from('perfiles').select('maletin_encriptado, rol').eq('id', this.usuarioLogueado.id).single();
-            
-            if (perfil.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
-            if (dbError || !perfil) throw new Error("Perfil no encontrado.");
-
-            this.rol = perfil.rol;
-            
-            // Leemos el JSON en texto plano (Solo contiene la URL del servidor Render)
-            this.conf = JSON.parse(perfil.maletin_encriptado); 
-            
-            const displayUser = document.getElementById('display-username');
-            if (displayUser) displayUser.innerText = u.split('@')[0];
-            sessionStorage.setItem('pico_sesion_ok', 'true');
-            localStorage.setItem("u", u); 
-            localStorage.setItem("p", p);
-            
-            document.getElementById('login-screen').style.display = 'none';
-            if(this.rol === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
-            
-            this.conectar(); // Lanza la conexión WebSocket
-            this.comprobarSolicitudesPendientes();
-        } catch (error) {  
-            document.getElementById('error-msg').innerText = "❌ " + error.message;
-            document.getElementById('error-msg').style.display = 'block'; 
-        }
-    }
-
     cerrarSesion() {
-        // 1. EL TRUCO: Borramos la contraseña para evitar el auto-login indeseado, 
-        // pero mantenemos el usuario ('u') para que no tengas que escribir tu correo de nuevo.
         localStorage.removeItem('p');
         sessionStorage.removeItem('pico_sesion_ok');
 
-        // 2. Cerramos el túnel seguro con Render
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.close();
-        }
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close();
+        if(this.supabase) this.supabase.auth.signOut();
 
-        // 3. Ocultamos la interfaz principal y mostramos la pantalla de login en primer plano
-        document.getElementById('pass-input').value = ""; // Vaciamos la caja de contraseña visualmente
+        document.getElementById('pass-input').value = "";
         const loginScreen = document.getElementById('login-screen');
         if(loginScreen) {
             loginScreen.style.display = 'flex';
@@ -997,7 +1034,6 @@ export class Core {
             loginScreen.style.pointerEvents = 'auto';
         }
         
-        // 4. Cerramos cualquier menú que estuviera abierto
         document.getElementById('side-menu').classList.remove('open');
         const settingsMenu = document.getElementById('settings-menu');
         if(settingsMenu) settingsMenu.classList.remove('open');
@@ -1009,33 +1045,27 @@ export class Core {
         const huellaGuardada = localStorage.getItem('pico_huella_token');
         const bioId = localStorage.getItem('pico_bio_id');
         
-        // Si falta alguno de los dos datos, forzamos un registro nuevo
         if (!huellaGuardada || !bioId) {
-            
-            // FASE 1: REGISTRO (Primera vez)
             const u = document.getElementById('user-input').value.trim();
             const p = document.getElementById('pass-input').value.trim();
             
             if (!u || !p) return this.notificar("Escribe tu usuario y contraseña primero", "⚠️");
-            
+
             try {
-                const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
                 const cred = await navigator.credentials.create({
                     publicKey: {
                         challenge: challenge,
-                        rp: { name: "Pico OS", id: window.location.hostname }, // Identificador del dominio
+                        rp: { name: "Pico OS", id: window.location.hostname },
                         user: { id: new Uint8Array(16), name: u, displayName: u },
                         pubKeyCredParams: [{alg: -7, type: "public-key"}, {alg: -257, type: "public-key"}],
                         authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
                         timeout: 60000
                     }
                 });
-                
-                // 1. Guardamos el DNI único de esta huella (rawId)
                 const rawId = Array.from(new Uint8Array(cred.rawId));
                 localStorage.setItem('pico_bio_id', JSON.stringify(rawId));
-                
-                // 2. Guardamos las credenciales ofuscadas
                 localStorage.setItem('pico_huella_token', btoa(JSON.stringify({ u: u, p: p })));
                 
                 this.actualizarUIHuella();
@@ -1045,14 +1075,11 @@ export class Core {
                 console.error("Fallo al crear credencial:", err);
                 this.notificar("Registro biométrico cancelado", "❌");
             }
-            
         } else {
-            // FASE 2: LOGIN CON HUELLA (Siguientes veces)
             try {
                 const savedId = JSON.parse(bioId);
                 const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
                 
-                // Pedimos permiso al móvil enseñándole exactamente el DNI de la huella que queremos
                 await navigator.credentials.get({
                     publicKey: {
                         challenge: challenge,
@@ -1062,8 +1089,6 @@ export class Core {
                         userVerification: "required"
                     }
                 });
-                
-                // Si el usuario pone el dedo y acierta, inyectamos los datos y pa' dentro
                 const creds = JSON.parse(atob(huellaGuardada));
                 document.getElementById('user-input').value = creds.u;
                 document.getElementById('pass-input').value = creds.p;
@@ -1081,80 +1106,28 @@ export class Core {
         const btnLoginHuella = document.getElementById('btn-huella');
         const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
         
-        // Pintar el botón del login de verde si ya hay huella
         if (btnLoginHuella) btnLoginHuella.style.color = tieneHuella ? "#10b981" : "#8b5cf6";
-        
-        // Mostrar el botón de borrar en el menú del usuario si hay huella
         if (btnEliminarHuella) btnEliminarHuella.style.display = tieneHuella ? "block" : "none";
     }
 
-    abrirAjustesUsuario() {
-        const modal = document.getElementById('user-settings-modal');
-        if(!modal) return;
-
-        // 1. Mostrar la ventana
-        modal.style.display = 'flex';
-
-        // 2. Botón para cerrar la ventana
-        document.getElementById('btn-close-user-settings').onclick = () => {
-            modal.style.display = 'none';
-        };
-
-        // 3. Activar el botón de Desvincular Huella (ahora vive dentro del modal)
-        const btnEliminarHuella = document.getElementById('btn-eliminar-huella-modal');
-        const tieneHuella = localStorage.getItem('pico_huella_token');
-        
-        if (btnEliminarHuella) {
-            btnEliminarHuella.style.display = tieneHuella ? "block" : "none"; // Solo se muestra si hay huella
-            
-            btnEliminarHuella.onclick = () => {
-                localStorage.removeItem('pico_huella_token');
-                localStorage.removeItem('pico_bio_id');
-                this.actualizarUIHuella();
-                this.notificar("Huella desvinculada del dispositivo", "🗑️");
-                btnEliminarHuella.style.display = "none"; // Lo ocultamos al borrar
-            };
-        }
-
-        // 4. Botón de Guardar Perfil (Por ahora simulamos el guardado hasta conectar Supabase)
-        const btnSave = document.getElementById('btn-save-user-settings');
-        btnSave.onclick = () => {
-            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-            
-            // Simulación de carga de 1 segundo
-            setTimeout(() => {
-                this.notificar("Ajustes preparados para Supabase", "✅");
-                modal.style.display = 'none';
-                btnSave.innerHTML = 'GUARDAR PERFIL';
-            }, 1000);
-        };
-    }
-    
     ejecutarComandoLocal(app, accion) {
-        // 1. AÑADIMOS "Consciencia" e "IA" a los comandos de interfaz
         const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA", "Consciencia", "IA"];
-        
-        // 🎲 EMULADOR DE HARDWARE VIRTUAL (Tarjetas matemáticas o de red externa)
         const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista", "Macros"];
 
-        // 1. Interceptamos el Hardware Virtual PRIMERO
         if (hardwareVirtual.includes(app)) {
             if (this.logHUD) this.logHUD(`Simulando hardware virtual: ${app} -> ${accion}`, "out");
-            
             if (app === "Dado" && accion === "roll") {
                 const resultado = Math.floor(Math.random() * 6) + 1;
                 this.pub("Dado", resultado, true); 
             } else if (app !== "Macros") {
-                this.pub(app, accion, true); 
+                this.pub(app, accion, true);
             }
-            return true; // Devolvemos true para que la orden NO viaje a la placa Pico
+            return true;
         }
 
-        // 2. Interceptamos los comandos de Interfaz Web (DOM)
-        if (!comandosLocales.includes(app)) return false; // 🚀 SI ES LA PLANTA, EL LED O EL SINTETIZADOR, SE VA A LA PICO
+        if (!comandosLocales.includes(app)) return false;
 
         if (this.logHUD) this.logHUD(`Ejecutando directriz interna: ${app} -> ${accion}`, "out");
-
         switch(app) {
             case "Tema":
                 if (accion === "toggle") this.toggleTheme();
@@ -1195,15 +1168,13 @@ export class Core {
                 else if (accion === "toggle") this.toggleHUD();
                 break;
             case "Sesion":
-                if (accion === "logout") this.cerrarSesion(); 
+                if (accion === "logout") this.cerrarSesion();
                 break;
             case "VozIA":
                 this.iaSilenciada = (accion === "mute");
                 if (this.iaSilenciada) this.notificar("Voz de JARVIS desactivada", "🔇");
                 else this.notificar("Voz de JARVIS restaurada", "🔊");
                 break;
-                
-            // 🧬 NUEVO: Control de la propia IA sobre su personalidad
             case "Consciencia":
                 const modos = {
                     'logico': { nombre: 'LÓGICO', color: '#0a84ff', icon: 'fa-brain' },
@@ -1213,7 +1184,6 @@ export class Core {
                 };
                 if(modos[accion]) {
                     localStorage.setItem('pico_ai_modo', accion);
-                    // Actualizamos la UI de la tarjeta buscando su instancia
                     const cardConsc = this.cards.find(c => c.id === 'Consciencia');
                     if(cardConsc && cardConsc.onData) cardConsc.onData(modos[accion]);
                     
@@ -1221,8 +1191,6 @@ export class Core {
                     this.pub('Sistema/Consciencia', accion, true);
                 }
                 break;
-                
-            // 🧠 NUEVO: Control de la IA sobre su memoria de chat local
             case "IA":
                 if (accion === "clear" || accion === "limpiar") {
                     window.iaMensajes = [];
@@ -1232,9 +1200,8 @@ export class Core {
                 }
                 break;
         }
-        return true; 
+        return true;
     }
-    
     
     cmd(app, c) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -1244,15 +1211,12 @@ export class Core {
         this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: c }));
     }
 
-    
-
     // ==========================================================
-    // 🧠 SISTEMA OPERATIVO JARVIS (OMNI-CONSCIENTE + AUTÓNOMO)
+    // 🧠 SISTEMA OPERATIVO JARVIS
     // ==========================================================
     
-    // --- 1. EL OÍDO: RECONOCIMIENTO DE VOZ NATIVO ---
     initVozJARVIS() {
-        const btnVoz = document.querySelector('.fa-robot'); 
+        const btnVoz = document.querySelector('.fa-robot');
         const input = document.getElementById('ai-input');
         if (!btnVoz || (!window.SpeechRecognition && !window.webkitSpeechRecognition)) return;
 
@@ -1263,7 +1227,8 @@ export class Core {
         btnVoz.style.cursor = "pointer";
         btnVoz.onclick = () => {
             recognition.start();
-            btnVoz.style.color = "#ff453a"; btnVoz.classList.add("fa-beat-fade");
+            btnVoz.style.color = "#ff453a";
+            btnVoz.classList.add("fa-beat-fade");
             input.placeholder = "Escuchando órdenes..."; this.vibra("tick");
         };
 
@@ -1273,35 +1238,29 @@ export class Core {
             input.placeholder = "Ej: Apaga la luz..."; this.vibra("doble");
             setTimeout(() => this.procesarComandoIA(), 500); 
         };
-
         recognition.onerror = () => {
             btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade");
             input.placeholder = "Fallo acústico. Escribe...";
         };
     }
 
-    // --- 2. LA BOCA: SINTETIZADOR DE VOZ ---
     hablarJARVIS(texto) {
         if (!('speechSynthesis' in window) || !texto || texto === 'null') return;
-        if (this.iaSilenciada) return; // Si Pablo ha mandado callar a JARVIS, no hables
-        window.speechSynthesis.cancel(); 
+        if (this.iaSilenciada) return; 
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(texto);
         utterance.lang = 'es-ES';
         window.speechSynthesis.speak(utterance);
     }
 
-    // --- 3. GEMELO DIGITAL: APRENDIZAJE DE HÁBITOS LOCAL ---
     registrarHabito(app, accion) {
-        // Guarda en la memoria del navegador lo que haces y a qué hora lo haces
         let habitos = JSON.parse(localStorage.getItem('picoHabitos')) || [];
         const hora = new Date().getHours();
         habitos.push({ app, accion, hora });
-        // Mantiene solo los últimos 100 movimientos para no saturar memoria
-        if(habitos.length > 100) habitos.shift(); 
+        if(habitos.length > 100) habitos.shift();
         localStorage.setItem('picoHabitos', JSON.stringify(habitos));
     }
 
-        // --- 4. EL CEREBRO REACTIVO (Cuando tú le hablas) ---
     async procesarComandoIA() {
         const input = document.getElementById('ai-input');
         const orden = input.value.trim();
@@ -1309,7 +1268,6 @@ export class Core {
         
         input.value = ""; 
         this.notificar("Consultando al Escudo de IA...", "🧠");
-        
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ 
                 accion: "ia", 
@@ -1319,20 +1277,16 @@ export class Core {
         }
     }
 
-    // --- 5. EL AGENTE AUTÓNOMO (Bucle de fondo) ---
     iniciarAgenteProactivo() {
         this.notificar("Agente Autónomo en línea", "🛡️");
-        // Despierta cada 10 minutos (600000 ms) para evaluar la casa solo
         setInterval(() => {
             console.log("🛡️ Agente Autónomo: Escaneando perímetro...");
             this.ejecutarInferencia("Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.", "proactivo");
-        }, 600000); 
+        }, 600000);
     }
 
-        // ⚙️ 1. PRECARGA DEL MOTOR LOCAL (HÍBRIDO PC/MÓVIL)
     async precargarMotorLocal() {
         if (this.localEngine || this.localEngineWASM) return true;
-
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
             const container = document.getElementById('toast-area') || document.body;
@@ -1346,16 +1300,12 @@ export class Core {
             `);
         }
 
-        // 🕵️‍♂️ DETECTOR DE ENTORNO: Evaluamos si es un PC o un Móvil
         this.esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
         try {
             if (!this.esMovil) {
-                // 🖥️ MODO PC: Usamos WebLLM (WebGPU - Alta Potencia)
                 console.log("🖥️ Arquitectura PC detectada. Cargando WebLLM...");
                 const versionIA = this.versiones["@mlc-ai/web-llm"];
                 const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
-                
                 this.localEngine = await CreateMLCEngine("SmolLM-135M-Instruct-q4f16_1-MLC", {
                     initProgressCallback: (progress) => {
                         const pct = Math.round(progress.progress * 100);
@@ -1367,24 +1317,17 @@ export class Core {
                     chatOpts: { context_window_size: 1024 } 
                 });
             } else {
-                // 📱 MODO MÓVIL: Usamos Transformers.js (Alta Compatibilidad)
                 console.log("📱 Arquitectura Móvil detectada.");
-                
                 try {
                     const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
-                    
                     env.allowLocalModels = false;
                     env.useBrowserCache = true;
-                    
-                    // 🛡️ Limitamos los hilos para no asfixiar el móvil
                     env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
                     
                     const textEl = document.getElementById('ia-dl-text');
                     if(textEl) textEl.innerText = "Iniciando motor WASM...";
 
-                    const modelo = 'Xenova/Qwen1.5-0.5B-Chat'; 
-                    
-                    // ⚠️ IMPORTANTE: Hemos quitado device: 'webgpu' para evitar el crash letal
+                    const modelo = 'Xenova/Qwen1.5-0.5B-Chat';
                     this.localEngineWASM = await pipeline('text-generation', modelo, {
                         device: 'webgpu',
                         progress_callback: (x) => {
@@ -1403,8 +1346,7 @@ export class Core {
                         textEl.innerText = "Fallo de compatibilidad";
                         textEl.style.color = "#ff453a";
                     }
-                    // 🚨 CHIVATO VISUAL: Si falla, te saltará este aviso en el móvil
-                    alert("Error IA Móvil: " + err.message); 
+                    alert("Error IA Móvil: " + err.message);
                 }
             }
 
@@ -1418,13 +1360,10 @@ export class Core {
         }
     }
 
-    // 🧠 2. EJECUCIÓN PURA (Enrutador de Inferencia Híbrido)
     async procesarConWebLLM(promptSistema, orden, modo) {
         try {
             let textoCrudo = "";
-
             if (!this.esMovil && this.localEngine) {
-                // 🖥️ INFERENCIA EN PC (Nativo JSON)
                 const reply = await this.localEngine.chat.completions.create({
                     messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }],
                     response_format: { type: "json_object" }
@@ -1432,74 +1371,54 @@ export class Core {
                 textoCrudo = reply.choices[0].message.content;
             } 
             else if (this.esMovil && this.localEngineWASM) {
-                // 📱 INFERENCIA EN MÓVIL (Parseo Manual)
                 await new Promise(resolve => setTimeout(resolve, 800));
-                // Los modelos pequeños de Transformers.js necesitan instrucciones más directas para no salirse del guion.
                 const promptMovil = `<|im_start|>system\n${promptSistema}\nATENCIÓN: Tu única salida debe ser exclusivamente un bloque JSON válido. Nada de texto extra.<|im_end|>\n<|im_start|>user\n${orden}<|im_end|>\n<|im_start|>assistant\n`;
-                
                 const respuesta = await this.localEngineWASM(promptMovil, {
-                    max_new_tokens: 200,
-                    temperature: 0.1, // Frialdad máxima para evitar alucinaciones y forzar JSON
-                    repetition_penalty: 1.1,
-                    do_sample: false
+                    max_new_tokens: 200, temperature: 0.1, repetition_penalty: 1.1, do_sample: false
                 });
                 
                 let outputStr = respuesta[0].generated_text.replace(promptMovil, "").trim();
-                
-                // 🛡️ Extractor de JSON Automático: Los modelos móviles a veces envuelven el JSON en texto.
                 const jsonMatch = outputStr.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    textoCrudo = jsonMatch[0];
-                } else {
-                    throw new Error("El motor móvil no devolvió un JSON válido");
-                }
+                if (jsonMatch) textoCrudo = jsonMatch[0];
+                else throw new Error("El motor móvil no devolvió un JSON válido");
             } else {
                 throw new Error("Ningún motor local inicializado");
             }
 
             this.desplegarPayloadCuantico(textoCrudo, orden, modo);
-
         } catch(e) { 
             console.error("Fallo de Inferencia Local:", e);
             this.notificar("Colapso lógico en IA Local", "❌");
         }
     }
 
-    
-    // --- 6. MOTOR DE INFERENCIA CUÁNTICO (CHAIN-OF-THOUGHT & PERSONALIDAD) ---
     async ejecutarInferencia(orden, modo = "reactivo") {
-        // Verificamos sesión y claves en memoria RAM
         if(!localStorage.getItem("p") || !this.apiKeys) {
             return this.notificar("Sesión corrupta o sin permisos de IA.", "❌");
         }
 
-        // Telemetría
         const statusEl = document.querySelector('.pico-info-pill');
         const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
+        
         let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
         document.querySelectorAll('.card').forEach(card => {
             contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`;
         });
         contextoFisico += `- Reloj: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}\n`;
-
-        // Memoria
+        
         let memoriaProfunda = "";
         if (this.db) { 
-            const horaActual = new Date().getHours(); 
+            const horaActual = new Date().getHours();
             memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${await this.consultarHabitosDB(horaActual)}\n`; 
         }
         let memoria = "--- CONTEXTO ---\n";
         (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
 
         const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
-
-        // 🔀 AQUÍ ACTÚA EL INTERRUPTOR
+        
         if (this.modoIALocal) {
             await this.procesarConWebLLM(promptSistema, orden, modo);
         } else {
-            // 🛡️ MOTOR HYDRA MULTI-NUBE
-            
-            // Leemos las claves dinámicas (vacías si el usuario es "guest")
             const keys = {
                 google: this.apiKeys.google || "", 
                 openrouter: this.apiKeys.openrouter || "",
@@ -1546,10 +1465,8 @@ export class Core {
 
             let payloadGenerado = null;
 
-            // BUCLE DE SUPERVIVENCIA
             for (const proveedor of proveedores) {
-                if (!proveedor.key) continue; // Salta si no tiene clave para este servicio
-
+                if (!proveedor.key) continue;
                 try {
                     console.log(`🚀 Intentando inferencia con: ${proveedor.id}...`);
                     const res = await fetch(proveedor.url, {
@@ -1568,7 +1485,6 @@ export class Core {
                     payloadGenerado = proveedor.parser(data);
                     console.log(`✅ Éxito de conexión con: ${proveedor.id}`);
                     break;
-
                 } catch (e) {
                     const origen = this.modoIALocal ? 'local' : 'nube';
                     this.gestionarFalloIA(origen);
@@ -1576,7 +1492,6 @@ export class Core {
                 }
             }
 
-            // EVALUACIÓN FINAL
             if (payloadGenerado) {
                 this.desplegarPayloadCuantico(payloadGenerado, orden, modo);
             } else {
@@ -1589,25 +1504,18 @@ export class Core {
         }
     }
 
-    // --- 7. EJECUCIÓN (Lee la mente de la IA antes de actuar) ---
     desplegarPayloadCuantico(textoCrudo, orden, modo) {
         try {
             const payload = JSON.parse(textoCrudo);
-            
             if(modo === "reactivo") {
                 console.log("%c🧠 PENSAMIENTO IA: " + payload._razonamiento_interno, "color: #0a84ff; font-style: italic;");
                 console.log("%c🎭 EMOCIÓN: " + payload.estado_emocional.toUpperCase(), "color: #ff9f0a; font-weight: bold;");
                 console.log("⚡ COMANDOS COMUNIDAD: ", payload.comandos);
             }
             
-            // A) Código Máquina y Software
             if (payload.comandos && Object.keys(payload.comandos).length > 0) {
                 for (const [app, accion] of Object.entries(payload.comandos)) {
-                    
-                    // 🔀 LA MAGIA DEL ENRUTADOR: Comprobamos si es para la web
                     const esComandoWeb = this.ejecutarComandoLocal(app, accion);
-                    
-                    // Si NO es un comando de la web, se lo mandamos a la Pico por MQTT
                     if (!esComandoWeb) {
                         this.cmd(app, accion);
                         this.registrarEnDB(app, accion); 
@@ -1617,7 +1525,6 @@ export class Core {
                 this.notificar("Análisis completado. Sin acciones mecánicas.", "🤖");
             }
 
-            // 👻 MOTOR DEL FANTASMA EN EL DOM (Control físico de la interfaz)
             if (payload.ui_acciones && payload.ui_acciones.length > 0) {
                 payload.ui_acciones.forEach(acc => {
                     if (acc.tipo === "escribir") {
@@ -1642,26 +1549,22 @@ export class Core {
                 });
             }
             
-            
-            // B) Habla Humana con Tono Adaptado
             if (payload.voz && payload.voz !== "null" && !this.iaSilenciada) {
                 let icono = "🗣️";
                 if(payload.estado_emocional === 'alerta') icono = "🚨";
                 if(payload.estado_emocional === 'ironico' || payload.estado_emocional === 'sutilmente_sarcastico') icono = "😏";
-                
                 if(modo === "reactivo" || payload.estado_emocional === 'alerta') {
                     this.notificar(payload.voz, icono);
                     this.hablarJARVIS(payload.voz);
                 }
             }
 
-            // C) Memoria
             if(modo === "reactivo") {
                 this.historialIA.push({ u: orden, a: payload.voz || "Silencio táctico." });
                 if (this.historialIA.length > 4) this.historialIA.shift();
             }
         } catch (e) { 
-            console.error("Error de parsing neuronal:", e); 
+            console.error("Error de parsing neuronal:", e);
             this.notificar("Sinapsis colapsada", "⚠️");
         }
     }
@@ -1674,56 +1577,37 @@ export class Core {
 
         try {
             this.notificar("Cargando red neuronal auditiva...", "⏳");
-            
-            // 1. Importamos TensorFlow y el modelo de comandos de voz dinámicamente
             if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs");
             const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands");
 
-            // 2. Instanciamos el reconocedor. 
-            // "BROWSER_FFT" es el modelo base preentrenado.
             this.recognizer = speechCommands.create("BROWSER_FFT");
-            
-            /* 🛠️ CUANDO TENGAS TU MODELO DE "JARVIS", CAMBIARÁS LA LÍNEA ANTERIOR POR ESTA:
-            this.recognizer = speechCommands.create(
-                "BROWSER_FFT", null, 
-                "URL_DE_TU_SERVIDOR/model.json", 
-                "URL_DE_TU_SERVIDOR/metadata.json"
-            );
-            */
 
             await this.recognizer.ensureModelLoaded();
             const palabras = this.recognizer.wordLabels();
             console.log("🎙️ Motor auditivo cargado. Palabras reconocidas:", palabras);
 
-            // 3. Iniciamos la escucha continua en segundo plano
             this.recognizer.listen(result => {
-                // Buscamos la palabra con el mayor índice de probabilidad
                 const scores = Array.from(result.scores);
                 const maxScore = Math.max(...scores);
                 const maxScoreIndex = scores.indexOf(maxScore);
                 const palabraDetectada = palabras[maxScoreIndex];
 
-                // Umbral de confianza del 85% para evitar que salte con ruidos aleatorios
                 if (maxScore > 0.85) {
                     console.log(`[Audio Neural] Detectado: ${palabraDetectada} (${Math.round(maxScore*100)}%)`);
                     
-                    // ⚡ DISPARADOR: Usamos "go" temporalmente hasta que entrenes tu modelo
                     if (palabraDetectada === "go") {
                         this.vibra("doble");
                         this.hablarJARVIS("Sistema activado. A la escucha.");
-                        
-                        // Opcional: Aquí dispararías la escucha de tu IA principal o un comando MQTT
                     }
                 }
             }, {
                 probabilityThreshold: 0.85,
                 invokeCallbackOnNoiseAndUnknown: false,
-                overlapFactor: 0.5 // Solapamiento de ventanas de audio para no cortar palabras
+                overlapFactor: 0.5 
             });
 
             this.centinelaActivo = true;
             this.notificar("Oído biónico online", "🎙️");
-
         } catch (error) {
             console.error("Fallo al iniciar TensorFlow Audio:", error);
             this.notificar("Fallo al acceder al micrófono", "❌");
@@ -1739,81 +1623,65 @@ export class Core {
         }
     }
     
-        // 🔀 INTERRUPTOR NUBE / LOCAL (Con Alta Disponibilidad)
     initInterruptorIA() {
         const aiInput = document.getElementById('ai-input');
         if (!aiInput || document.getElementById('btn-ia-mode')) return;
 
-        // Creamos el botón dinámicamente
         const btnMode = document.createElement('button');
         btnMode.id = 'btn-ia-mode';
         
-        // 1. ESTADO POR DEFECTO: La Nube (Cloud)
         this.modoIALocal = false;
-        this.reintentoNubeActivo = null; // Guardará el temporizador del bucle de 1 minuto
+        this.reintentoNubeActivo = null; 
         
         btnMode.innerHTML = '<i class="fa-solid fa-cloud"></i>';
         btnMode.style.cssText = "background:transparent; border:none; color:var(--text-sec); font-size:1.2rem; cursor:pointer; padding:0 10px; outline:none; transition: 0.3s;";
         
         aiInput.parentNode.insertBefore(btnMode, aiInput);
-        
-        // 2. ALTERNANCIA MANUAL (Al pulsar el botón)
-        btnMode.onclick = async () => {
-            // Si el usuario toca el botón, cancelamos cualquier bucle de emergencia activo
-            this.detenerReintento();
 
+        btnMode.onclick = async () => {
+            this.detenerReintento();
             if (!this.modoIALocal) {
-                // Intento manual de pasar a Local
                 await this.activarModoLocal(btnMode);
             } else {
-                // Intento manual de volver a la Nube
                 this.activarModoNube(btnMode);
             }
         };
     }
 
-    // ⚙️ MÉTODO: Activar IA Local
     async activarModoLocal(btn) {
         if(!btn) btn = document.getElementById('btn-ia-mode');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
         this.notificar("Arrancando turbinas locales...", "⚙️");
         
         const exito = await this.precargarMotorLocal();
-        
         if (exito) {
             this.modoIALocal = true;
             btn.innerHTML = '<i class="fa-solid fa-microchip"></i>';
-            btn.style.color = '#32d74b'; // Verde activo
+            btn.style.color = '#32d74b'; 
             this.notificar("IA Local al mando", "🔒");
             return true;
         } else {
-            // Si falla la activación local, forzamos el retorno a la nube
             this.notificar("Hardware incompatible. Retornando a la Nube", "⚠️");
             this.activarModoNube(btn);
             return false;
         }
     }
 
-    // ☁️ MÉTODO: Activar IA Nube
     activarModoNube(btn) {
         if(!btn) btn = document.getElementById('btn-ia-mode');
         this.modoIALocal = false;
         btn.innerHTML = '<i class="fa-solid fa-cloud"></i>';
-        btn.style.color = 'var(--text-sec)'; // Gris/Azul
+        btn.style.color = 'var(--text-sec)';
         this.notificar("Modo IA Nube activado", "☁️");
     }
 
-    // 🚨 DIRECTOR DE EMERGENCIAS (Auto-Failover)
-    // Llama a esta función desde tu código cuando un fetch a la IA falle
     async gestionarFalloIA(origenFallo) {
         const btn = document.getElementById('btn-ia-mode');
-        
         if (origenFallo === 'nube') {
             this.notificar("Conexión Nube caída. Desplegando IA Local...", "⚠️");
             const exitoLocal = await this.activarModoLocal(btn);
             
             if (!exitoLocal) {
-                // Apagón total (Falló nube y falló local)
                 this.notificar("Apagón total de sistemas IA. Reintentando en 1 min...", "🚨");
                 btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ff453a;"></i>';
                 
@@ -1821,9 +1689,7 @@ export class Core {
                     this.reintentoNubeActivo = setInterval(() => {
                         this.notificar("Reintentando conexión con Nube...", "🔄");
                         this.activarModoNube(btn);
-                        // NOTA: Deja que el usuario o el sistema intenten enviar otro mensaje aquí.
-                        // Si vuelve a fallar, el ciclo se repite.
-                    }, 60000); // 60 segundos
+                    }, 60000);
                 }
             }
         } else if (origenFallo === 'local') {
@@ -1839,14 +1705,12 @@ export class Core {
         }
     }
 
-    
-    // Función para que las tarjetas publiquen estados fijos
     pub(app, v, r) { 
         if(this.mqtt?.isConnected()) { 
-            const m = new Paho.MQTT.Message(String(v)); 
+            const m = new Paho.MQTT.Message(String(v));
             m.destinationName = this.conf.topic + "estado/" + app; 
             m.retained = r; 
-            this.mqtt.send(m); 
+            this.mqtt.send(m);
         }
     }
     
@@ -1855,25 +1719,31 @@ export class Core {
         const grid = document.getElementById('dashboard-grid');
         const btn = document.getElementById('btn-edit');
         if(this.editMode) {
-            grid.classList.add('edit-mode'); 
+            grid.classList.add('edit-mode');
             btn.innerHTML = `<i class="fa-solid fa-check" style="color:var(--primary); width:20px"></i> Ok`; 
             this.vibra("tick");
             
             this.sortable = new Sortable(grid, { 
                 animation: 250, 
-                // 🧠 LA MAGIA: Arrastre instantáneo en PC, pero exige mantener calcado 200ms en móvil
                 delay: 200,
                 delayOnTouchOnly: true,
                 ghostClass: 'sortable-ghost',
                 onEnd: ()=>{
                     const order = [];
                     document.querySelectorAll('.card').forEach(c=>order.push(c.dataset.id));
+                    
+                    // 💾 GUARDADO DE ORDEN EN SUPABASE Y CACHÉ
                     localStorage.setItem('gridOrder', JSON.stringify(order));
+                    if (this.perfilDB) {
+                        if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = {};
+                        this.perfilDB.tarjetas.orden = order;
+                        this.guardarPerfilEnNube({ tarjetas: this.perfilDB.tarjetas });
+                    }
                     this.vibra("tick");
                 }
             });
         } else {
-            grid.classList.remove('edit-mode'); 
+            grid.classList.remove('edit-mode');
             btn.innerHTML = `<i class="fa-solid fa-pen" style="width:20px"></i> Editar`; 
             if(this.sortable) this.sortable.destroy();
             this.vibra("doble");
@@ -1892,10 +1762,17 @@ export class Core {
     toggleTheme() { 
         const current = document.body.getAttribute('data-theme');
         const next = current === 'dark' ? 'light' : 'dark';
-        document.body.setAttribute('data-theme', next); localStorage.setItem('theme',next); 
+        document.body.setAttribute('data-theme', next); 
+        localStorage.setItem('theme',next);
+        
+        // Sincronizar tema a la nube si hay sesión
+        if(this.perfilDB) {
+            if(!this.perfilDB.interfaz) this.perfilDB.interfaz = {};
+            this.perfilDB.interfaz.tema = next;
+            this.guardarPerfilEnNube({ interfaz: this.perfilDB.interfaz });
+        }
     }
 
-    // 📳 Motor Háptico
     vibra(tipo = "tick") {
         const sw = document.getElementById('sw-vibration');
         if (!sw || !sw.checked || !navigator.vibrate) return;
@@ -1904,7 +1781,6 @@ export class Core {
         if (tipo === "error") navigator.vibrate([50, 50, 50]);
     }
 
-    // 🔔 Notificaciones Toast
     notificar(msg, icon = "✅") {
         const container = document.getElementById('toast-area');
         if(!container) return;
@@ -1919,84 +1795,32 @@ export class Core {
     setNetworkStatus(isOnline) {
         if(isOnline) {
             if(this._wasOffline) { 
-                this.notificar("Conexión Recuperada", "🌐"); 
+                this.notificar("Conexión Recuperada", "🌐");
                 this._wasOffline = false; 
             }
         } else {
-            // Solo lanzamos un toast de aviso suave y vibramos, pero la web sigue 100% usable
             this.notificar("Sin conexión al Broker", "⚠️");
             this.vibra("error");
             this._wasOffline = true;
         }
     }
 
-    // ==========================================================
-    // 🧪 LABORATORIO DE TECNOLOGÍAS EXPERIMENTALES (Inactivas)
-    // ==========================================================
-
-    initProyectosSecretos() {
-        // 1. Sonar Ultrasónico (Web Audio API)
-        this.config.sonarActivado = false;
-        // TODO: Inyectar oscilador a 20kHz y analizar efecto Doppler con el micrófono.
-
-        // 2. Visión Artificial (Webcam AI)
-        this.config.webcamAiActivada = false;
-        // TODO: Cargar modelo de TensorFlow.js (coco-ssd) en background para detectar "Person".
-
-        // 3. Handoff (Sincronización Multi-pantalla)
-        this.config.handoffActivado = false;
-        // TODO: Suscribir a un topic oculto "sync/#". Al recibir un cambio de scroll, replicarlo aquí.
-    }
-
-    async prepararCortezaNeuronal() {
-        if (this.tfReady) return;
-        
-        console.log("🧠 Desplegando esqueleto de TensorFlow.js...");
-        try {
-            // Importación dinámica extrema para no penalizar el tiempo de renderizado web
-            this.tf = await import("https://esm.run/@tensorflow/tfjs");
-            
-            // Forzamos el backend de WebGL (Gráfica) para máximo rendimiento, o WASM si falla
-            await this.tf.setBackend('webgl').catch(() => this.tf.setBackend('wasm'));
-            await this.tf.ready();
-            
-            this.tfReady = true;
-            console.log(`✅ Corteza neuronal online. Backend activo: ${this.tf.getBackend()}`);
-            
-            // Espacio reservado para futuros tensores (Acelerómetro, Mantenimiento predictivo, etc.)
-            /*
-            const modelo = await this.tf.loadLayersModel('local://mi-modelo-iot');
-            */
-        } catch (error) {
-            console.error("❌ Fallo crítico en TensorFlow:", error);
-        }
-    }
-    
-    // ==========================================================
-    // 🪄 MOTOR DE TECNOLOGÍAS AVANZADAS (V22)
-    // ==========================================================
-
-    // 1. ATAJOS DE TECLADO GLOBALES (Mapeo)
     initAtajosTeclado() {
         window.addEventListener('keydown', (e) => {
-            // No activar si el usuario está escribiendo en el chat de IA o en un input
             if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-            // Mapeo por defecto (Esto se podrá personalizar luego en ajustes)
             if(e.key.toLowerCase() === 'l') {
                 this.vibra("tick");
                 const st = document.getElementById('val-Led')?.innerText;
                 if(st) this.ejecutarConDeshacer('Led', st === "ON" ? "off" : "on");
             }
-            if(e.key === 'h') this.toggleHUD(); // Activar/Desactivar Consola Hacker
+            if(e.key === 'h') this.toggleHUD();
         });
     }
 
-    // 2. CONSOLA HUD (Matrix Mode)
     toggleHUD() {
         let hud = document.getElementById('hud-console');
         if(!hud) {
-            // Crear el HUD si no existe
             hud = document.createElement('div');
             hud.id = 'hud-console';
             document.body.appendChild(hud);
@@ -2013,28 +1837,24 @@ export class Core {
         const timestamp = new Date().toLocaleTimeString();
         linea.innerText = `[${timestamp}] > ${msg}`;
         hud.appendChild(linea);
-        hud.scrollTop = hud.scrollHeight; // Auto-scroll
+        hud.scrollTop = hud.scrollHeight;
     }
 
-    // 3. PARALLAX 3D (Sensor espacial para tarjetas)
     initParallax() {
-        // Para PC (Ratón)
         document.addEventListener('mousemove', (e) => {
             if(this.editMode) return;
             document.querySelectorAll('.card').forEach(card => {
                 const rect = card.getBoundingClientRect();
                 const x = e.clientX - rect.left - rect.width / 2;
                 const y = e.clientY - rect.top - rect.height / 2;
-                // Inclinación sutil según la posición del ratón
                 card.style.transform = `perspective(1000px) rotateX(${-y / 30}deg) rotateY(${x / 30}deg)`;
             });
         });
-        // Para Móvil (Giroscopio)
         if (window.DeviceOrientationEvent) {
             window.addEventListener('deviceorientation', (e) => {
                 if(this.editMode) return;
-                const tiltX = Math.min(Math.max(e.beta - 45, -20), 20); // Inclinación frontal
-                const tiltY = Math.min(Math.max(e.gamma, -20), 20);    // Inclinación lateral
+                const tiltX = Math.min(Math.max(e.beta - 45, -20), 20);
+                const tiltY = Math.min(Math.max(e.gamma, -20), 20); 
                 document.querySelectorAll('.card').forEach(card => {
                     card.style.transform = `perspective(1000px) rotateX(${-tiltX}deg) rotateY(${tiltY}deg)`;
                 });
@@ -2042,11 +1862,8 @@ export class Core {
         }
     }
 
-    // 4. TIME-TRAVEL: BOTÓN DESHACER (Red de seguridad)
     ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
-        // Buscar la tarjeta y ver si tiene el 'undo' activado
         const tarjeta = this.cards.find(c => c.id === app);
-        
         if (tarjeta && tarjeta.undo) {
             const toastId = Math.random().toString(36).substr(2,9);
             const container = document.getElementById('toast-area');
@@ -2054,7 +1871,6 @@ export class Core {
             toast.className = "toast";
             toast.style.position = "relative";
             toast.style.overflow = "hidden";
-            
             toast.innerHTML = `
                 ⏳ <span style="margin-left:8px">Orden a ${app} en espera...</span>
                 <button class="toast-undo-btn" id="undo-${toastId}">DESHACER</button>
@@ -2062,25 +1878,20 @@ export class Core {
             `;
             container.appendChild(toast);
 
-            // Temporizador de la bomba
             const timerId = setTimeout(() => {
-                this.cmd(app, comando); // Si pasa el tiempo, enviamos
+                this.cmd(app, comando); 
                 toast.remove();
             }, tiempoGracia);
-
-            // Si pulsamos Deshacer
             document.getElementById(`undo-${toastId}`).onclick = () => {
-                clearTimeout(timerId); // Desactivamos la bomba
+                clearTimeout(timerId);
                 toast.remove();
                 this.notificar(`Acción en ${app} cancelada`, "🛑");
             };
         } else {
-            // Si la tarjeta no tiene Deshacer, envía la orden directamente
             this.cmd(app, comando);
         }
     }
 
-    // 5. GESTOS SWIPE (Deslizar para revelar Ajustes/PiP)
     initSwipeGestures() {
         let touchStartX = 0;
         document.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
@@ -2089,83 +1900,59 @@ export class Core {
             const targetCard = e.target.closest('.card');
             if(!targetCard) return;
 
-            // Deslizar a la izquierda (Revelar overlay)
             if (touchStartX - touchEndX > 50) targetCard.classList.add('swipe-open');
-            // Deslizar a la derecha (Ocultar overlay)
             if (touchEndX - touchStartX > 50) targetCard.classList.remove('swipe-open');
         });
     }
 
-    // 6. PICTURE-IN-PICTURE (Ventanas flotantes desacopladas)
     async abrirPiP(app) {
         if (!('documentPictureInPicture' in window)) {
             return this.notificar("Tu navegador no soporta PiP", "❌");
         }
         const tarjeta = this.cards.find(c => c.id === app);
         if(!tarjeta || !tarjeta.pip) return;
-
         try {
-            // Abrimos ventana flotante del sistema operativo
             const pipWindow = await documentPictureInPicture.requestWindow({ width: 250, height: 250 });
-            
-            // Inyectamos el CSS principal
             const style = document.createElement('style');
             style.textContent = `
                 body { background: #1c1c1e; color: white; display: flex; align-items: center; justify-content: center; font-family: sans-serif; height: 100vh; margin: 0; }
                 .val-text { font-size: 3rem; font-weight: bold; }
             `;
             pipWindow.document.head.appendChild(style);
-            
-            // Inyectamos una versión mini de la tarjeta
             pipWindow.document.body.innerHTML = `
                 <div style="text-align:center">
                     <div style="color:#8e8e93">${app.toUpperCase()}</div>
                     <div class="val-text" id="pip-val">...</div>
                 </div>
             `;
-            
-            // Escuchamos el MQTT para actualizar la ventana flotante en tiempo real
             this.notificar(`${app} extraído a PiP`, "🪟");
         } catch(e) {
             console.error(e);
         }
     }
 
-    // ==========================================================
-    // 🚀 MÓDULOS DE GRADO INDUSTRIAL (Menú Lateral)
-    // ==========================================================
-
     initSidebar() {
         const trigger = document.querySelector('.pico-os-title');
         const menu = document.getElementById('side-menu');
 
-        // UNIFICADO: PC y Móvil abren al hacer clic
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             menu.classList.toggle('open');
             this.vibra("tick");
         });
-
-        // Cerrar al hacer clic en cualquier parte fuera del menú
         document.addEventListener('click', (e) => {
             if(!menu.contains(e.target) && !trigger.contains(e.target)) {
                 menu.classList.remove('open');
             }
         });
-
-        // Eventos de los botones del menú lateral
         document.getElementById('btn-nav-plano').onclick = () => { document.getElementById('plano-view').style.display = 'flex'; menu.classList.remove('open'); };
         document.getElementById('btn-nav-macros').onclick = () => { document.getElementById('macros-view').style.display = 'flex'; menu.classList.remove('open'); };
         document.getElementById('btn-nav-nfc').onclick = () => this.leerNFC();
         document.getElementById('btn-nav-radar').onclick = () => this.iniciarRadarBluetooth();
-        document.getElementById('btn-nav-terminal').onclick = () => { this.toggleHUD(); menu.classList.remove('open')}; 
+        document.getElementById('btn-nav-terminal').onclick = () => { this.toggleHUD(); menu.classList.remove('open')};
     }
 
-    // --- FUNCIÓN 1: PRESENCIA MULTIJUGADOR ---
     initMultijugador() {
-        // En un entorno real, suscribiríamos a "PicoWESP.../presencia/#"
-        // Simulamos que otro usuario (ej. tu móvil) toca la tarjeta "Calculadora"
-        // TODO: Conectar esto al onMessageArrived real
         window.simularPresencia = (appId) => {
             const card = document.getElementById(`card-${appId}`);
             if(!card) return;
@@ -2175,7 +1962,6 @@ export class Core {
         };
     }
 
-    // --- FUNCIÓN 2: LECTOR DE ETIQUETAS NFC ---
     async leerNFC() {
         if (!("NDEFReader" in window)) {
             return this.notificar("Tu dispositivo no tiene chip NFC o no es compatible (usa Chrome en Android)", "❌");
@@ -2185,11 +1971,9 @@ export class Core {
             await ndef.scan();
             this.notificar("Acerca el móvil a una etiqueta NFC...", "📡");
             this.vibra("doble");
-            
             ndef.addEventListener("reading", ({ message, serialNumber }) => {
                 this.vibra("tick");
                 this.notificar(`Etiqueta NFC detectada: ${serialNumber}`, "✅");
-                // Aquí podrías disparar una Macro. Ej: si serial == '12:34:56', apaga la luz.
                 this.logHUD(`Lectura NFC: ${serialNumber}`);
             });
         } catch (error) {
@@ -2198,28 +1982,19 @@ export class Core {
         }
     }
 
-    // --- FUNCIÓN 3: RADAR DE PROXIMIDAD BLUETOOTH ---
     async iniciarRadarBluetooth() {
         if (!navigator.bluetooth) {
             return this.notificar("Bluetooth Web no soportado en este navegador", "❌");
         }
         try {
             this.notificar("Escaneando balizas cercanas...", "🔎");
-            const device = await navigator.bluetooth.requestDevice({
-                acceptAllDevices: true
-            });
+            const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
             this.vibra("tick");
             this.notificar(`Dispositivo detectado: ${device.name || 'Desconocido'}`, "✅");
-            // TODO: Leer el RSSI (Fuerza de señal) continuamente para calcular la distancia.
         } catch(e) {
-            // El usuario canceló o hubo un error
             console.log("Radar Bluetooth cancelado");
         }
     }
-
-    // ==========================================================
-    // 🧠 LOGICA DE PLANOS REALES Y MACROS IA
-    // ==========================================================
 
     initModosExpertos() {
         this.initConstructorPlano();
@@ -2227,18 +2002,16 @@ export class Core {
         this.initGestorMacrosIA();
     }
 
-    // --- MOTOR DEL CONSTRUCTOR ESPACIAL 2D ---
     initConstructorPlano() {
         const grid = document.getElementById('plano-grid');
         const tools = document.querySelectorAll('.build-tool');
         const btnClear = document.getElementById('btn-clear-grid');
         if(!grid) return;
 
-        let currentTool = 'floor'; // Herramienta por defecto
+        let currentTool = 'floor';
         let isDrawing = false;
-        const totalCells = 30 * 20; // 600 celdas
+        const totalCells = 30 * 20; 
 
-        // 1. Selector de herramientas
         tools.forEach(tool => {
             tool.onclick = () => {
                 tools.forEach(t => t.classList.remove('active'));
@@ -2247,11 +2020,8 @@ export class Core {
                 this.vibra("tick");
             };
         });
-
-        // 2. Cargar mapa guardado (o crear uno vacío)
         let savedMap = JSON.parse(localStorage.getItem('miPlanoTiles')) || Array(totalCells).fill('');
 
-        // 3. Generar la cuadrícula
         grid.innerHTML = '';
         for (let i = 0; i < totalCells; i++) {
             const cell = document.createElement('div');
@@ -2260,25 +2030,17 @@ export class Core {
             grid.appendChild(cell);
         }
 
-        // 4. Función de pintado
         const paintCell = (cell) => {
             if (!cell || !cell.classList.contains('grid-cell')) return;
-            // Limpiamos las clases de materiales anteriores
             cell.classList.remove('wall', 'floor', 'door', 'window');
-            // Pintamos el nuevo material si no es la goma de borrar
             if (currentTool !== 'erase') cell.classList.add(currentTool);
-            
-            // Guardar en tiempo real
             savedMap[cell.dataset.index] = currentTool !== 'erase' ? currentTool : '';
             localStorage.setItem('miPlanoTiles', JSON.stringify(savedMap));
         };
 
-        // 5. Controles de Ratón / Táctil para "pintar arrastrando"
         grid.addEventListener('mousedown', (e) => { isDrawing = true; paintCell(e.target); });
         grid.addEventListener('mouseover', (e) => { if(isDrawing) paintCell(e.target); });
         document.addEventListener('mouseup', () => { if(isDrawing) { isDrawing = false; this.vibra("tick"); }});
-        
-        // Soporte táctil básico para móviles
         grid.addEventListener('touchstart', (e) => { isDrawing = true; paintCell(e.target); }, {passive: false});
         grid.addEventListener('touchmove', (e) => {
             if(!isDrawing) return;
@@ -2289,7 +2051,6 @@ export class Core {
         }, {passive: false});
         document.addEventListener('touchend', () => isDrawing = false);
 
-        // 6. Botón de borrado masivo
         btnClear.onclick = () => {
             if(confirm("¿Borrar todo el plano?")) {
                 savedMap = Array(totalCells).fill('');
@@ -2303,15 +2064,12 @@ export class Core {
     initPlanoDraggable() {
         const workspace = document.getElementById('plano-workspace');
         if(!workspace) return;
-        
         let draggedElement = null;
         let offsetX = 0, offsetY = 0;
-
         const startDrag = (e) => {
             if (!e.target.classList.contains('plano-pin')) return;
             draggedElement = e.target;
             
-            // Soporte para ratón y táctil
             const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
             
@@ -2322,22 +2080,18 @@ export class Core {
 
         const onDrag = (e) => {
             if (!draggedElement) return;
-            e.preventDefault(); // Evita scroll en móviles al arrastrar
+            e.preventDefault(); 
             
             const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
             
             const workspaceRect = workspace.getBoundingClientRect();
-            
-            // Calculamos nueva posición relativa al área de trabajo
             let newLeft = clientX - workspaceRect.left - offsetX;
             let newTop = clientY - workspaceRect.top - offsetY;
 
-            // Límites para que no se salgan de la pantalla
             newLeft = Math.max(0, Math.min(newLeft, workspaceRect.width - draggedElement.offsetWidth));
             newTop = Math.max(0, Math.min(newTop, workspaceRect.height - draggedElement.offsetHeight));
 
-            // Aplicamos posición en porcentajes para que sea responsive al girar el móvil
             draggedElement.style.left = `${(newLeft / workspaceRect.width) * 100}%`;
             draggedElement.style.top = `${(newTop / workspaceRect.height) * 100}%`;
         };
@@ -2345,7 +2099,6 @@ export class Core {
         const endDrag = () => {
             if(draggedElement) {
                 this.vibra("tick");
-                // TODO: Aquí guardaríamos draggedElement.style.left/top en el localStorage
                 draggedElement = null;
             }
         };
@@ -2359,7 +2112,6 @@ export class Core {
         document.addEventListener('touchend', endDrag);
     }
 
-    // --- GESTOR DE MACROS IA & KEYBINDER ---
     initGestorMacrosIA() {
         const btnRecord = document.getElementById('btn-record-key');
         const displayKey = document.getElementById('recorded-key-display');
@@ -2367,28 +2119,23 @@ export class Core {
         const promptInput = document.getElementById('macro-ai-prompt');
         const list = document.getElementById('macro-list');
         const emptyMsg = document.getElementById('macro-empty-msg');
-        
-        if (!btnRecord || !btnCompile) return; // Evita errores si falta el HTML
+        if (!btnRecord || !btnCompile) return; 
 
         let currentBinding = "";
-
-        // 1. El Keybinder (Atrapador de Teclas)
         btnRecord.onclick = () => {
             btnRecord.innerText = "Escuchando...";
             btnRecord.style.background = "#ff9f0a";
             btnRecord.style.color = "white";
             
             const capturer = (e) => {
-                e.preventDefault(); // Evita que la tecla haga su función normal
+                e.preventDefault();
                 
                 let keys = [];
                 if (e.ctrlKey) keys.push("Ctrl");
                 if (e.altKey) keys.push("Alt");
                 if (e.shiftKey) keys.push("Shift");
                 
-                // No grabar si solo pulsó un modificador
                 if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-                
                 keys.push(e.key.toUpperCase());
                 currentBinding = keys.join(" + ");
                 
@@ -2404,15 +2151,12 @@ export class Core {
             window.addEventListener('keydown', capturer);
         };
 
-        // 2. El Compilador (Preparado para la IA)
         btnCompile.onclick = async () => {
             const prompt = promptInput.value.trim();
             if(!currentBinding || !prompt) return this.notificar("Falta el atajo o el texto", "⚠️");
 
             btnCompile.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Compilando...`;
             this.vibra("tick");
-
-            // Simulamos que la IA nos devuelve el JSON compilado en 1 segundo.
             setTimeout(() => {
                 const codigoJSONGenerado = JSON.stringify({ "Led": "toggle", "Pomodoro": 25 });
 
@@ -2430,7 +2174,6 @@ export class Core {
                 `;
                 list.appendChild(li);
                 
-                // Limpiar inputs
                 promptInput.value = "";
                 displayKey.innerText = "Sin asignar";
                 currentBinding = "";
@@ -2440,18 +2183,13 @@ export class Core {
             }, 1000);
         };
     }
-    // ==========================================================
-    // 🗄️ MÓDULO DE BASE DE DATOS LOCAL (MEMORIA PROFUNDA)
-    // ==========================================================
 
-    // Inicia la conexión con IndexedDB (La Base de Datos del Navegador)
     initBaseDeDatos() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open("PicoOS_Database", 1);
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                // Creamos una "tabla" llamada 'habitos'
                 if (!db.objectStoreNames.contains('habitos')) {
                     const store = db.createObjectStore('habitos', { keyPath: 'id', autoIncrement: true });
                     store.createIndex('app', 'app', { unique: false });
@@ -2469,7 +2207,6 @@ export class Core {
         });
     }
 
-    // Registra un evento en la base de datos
     registrarEnDB(app, accion, valorExtra = null) {
         if (!this.db) return;
         const transaccion = this.db.transaction(['habitos'], 'readwrite');
@@ -2479,16 +2216,14 @@ export class Core {
             app: app,
             accion: accion,
             valor: valorExtra,
-            hora: new Date().getHours(), // Hora del día (0-23)
+            hora: new Date().getHours(),
             minuto: new Date().getMinutes(),
-            diaSemana: new Date().getDay(), // 0 (Dom) a 6 (Sab)
+            diaSemana: new Date().getDay(), 
             timestamp: Date.now()
         };
-        
         store.add(registro);
     }
 
-    // Extrae los hábitos históricos basados en la hora actual
     consultarHabitosDB(horaActual) {
         return new Promise((resolve) => {
             if (!this.db) return resolve("Sin datos históricos.");
@@ -2496,7 +2231,6 @@ export class Core {
             const store = transaccion.objectStore('habitos');
             const index = store.index('hora');
             
-            // Buscamos qué suele hacer el usuario a esta hora
             const rango = IDBKeyRange.only(horaActual);
             const request = index.getAll(rango);
             
@@ -2504,7 +2238,6 @@ export class Core {
                 const resultados = request.result;
                 if (resultados.length === 0) return resolve("No hay patrones a esta hora.");
                 
-                // Resumimos los datos para no saturar a la IA
                 let resumen = {};
                 resultados.forEach(r => {
                     const clave = `${r.app}->${r.accion}`;
