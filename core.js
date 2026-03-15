@@ -413,8 +413,12 @@ export class Core {
 
                 const alias = u.alias || 'Usuario Anónimo';
                 const avatarUrl = u.avatar_url;
-                const estaOnline = u.estado_online === true || u.estado_online === 'online';
-                const colorEstado = estaOnline ? '#32d74b' : '#a1a1aa';
+                let estaOnline = false;
+                if (u.estado_online === true || u.estado_online === 'online' || u.estado_online === 'true') {
+                    estaOnline = true;
+                }
+                
+                const colorEstado = estaOnline ? '#32d74b' : '#a1a1aa'; // Verde si online, gris si offline
                 const txtEstado = estaOnline ? 'Online' : 'Desconectado';
 
                 let avatarHtml = `<i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>`;
