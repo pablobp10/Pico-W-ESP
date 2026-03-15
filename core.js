@@ -1094,30 +1094,51 @@ export class Core {
         overlay.addEventListener('touchmove', arrastreCierre, {passive: false});
     }
 
-    // 📝 1. FORMULARIO DE REGISTRO
+        // 📝 1. FORMULARIO DE REGISTRO ESTRICTO (Email Real)
     async registrarUsuario(u, p1, p2) {
-        if (!u) return this.notificar("Falta el usuario", "❌");
+        if (!u) return this.notificar("Falta el correo electrónico", "❌");
+        
+        // 🚨 NUEVA REGLA: Si no tiene '@' o no tiene un punto '.', lo bloqueamos
+        if (!u.includes('@') || !u.includes('.')) {
+            return this.notificar("Debes usar un correo real válido", "⚠️");
+        }
+        
         if (p1 !== p2) return this.notificar("Las contraseñas no coinciden", "❌");
         if (p1.length < 6) return this.notificar("Mínimo 6 caracteres", "⚠️");
-        const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
+        
+        // Usamos el correo tal cual lo ha escrito el usuario
+        const emailAuth = u.trim(); 
+        
         const btn = document.getElementById('btn-register-submit');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
+        
         try {
-            const { data, error } = await this.supabase.auth.signUp({ email: emailAuth, password: p1 });
+            const { data, error } = await this.supabase.auth.signUp({ 
+                email: emailAuth, 
+                password: p1 
+            });
+            
             if (error) throw error;
-            this.notificar("Solicitud enviada al Administrador.", "⏳");
+            
+            // Cambiamos el mensaje para avisar de que miren el correo
+            this.notificar("Revisa tu correo para confirmar la cuenta.", "📩");
+            
             document.getElementById('link-toggle-register').click();
             document.getElementById('user-input').value = "";
             document.getElementById('pass-input').value = "";
             document.getElementById('pass2-input').value = "";
+            
         } catch (error) {
-            if (error.message.includes("already registered")) this.notificar("Ese usuario ya existe", "⚠️");
-            else this.notificar("Fallo al registrar", "❌");
+            if (error.message.includes("already registered")) {
+                this.notificar("Ese correo ya está registrado", "⚠️");
+            } else {
+                this.notificar("Fallo al registrar", "❌");
+            }
         } finally {
             btn.innerHTML = 'ENVIAR SOLICITUD';
         }
     }
+
 
     async comprobarSolicitudesPendientes() {
         if (this.rol !== 'admin' && this.rol !== 'god') return;
