@@ -377,6 +377,86 @@ export class Core {
         }
     }
 
+        // ==========================================
+    // ESCÁNER DE LA PLAZA (Vista Pública Segura)
+    // ==========================================
+    async cargarPlazaPublica() {
+        const contenedor = document.getElementById('plaza-section-friends');
+        if (!contenedor) return;
+        
+        // 1. Ponemos el radar a escanear
+        contenedor.innerHTML = `
+            <h3 style="font-size: 0.8rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-user-group"></i> LA PLAZA
+            </h3>
+            <div style="text-align:center; color: #8b5cf6; padding: 20px;">
+                <i class="fa-solid fa-radar fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Escaneando habitantes...</p>
+            </div>
+        `;
+
+        try {
+            // 2. Pedimos los datos a la vista segura de Supabase
+            const { data, error } = await this.supabase
+                .from('plaza_publica')
+                .select('alias, avatar_url, estado_online'); // Solo pedimos lo que necesitamos
+
+            if (error) throw error;
+
+            // Limpiamos y preparamos el título con el número real de personas
+            contenedor.innerHTML = `
+                <h3 style="font-size: 0.8rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-group"></i> HABITANTES (${data ? data.length : 0})
+                </h3>
+            `;
+
+            if (!data || data.length === 0) {
+                contenedor.innerHTML += `<p style="color: var(--text-sec); text-align: center;">La plaza está vacía.</p>`;
+                return;
+            }
+
+            // 3. Inyectamos las tarjetas reales con tu diseño Glassmorphism
+            data.forEach(habitante => {
+                // Mapeamos a tus columnas reales
+                const alias = habitante.alias || 'Anónimo';
+                const avatarUrl = habitante.avatar_url;
+                
+                // Evaluamos el estado (por si en la BD es booleano o texto)
+                const estaOnline = habitante.estado_online === true || habitante.estado_online === 'online'; 
+                const colorEstado = estaOnline ? '#32d74b' : '#a1a1aa'; // Verde si online, gris si offline
+                const textoEstado = estaOnline ? 'Online' : 'Desconectado';
+
+                // Lógica del avatar: Si tiene URL ponemos la imagen, si no, el icono por defecto
+                let avatarHtml = `<i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>`;
+                if (avatarUrl) {
+                    avatarHtml = `<img src="${avatarUrl}" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid ${colorEstado}; object-fit: cover;">`;
+                }
+
+                const tarjetaHTML = `
+                <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(139, 92, 246, 0.2); ${!estaOnline ? 'opacity: 0.6;' : ''}">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative;">
+                            ${avatarHtml}
+                            <span style="position: absolute; bottom: 0px; right: -2px; width: 14px; height: 14px; background: ${colorEstado}; border-radius: 50%; border: 2px solid var(--bg); ${estaOnline ? 'box-shadow: 0 0 8px ' + colorEstado + ';' : ''}"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${alias}</span>
+                            <span style="font-size: 0.75rem; color: ${colorEstado}; font-weight: bold;">${textoEstado}</span>
+                        </div>
+                    </div>
+                    <div style="color: var(--primary); font-size: 1.2rem; opacity: 0.5; padding-right: 10px;">
+                        <i class="fa-solid fa-handshake"></i>
+                    </div>
+                </div>
+                `;
+                contenedor.innerHTML += tarjetaHTML;
+            });
+
+        } catch (err) {
+            console.error("Error al cargar La Plaza Pública:", err);
+            contenedor.innerHTML += `<p style="color: #ff453a; text-align: center;">Error de lectura: ${err.message}</p>`;
+        }
+    }
 
     async guardarPerfilEnNube(datos) {
         if(!this.usuarioLogueado) return false;
