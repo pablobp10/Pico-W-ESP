@@ -136,6 +136,8 @@ export class Core {
         this.iniciarAgenteProactivo();
         this.initBaseDeDatos()
         this.initInterruptorIA();
+        this.initSubidaAvatares();
+
 
         // --- 1. LOGIN Y HUELLA ---
         document.getElementById('btn-login').onclick = () => this.login();
@@ -504,6 +506,67 @@ export class Core {
             console.error("Error al cargar La Plaza Pública:", err);
             this.notificar("Error cargando el radar social", "❌");
         }
+    }
+    
+        // ==========================================
+    // 📁 SUBIDA DE AVATARES A SUPABASE STORAGE
+    // ==========================================
+    initSubidaAvatares() {
+        const btnUpload = document.getElementById('btn-upload-avatar');
+        const fileInput = document.getElementById('file-avatar-upload');
+        const urlInput = document.getElementById('input-perfil-avatar');
+
+        if (!btnUpload || !fileInput || !urlInput) return;
+
+        // 1. Al hacer clic en el botón, activamos el input invisible
+        btnUpload.onclick = (e) => {
+            e.preventDefault();
+            fileInput.click();
+        };
+
+        // 2. Cuando el usuario selecciona una foto de sus carpetas
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Cambiamos el icono para que sepa que está cargando
+            const iconoOriginal = btnUpload.innerHTML;
+            btnUpload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            this.notificar("Subiendo imagen al servidor...", "⏳");
+
+            try {
+                // Generamos un nombre único para que las fotos no se machaquen entre sí
+                const fileExt = file.name.split('.').pop();
+                const fileName = `avatar_${this.usuarioLogueado.id}_${Date.now()}.${fileExt}`;
+
+                // 3. Subimos la foto al bucket 'avatars' de Supabase
+                const { data, error } = await this.supabase.storage
+                    .from('avatars')
+                    .upload(fileName, file, { 
+                        cacheControl: '3600', 
+                        upsert: true // Sobrescribe si ya existe una con ese nombre exacto
+                    });
+
+                if (error) throw error;
+
+                // 4. Obtenemos la URL pública de la foto recién subida
+                const { data: publicUrlData } = this.supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(fileName);
+
+                // 5. Metemos la URL mágica en el cajetín para que se guarde al darle a "Guardar Perfil"
+                urlInput.value = publicUrlData.publicUrl;
+                this.notificar("¡Imagen lista! No olvides guardar los ajustes.", "✅");
+
+            } catch (err) {
+                console.error("Error al subir el archivo:", err);
+                this.notificar("Error al subir la imagen", "❌");
+            } finally {
+                // Restauramos el botón
+                btnUpload.innerHTML = iconoOriginal;
+                fileInput.value = ''; 
+            }
+        };
     }
 
     // ==========================================
