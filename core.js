@@ -163,13 +163,18 @@ export class Core {
             };
         }
         
+                // Configurar botón del menú lateral para abrir La Plaza
         const btnPlaza = document.getElementById('btn-nav-plaza');
-        if(btnPlaza) {
-            btnPlaza.onclick = () => {
-                document.getElementById('side-menu').classList.remove('open');
+        if (btnPlaza) {
+            btnPlaza.addEventListener('click', () => {
+                // 1. Mostrar el overlay de La Plaza
                 document.getElementById('plaza-view').style.display = 'block';
-            };
+                
+                // 2. Ejecutar el escáner para dibujar las tarjetas reales
+                this.cargarPlazaPublica();
+            });
         }
+
 
         // --- 3. AJUSTES Y CERRAR SESIÓN ---
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
