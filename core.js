@@ -122,9 +122,28 @@ export class Core {
     }
     
     init() {
+        const cacheLocal = localStorage.getItem('pico_perfil_cache');
+        if (cacheLocal) {
+            try {
+                this.perfilDB = JSON.parse(cacheLocal);
+                this.rol = this.perfilDB.rol || "guest";
+                
+                // Aplicar el tema instantáneamente antes de que el usuario parpadee
+                if (this.perfilDB.interfaz && this.perfilDB.interfaz.tema) {
+                    document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                    localStorage.setItem('theme', this.perfilDB.interfaz.tema); // Sincronizamos el local general
+                }
+            } catch (e) {
+                console.warn("Caché local corrupta, esperando a la nube...");
+            }
+        }
+
+        // ==========================================
+        // 1. INICIALIZACIÓN NORMAL
+        // ==========================================
         this.filtroActual = 'all';
         this.initTheme();
-        this.renderGrid();
+        this.renderGrid(); // Ahora se dibujará a la primera con los tamaños correctos de la caché
         this.setupBrokerMenu();
         this.initAtajosTeclado();
         this.initParallax();
@@ -134,7 +153,7 @@ export class Core {
         this.initModosExpertos();
         this.initVozJARVIS();
         this.iniciarAgenteProactivo();
-        this.initBaseDeDatos()
+        this.initBaseDeDatos();
         this.initInterruptorIA();
         this.initSubidaAvatares();
 
