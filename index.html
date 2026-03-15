@@ -219,10 +219,19 @@
 
         <div style="margin-bottom: 25px;">
             <h3 style="font-size: 0.85rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;"><i class="fa-solid fa-id-card"></i> IDENTIDAD</h3>
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">URL del Avatar</label>
-                <input type="text" id="input-perfil-avatar" class="pico-input" style="width: 100%; margin-top: 5px; box-sizing: border-box;" placeholder="https://ejemplo.com/mifoto.jpg">
+                    <div style="margin-bottom: 15px; text-align: left;">
+            <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">URL del Avatar</label>
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; margin-top: 5px;">
+                <input type="text" id="input-perfil-avatar" class="pico-input" placeholder="URL o sube una imagen ➡️" style="flex-grow: 1; box-sizing: border-box; margin: 0;">
+                
+                <button id="btn-upload-avatar" class="btn-action" style="width: 45px; height: 40px; padding: 0; background: var(--card-bg); border: 1px solid var(--primary); color: var(--primary); margin: 0; display: flex; justify-content: center; align-items: center; border-radius: 8px;" title="Subir desde el dispositivo">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
+                
+                <input type="file" id="file-avatar-upload" accept="image/*" style="display: none;">
             </div>
+        </div>
+
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <div style="flex: 2; text-align: left;">
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Nombre Completo</label>
