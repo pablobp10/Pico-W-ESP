@@ -480,7 +480,7 @@ export class Core {
                 auth_token: tokenJWT // <--- El escudo verificará esto
             }));
             
-            this.sysLog('NET', 'WS Open', Túnel establecido. Token enviado para validación.);
+            this.sysLog('NET', 'WS Open', 'Túnel establecido. Token enviado para validación.');
         };
 
         this.ws.onmessage = (event) => {
