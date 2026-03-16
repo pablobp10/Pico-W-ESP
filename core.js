@@ -199,6 +199,7 @@ export class Core {
             btnPlaza.addEventListener('click', () => {
                 // 1. Mostrar el overlay de La Plaza
                 document.getElementById('plaza-view').style.display = 'block';
+document.getElementById('side-menu').classList.remove('open')
                 
                 // 2. Ejecutar el escáner para dibujar las tarjetas reales
                 this.cargarPlazaPublica();
