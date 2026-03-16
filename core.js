@@ -463,12 +463,24 @@ export class Core {
         this.ws = new WebSocket(wsUrl);
         const dot = document.getElementById('mqtt-dot');
 
-        this.ws.onopen = () => {
+        this.ws.onopen = async () => {
             this.setNetworkStatus(true);
             if (dot) dot.className = "dot green";
+            
+            // 🔒 SEGURIDAD: Obtenemos nuestro token criptográfico de Supabase
+            const { data: { session } } = await this.supabase.auth.getSession();
+            const tokenJWT = session ? session.access_token : null;
+
             const brokerElegido = this.brokers[this.brIdx].h;
-            this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: brokerElegido }));
-            this.sysLog('NET', 'WS Open', `Túnel establecido. Petición de broker enviada: ${brokerElegido}`);
+            
+            // Le enviamos al escudo nuestra identidad real (token) junto con el broker
+            this.ws.send(JSON.stringify({ 
+                accion: "cambiar_broker", 
+                host: brokerElegido,
+                auth_token: tokenJWT // <--- El escudo verificará esto
+            }));
+            
+            this.sysLog('NET', 'WS Open', Túnel establecido. Token enviado para validación.);
         };
 
         this.ws.onmessage = (event) => {
@@ -1711,8 +1723,11 @@ export class Core {
         try {
             this.notificar("Forjando Bóveda Criptográfica...", "⚙️");
             const nuevaConf = {
-                topic: this.conf.topic, tk: this.conf.tk, rol: "guest",
-                apis: { google: this.apiKeys?.google, groq: this.apiKeys?.groq, openrouter: this.apiKeys?.openrouter } 
+                topic: this.conf.topic, 
+                tk: this.conf.tk, 
+                rol: "guest",
+                // Dejamos las APIs vacías para no filtrar nuestras claves maestras
+                apis: { google: "", groq: "", openrouter: "" } 
             };
             const ghostKey = CryptoJS.lib.WordArray.random(32).toString();
             const keyData = CryptoJS.SHA256(pass + ghostKey); const ivData = CryptoJS.lib.WordArray.random(16);
