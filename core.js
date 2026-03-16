@@ -377,7 +377,12 @@ export class Core {
                 document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             }
             
-            this.renderGrid();
+                        // 🛑 ANTI-PARPADEO: Solo redibujamos si Supabase tiene una versión más reciente que nuestra caché
+            // o si la cuadrícula estaba vacía (login manual)
+            if (fechaNube > fechaLocal || document.getElementById('dashboard-grid').children.length === 0) {
+                this.renderGrid();
+            }
+
             this.conectar();
             this.comprobarSolicitudesPendientes();
             this.logHUD("Login completado con éxito.", "✅");
