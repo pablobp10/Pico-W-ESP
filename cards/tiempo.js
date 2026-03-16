@@ -1,6 +1,7 @@
 export const TiempoCard = {
     id: "Tiempo",
     category: "info",
+    rol: "guest", // Ejemplo de uso del nuevo sistema modular
     defaultSize: "1x1", 
     customAccion: {
         titulo: "Pronóstico Semanal",
@@ -10,61 +11,34 @@ export const TiempoCard = {
             const card = document.getElementById('card-Tiempo');
             const weeklyDiv = document.getElementById('weekly-forecast');
             
-            // Leemos el tamaño guardado oficialmente en el sistema
             let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
             let currentSize = savedSizes['Tiempo'] || "1x1";
             
             if (currentSize === "2x3" && card.classList.contains('modo-semana')) {
-                // 1. CONTRAER A 1x1 Y GUARDAR
                 card.classList.remove('size-2x3');
                 card.classList.add('size-1x1');
                 savedSizes['Tiempo'] = '1x1';
                 localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
-                
                 card.classList.remove('modo-semana');
                 weeklyDiv.classList.remove('active');
             } else {
-                // 2. EXPANDIR A 2x3 Y GUARDAR
                 card.classList.remove(`size-${currentSize}`);
                 card.classList.add('size-2x3');
                 savedSizes['Tiempo'] = '2x3';
                 localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
-                
                 card.classList.add('modo-semana');
                 weeklyDiv.classList.add('active');
-                
-                // Disparamos la carga de datos
                 if (window.fetchWeeklyWeather) window.fetchWeeklyWeather();
             }
         }
     },
     html: `
         <style>
-            #tiempo-wrapper {
-                display: flex; flex-direction: column; justify-content: flex-start; align-items: center; 
-                height: 100%; width: 100%; box-sizing: border-box; padding: 6px; 
-            }
-            #tiempo-top {
-                display: flex; flex-direction: column; justify-content: center; align-items: center; 
-                width: 100%; height: 100%; gap: 0;
-            }
-            #weather-city { 
-                font-size: clamp(0.6rem, 12cqmin, 0.9rem); 
-                font-weight: 800; color: var(--text-sec); 
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-                text-align: center; margin: 0 0 auto 0; width: 100%;
-                transform: translateY(-5px);
-            }
-            #weather-icon { 
-                font-size: clamp(2.25rem, 30cqmin, 3.6rem); 
-                display: flex; align-items: center; justify-content: center; margin: auto 0;
-            }
-            #weather-temp { 
-                font-size: clamp(1.2rem, 22cqmin, 2.5rem); 
-                font-weight: 800; line-height: 1; margin: auto 0 2px 0;
-                transform: translateY(5px);
-            }
-            
+            #tiempo-wrapper { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 6px; }
+            #tiempo-top { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; gap: 0; }
+            #weather-city { font-size: clamp(0.6rem, 12cqmin, 0.9rem); font-weight: 800; color: var(--text-sec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; margin: 0 0 auto 0; width: 100%; transform: translateY(-5px); }
+            #weather-icon { font-size: clamp(2.25rem, 30cqmin, 3.6rem); display: flex; align-items: center; justify-content: center; margin: auto 0; }
+            #weather-temp { font-size: clamp(1.2rem, 22cqmin, 2.5rem); font-weight: 800; line-height: 1; margin: auto 0 2px 0; transform: translateY(5px); }
             #weekly-forecast { display: none !important; width: 100%; padding: 5px 10px; flex-grow: 1; flex-direction: column; justify-content: space-evenly; box-sizing:border-box;}
             #weekly-forecast.active { display: flex !important; }
             #card-Tiempo.modo-semana #tiempo-top { height: auto; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px; }
@@ -76,10 +50,12 @@ export const TiempoCard = {
                 #weather-temp { margin: 0; }
             }
 
-            /* 🎨 CSS PARA ICONOS MULTICAPA */
+            /* 🎨 CSS PARA ICONOS MULTICAPA Y NOCTURNOS */
             .w-sun { color: #facc15; filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.6)); animation: w-pulse 3s infinite alternate; }
+            .w-moon { color: #e2e8f0; filter: drop-shadow(0 0 8px rgba(226, 232, 240, 0.5)); animation: w-pulse 4s infinite alternate; }
             .w-cloud { color: #e2e8f0; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1)); }
             .w-cloud-dark { color: #64748b; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+            .w-cloud-night { color: #334155; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6)); }
             .w-rain { color: #38bdf8; animation: w-rain 1s infinite linear; }
             .w-snow { color: #bae6fd; animation: w-snow 3s infinite linear; }
             .w-bolt { color: #facc15; filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.8)); animation: w-flash 2s infinite; }
@@ -101,7 +77,6 @@ export const TiempoCard = {
     `,
     
     onInit: (core) => {
-        // Función global para pedir la semana (así podemos llamarla al recargar si ya estaba abierta)
         window.fetchWeeklyWeather = () => {
             const weeklyDiv = document.getElementById('weekly-forecast');
             const lat = window.lastCoords ? window.lastCoords.lat : 42.431;
@@ -118,7 +93,8 @@ export const TiempoCard = {
                         const date = new Date(d.daily.time[i]);
                         const tMax = Math.round(d.daily.temperature_2m_max[i]);
                         const tMin = Math.round(d.daily.temperature_2m_min[i]);
-                        const iconData = getWeatherIcon(d.daily.weathercode[i]);
+                        // Para la semana forzamos que muestre iconos de Día (1)
+                        const iconData = getWeatherIcon(d.daily.weathercode[i], 1);
                         html += `
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid var(--border);">
                                 <span style="width:35px; font-weight:bold; color:var(--text-sec); font-size:0.8rem">${dias[date.getDay()]}</span>
@@ -142,7 +118,8 @@ export const TiempoCard = {
             const pintarClima = (d) => {
                 if(!d.current_weather) return;
                 document.getElementById('weather-temp').innerText = `${Math.round(d.current_weather.temperature)}°`;
-                const iconData = getWeatherIcon(d.current_weather.weathercode);
+                // Enviamos código + indicador de si es de día o de noche
+                const iconData = getWeatherIcon(d.current_weather.weathercode, d.current_weather.is_day);
                 document.getElementById('weather-icon').innerHTML = iconData.html;
             };
 
@@ -154,7 +131,6 @@ export const TiempoCard = {
                 document.getElementById('weather-city').innerText = "ERR. RED";
             }
 
-            // 🧠 Magia persistente: Al terminar de cargar hoy, miramos si el usuario dejó la tarjeta en 2x3 para cargar la semana automáticamente
             let savedSizes = JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
             if (savedSizes['Tiempo'] === '2x3') {
                 const card = document.getElementById('card-Tiempo');
@@ -210,20 +186,24 @@ export const TiempoCard = {
     }
 };
 
-function getWeatherIcon(code) {
+function getWeatherIcon(code, isDay = 1) {
     const baseStyle = "width:1em; height:1em; line-height:1em; display:inline-block;";
+    const astroIcon = isDay ? `<i class="fa-solid fa-sun w-sun"></i>` : `<i class="fa-solid fa-moon w-moon"></i>`;
+    const astroIconSmall = isDay ? `<i class="fa-solid fa-sun fa-stack-1x w-sun" style="transform: translate(0.3em, -0.3em) scale(0.7);"></i>` : `<i class="fa-solid fa-moon fa-stack-1x w-moon" style="transform: translate(0.3em, -0.3em) scale(0.7);"></i>`;
+    const cloudType = isDay ? "w-cloud" : "w-cloud-night"; // Nubes más oscuras de noche
     
-    if (code === 0) return { html: `<i class="fa-solid fa-sun w-sun"></i>` };
-    if (code >= 1 && code <= 3) return {
+    if (code === 0 || code === 1) return { html: astroIcon };
+    
+    if (code >= 2 && code <= 3) return {
         html: `<span class="fa-stack" style="${baseStyle}">
-                 <i class="fa-solid fa-sun fa-stack-1x w-sun" style="transform: translate(0.3em, -0.3em) scale(0.7);"></i>
-                 <i class="fa-solid fa-cloud fa-stack-1x w-cloud"></i>
+                 ${astroIconSmall}
+                 <i class="fa-solid fa-cloud fa-stack-1x ${cloudType}"></i>
                </span>`
     };
     if (code >= 45 && code <= 48) return {
         html: `<span class="fa-stack" style="${baseStyle}">
                  <i class="fa-solid fa-cloud fa-stack-1x w-cloud-dark" style="transform: translateY(-0.1em);"></i>
-                 <i class="fa-solid fa-smog fa-stack-1x w-cloud" style="transform: translateY(0.2em); opacity:0.8;"></i>
+                 <i class="fa-solid fa-smog fa-stack-1x ${cloudType}" style="transform: translateY(0.2em); opacity:0.8;"></i>
                </span>`
     };
     if (code >= 51 && code <= 67) return {
@@ -235,7 +215,7 @@ function getWeatherIcon(code) {
     };
     if (code >= 71 && code <= 77) return {
         html: `<span class="fa-stack" style="${baseStyle}">
-                 <i class="fa-solid fa-cloud fa-stack-1x w-cloud"></i>
+                 <i class="fa-solid fa-cloud fa-stack-1x ${cloudType}"></i>
                  <i class="fa-regular fa-snowflake fa-stack-1x w-snow" style="transform: translate(-0.2em, 0.3em) scale(0.4);"></i>
                  <i class="fa-regular fa-snowflake fa-stack-1x w-snow" style="transform: translate(0.2em, 0.3em) scale(0.4); animation-delay:1.5s;"></i>
                </span>`
