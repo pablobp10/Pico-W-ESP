@@ -742,7 +742,7 @@ export class Core {
 
             try {
                 const fileExt = file.name.split('.').pop();
-                const fileName = `avatar_${this.usuarioLogueado.id}_${Date.now()}.${fileExt}`;
+                const fileName = `avatar_${this.usuarioLogueado.id}.${fileExt}`;
 
                 const { data, error } = await this.supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: true });
                 if (error) throw error;
