@@ -64,13 +64,11 @@ export class Core {
     // ==========================================================
     
     initSeguridadRoles() {
-        // Salvaguardamos los métodos originales de consola antes de alterarlos
         if (!window._consolaOriginal) {
             window._consolaOriginal = { log: console.log, warn: console.warn, error: console.error, info: console.info };
         }
 
         if (this.rol === 'god') {
-            // DIOS: Inyección de Eruda y Consola Transparente
             if (!document.getElementById('eruda-script')) {
                 const script = document.createElement('script');
                 script.id = 'eruda-script';
@@ -78,14 +76,12 @@ export class Core {
                 script.onload = () => { eruda.init(); this.sysLog('SEC', 'Inyección', 'Herramientas de depuración Eruda montadas.', 'info'); };
                 document.head.appendChild(script);
             }
-            // Restauramos consola por si se había cerrado sesión previamente
             console.log = window._consolaOriginal.log;
             console.warn = window._consolaOriginal.warn;
             console.error = window._consolaOriginal.error;
             console.info = window._consolaOriginal.info;
             
         } else {
-            // MORTALES: Silencio estricto. Evitamos que husmeen cargas JWT o MQTT.
             const ofuscador = () => {};
             console.log = ofuscador;
             console.info = ofuscador;
@@ -94,15 +90,12 @@ export class Core {
             console.error = (...args) => {
                 if (this.rol === 'admin') {
                     window._consolaOriginal.warn("⚠️ [SISTEMA] Error técnico detectado. Contacta con el GOD de la red.");
-                } else {
-                    // Guest: Nada
                 }
             };
         }
     }
 
     sysLog(modulo, accion, mensaje, tipo = "info", dataExtra = null) {
-        // Barrera absoluta: Si no eres GOD, el mensaje muere aquí. (Antitrampeo)
         if (this.rol !== 'god') return; 
 
         const log = window._consolaOriginal[tipo === 'err' ? 'error' : tipo === 'warn' ? 'warn' : 'log'];
@@ -113,7 +106,6 @@ export class Core {
         
         log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: #fff; font-weight: normal;`, mensaje);
         if (dataExtra) {
-            // Formateo seguro para no romper la consola con objetos circulares
             try { log(JSON.parse(JSON.stringify(dataExtra))); } 
             catch(e) { log("[Objeto complejo/Binario no imprimible]", dataExtra); }
         }
@@ -181,13 +173,12 @@ export class Core {
     }
 
     init() {
-        // CARGA INSTANTÁNEA DESDE CACHÉ (Anti-FOUC)
         const cacheLocal = localStorage.getItem('pico_perfil_cache');
         if (cacheLocal) {
             try {
                 this.perfilDB = JSON.parse(cacheLocal);
                 this.rol = this.perfilDB.rol || "guest";
-                this.initSeguridadRoles(); // Blindamos la consola de inmediato
+                this.initSeguridadRoles();
                 
                 if (this.perfilDB.interfaz) {
                     if (this.perfilDB.interfaz.tema && ['dark', 'light'].includes(this.perfilDB.interfaz.tema)) {
@@ -221,12 +212,49 @@ export class Core {
         this.initInterruptorIA();
         this.initSubidaAvatares();
 
-        // BOTONES DE LOGIN Y SISTEMA
+        // --- BOTONES DE LOGIN Y SISTEMA ---
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
         const btnHuella = document.getElementById('btn-huella');
         if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
         
+        // 🆕 Lógica de Registro Conectada
+        const linkRegister = document.getElementById('link-toggle-register');
+        const btnRegisterSubmit = document.getElementById('btn-register-submit');
+        const btnLogin = document.getElementById('btn-login');
+        const pass2Input = document.getElementById('pass2-input');
+        
+        if (linkRegister) {
+            let isRegisterMode = false;
+            linkRegister.onclick = (e) => {
+                e.preventDefault();
+                isRegisterMode = !isRegisterMode;
+                if (isRegisterMode) {
+                    pass2Input.style.display = 'block';
+                    btnRegisterSubmit.style.display = 'block';
+                    btnLogin.style.display = 'none';
+                    if (btnHuella) btnHuella.style.display = 'none';
+                    linkRegister.innerText = "Ya tengo cuenta (Iniciar sesión)";
+                } else {
+                    pass2Input.style.display = 'none';
+                    btnRegisterSubmit.style.display = 'none';
+                    btnLogin.style.display = 'block';
+                    if (btnHuella) btnHuella.style.display = 'block';
+                    linkRegister.innerText = "Crear usuario nuevo";
+                }
+            };
+        }
+
+        if (btnRegisterSubmit) {
+            btnRegisterSubmit.onclick = () => {
+                const u = document.getElementById('user-input').value;
+                const p1 = document.getElementById('pass-input').value;
+                const p2 = pass2Input.value;
+                this.registrarUsuario(u, p1, p2);
+            };
+        }
+        // ------------------------------------
+
         const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
         if(btnEliminarHuella) btnEliminarHuella.onclick = (e) => {
             e.stopPropagation(); localStorage.removeItem('pico_huella_token'); localStorage.removeItem('pico_bio_id');
@@ -266,7 +294,6 @@ export class Core {
             });
         });
 
-        // Desplegables Superiores
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
@@ -301,9 +328,6 @@ export class Core {
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
 
-    // ==========================================
-    // 🛡️ BIOMETRÍA Y HUELLA DACTILAR
-    // ==========================================
     actualizarUIHuella() {
         const btnHuella = document.getElementById('btn-huella');
         const tieneHuella = localStorage.getItem('pico_huella_token');
@@ -325,7 +349,6 @@ export class Core {
         const token = localStorage.getItem('pico_huella_token');
         
         if (token) {
-            // 🔓 Ya hay huella vinculada: Hacemos login automático
             this.notificar("Desencriptando...", "🛡️");
             this.vibra("tick");
             try {
@@ -339,7 +362,6 @@ export class Core {
                 this.actualizarUIHuella();
             }
         } else {
-            // 🔐 No hay huella: La vinculamos por primera vez
             const u = document.getElementById('user-input').value.trim();
             const p = document.getElementById('pass-input').value.trim();
             
@@ -442,7 +464,6 @@ export class Core {
             this.rol = this.perfilDB.rol;
             this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
             
-            // Re-evaluamos la seguridad de consola ahora que tenemos el rol definitivo
             this.initSeguridadRoles(); 
 
             // Aplicar UI
@@ -523,17 +544,15 @@ export class Core {
             this.setNetworkStatus(true);
             if (dot) dot.className = "dot green";
             
-            // 🔒 SEGURIDAD: Obtenemos nuestro token criptográfico de Supabase
             const { data: { session } } = await this.supabase.auth.getSession();
             const tokenJWT = session ? session.access_token : null;
 
             const brokerElegido = this.brokers[this.brIdx].h;
             
-            // Le enviamos al escudo nuestra identidad real (token) junto con el broker
             this.ws.send(JSON.stringify({ 
                 accion: "cambiar_broker", 
                 host: brokerElegido,
-                auth_token: tokenJWT // <--- El escudo verificará esto
+                auth_token: tokenJWT
             }));
             
             this.sysLog('NET', 'WS Open', 'Túnel establecido. Token enviado para validación.');
@@ -569,9 +588,8 @@ export class Core {
 
     pub(app, v, r) { 
         if(this.ws?.readyState === WebSocket.OPEN) {
-            // Este método lo usas para simulaciones internas o comandos especiales
             this.sysLog('MQTT', 'TX Virtual', `Hacia topic de estado: ${app}`, 'info', v);
-            this.cmd(app, v); // Redirigimos al cmd webSocket real por seguridad
+            this.cmd(app, v);
         }
     }
 
@@ -712,10 +730,8 @@ export class Core {
             }
         };
 
-        // Aplicamos el estilo instantáneamente en local
         document.body.setAttribute('data-estilo', datosActualizados.interfaz.estilo);
         
-        // Reflejamos cambios estéticos de UI en vivo
         const displayUser = document.getElementById('display-username');
         if (displayUser) displayUser.innerText = datosActualizados.alias || datosActualizados.nombre || "USUARIO";
         if (datosActualizados.avatar_url) {
@@ -723,7 +739,6 @@ export class Core {
             if (avatarImg) avatarImg.src = datosActualizados.avatar_url;
         }
 
-        // Subida silenciosa
         const exito = await this.guardarPerfilEnNube(datosActualizados);
         if(!exito) this.notificar("Guardado offline. Se subirá al recuperar conexión.", "⚠️");
     }
@@ -734,7 +749,6 @@ export class Core {
 
         const p = this.perfilDB || {};
         
-        // Poblamos campos
         if(document.getElementById('input-perfil-avatar')) document.getElementById('input-perfil-avatar').value = p.avatar_url || '';
         if(document.getElementById('input-perfil-nombre')) document.getElementById('input-perfil-nombre').value = p.nombre || '';
         if(document.getElementById('input-perfil-alias')) document.getElementById('input-perfil-alias').value = p.alias || '';
@@ -762,7 +776,6 @@ export class Core {
         modal.style.display = 'flex';
         document.getElementById('btn-close-user-settings').onclick = () => modal.style.display = 'none';
 
-        // Gestión Huella
         const btnEliminarHuella = document.getElementById('btn-eliminar-huella-modal');
         const tieneHuella = localStorage.getItem('pico_huella_token');
         if (btnEliminarHuella) {
@@ -774,20 +787,16 @@ export class Core {
             };
         }
 
-        // 🚀 DISPARADORES DE AUTO-GUARDADO REACTIVO
         const triggerSave = () => this.autoGuardarPerfil();
         
-        // Interruptores (onchange)
         ['check-ui-sonidos', 'sw-vibration', 'check-estado-online'].forEach(id => {
             const el = document.getElementById(id); if(el) el.onchange = triggerSave;
         });
 
-        // Cajas de texto (onblur - cuando salen de la caja)
         ['input-perfil-avatar', 'input-perfil-nombre', 'input-perfil-alias'].forEach(id => {
             const el = document.getElementById(id); if(el) el.onblur = triggerSave;
         });
 
-        // Escondemos el viejo botón
         const btnSave = document.getElementById('btn-save-user-settings');
         if(btnSave) btnSave.style.display = 'none';
     }
@@ -820,7 +829,7 @@ export class Core {
                 this.notificar("¡Imagen subida!", "✅");
                 this.sysLog('NET', 'Storage OK', `URL Pública: ${publicUrlData.publicUrl}`);
                 
-                this.autoGuardarPerfil(); // Forzamos guardado automático
+                this.autoGuardarPerfil(); 
             } catch (err) {
                 this.sysLog('NET', 'Storage Error', err.message, 'err');
                 this.notificar("Error al subir la imagen", "❌");
@@ -980,7 +989,6 @@ export class Core {
         let order = this.perfilDB?.tarjetas?.orden || JSON.parse(localStorage.getItem('gridOrder')) || [];
         let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
 
-        // 1. Ordenamos la baraja entera
         if(order.length > 0) {
             this.cards.sort((a, b) => {
                 const idxA = order.indexOf(a.id); const idxB = order.indexOf(b.id);
@@ -988,7 +996,6 @@ export class Core {
             });
         }
 
-        // 2. Filtramos con RBAC (Control de Roles)
         const tarjetasFiltradas = this.cards.filter(c => {
             const pasaCategoria = this.filtroActual === 'all' || c.category === this.filtroActual;
             const pasaRol = this.tienePermiso(c.rol); 
@@ -1080,7 +1087,6 @@ export class Core {
                 this.abrirSelectorRadialDoble(div, anchosDisponibles, altosDisponibles, currentSize, (nuevoTamano) => {
                     cerrarIris(); div.classList.remove(`size-${currentSize}`); div.classList.add(`size-${nuevoTamano}`); currentSize = nuevoTamano;
                     
-                    // 💾 GUARDADO DE TAMAÑOS INSTANTÁNEO
                     savedSizes[card.id] = nuevoTamano;
                     localStorage.setItem('pico_card_sizes', JSON.stringify(savedSizes));
                     if (this.perfilDB) {
@@ -1188,7 +1194,6 @@ export class Core {
                 onEnd: () => {
                     const order = []; document.querySelectorAll('.card').forEach(c=>order.push(c.dataset.id));
                     localStorage.setItem('gridOrder', JSON.stringify(order));
-                    // 💾 GUARDADO INMEDIATO DE ORDEN
                     if (this.perfilDB) {
                         if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = {};
                         this.perfilDB.tarjetas.orden = order;
@@ -1217,7 +1222,6 @@ export class Core {
         document.body.setAttribute('data-theme', next); 
         localStorage.setItem('theme',next);
         
-        // 💾 GUARDADO INMEDIATO DE TEMA
         if(this.perfilDB) {
             if(!this.perfilDB.interfaz) this.perfilDB.interfaz = {};
             this.perfilDB.interfaz.tema = next;
@@ -1229,7 +1233,6 @@ export class Core {
         const sw = document.getElementById('sw-vibration');
         if (!sw || !sw.checked || !navigator.vibrate) return;
         
-        // 🤫 ANTI-INTERVENTION: Si el usuario no ha tocado la pantalla aún, no intentamos vibrar
         if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
 
         try {
@@ -1553,12 +1556,12 @@ export class Core {
         window.addEventListener('keydown', (e) => {
             if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if(e.key.toLowerCase() === 'l') { this.vibra("tick"); const st = document.getElementById('val-Led')?.innerText; if(st) this.ejecutarConDeshacer('Led', st === "ON" ? "off" : "on"); }
-            if(e.key === 'h' && this.rol === 'god') this.toggleHUD(); // Solo Dios usa la terminal HUD
+            if(e.key === 'h' && this.rol === 'god') this.toggleHUD();
         });
     }
 
     toggleHUD() {
-        if(this.rol !== 'god') return; // Seguridad anti-trampas
+        if(this.rol !== 'god') return;
         
         let hud = document.getElementById('hud-console');
         if(!hud) { 
@@ -1566,7 +1569,6 @@ export class Core {
             hud.id = 'hud-console'; 
             document.body.appendChild(hud); 
             
-            // 💣 NUEVO: Botón de purga exclusivo para God
             const btnPurgar = document.createElement('button');
             btnPurgar.innerHTML = "💣 PURGAR MEMORIA";
             btnPurgar.style.cssText = "position: absolute; top: 10px; right: 10px; background:#ff9f0a; color:white; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer; z-index: 1000;";
@@ -1760,7 +1762,7 @@ export class Core {
     // ==========================================================
 
     async comprobarSolicitudesPendientes() {
-        if (this.rol !== 'god') return; // Cambiado a God only por seguridad extrema
+        if (this.rol !== 'god') return; 
         try {
             const { data, error } = await this.supabase.from('perfiles').select('id, rol').eq('rol', 'pendiente');
             if (data && data.length > 0) {
@@ -1786,13 +1788,14 @@ export class Core {
         
         try {
             this.notificar("Forjando Bóveda Criptográfica...", "⚙️");
+            
             const nuevaConf = {
                 topic: this.conf.topic, 
                 tk: this.conf.tk, 
                 rol: "guest",
-                // Dejamos las APIs vacías para no filtrar nuestras claves maestras
                 apis: { google: "", groq: "", openrouter: "" } 
             };
+            
             const ghostKey = CryptoJS.lib.WordArray.random(32).toString();
             const keyData = CryptoJS.SHA256(pass + ghostKey); const ivData = CryptoJS.lib.WordArray.random(16);
             const encData = CryptoJS.AES.encrypt(JSON.stringify(nuevaConf), keyData, {iv: ivData, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
