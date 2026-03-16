@@ -808,6 +808,41 @@ export class Core {
         };
     }
 
+    // ==========================================
+    // 🛡️ CONTROL DE ROLES Y DEBUG
+    // ==========================================
+    initSeguridadRoles() {
+        if (this.rol === 'god') {
+            // 1. Inyectar Eruda dinámicamente solo para el rol God
+            if (!document.getElementById('eruda-script')) {
+                const script = document.createElement('script');
+                script.id = 'eruda-script';
+                script.src = "https://cdn.jsdelivr.net/npm/eruda";
+                script.onload = () => eruda.init();
+                document.head.appendChild(script);
+                this.notificar("Consola GOD activada", "👁️");
+            }
+        } else {
+            // 2. Ofuscar la consola para Admins y Guests
+            const _errOriginal = console.error;
+            console.error = (...args) => {
+                if (this.rol === 'admin') {
+                    _errOriginal("⚠️ [ACCESO ADMIN] Se ha producido un error técnico en la ejecución del sistema.");
+                } 
+                // Si es Guest, simplemente silencio absoluto, no imprimimos nada crítico.
+            };
+        }
+    }
+
+    tienePermiso(rolRequerido) {
+        // Jerarquía de poder: 1 es lo más bajo, 3 es lo máximo
+        const jerarquia = { 'guest': 1, 'admin': 2, 'god': 3 };
+        const miNivel = jerarquia[this.rol] || 1;
+        const reqNivel = jerarquia[rolRequerido || 'guest']; // Si la tarjeta no pide rol, es para todos
+        
+        return miNivel >= reqNivel;
+    }
+    
     // ==========================================================
     // ⚙️ RENDERIZADO DE GRID CON LECTURA DESDE SUPABASE
     // ==========================================================
