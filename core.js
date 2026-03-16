@@ -129,9 +129,18 @@ export class Core {
                 this.rol = this.perfilDB.rol || "guest";
                 
                 // Aplicar el tema instantáneamente antes de que el usuario parpadee
-                if (this.perfilDB.interfaz && this.perfilDB.interfaz.tema) {
-                    document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
-                    localStorage.setItem('theme', this.perfilDB.interfaz.tema); // Sincronizamos el local general
+                if (this.perfilDB.interfaz) {
+                    // 1. MODO OSCURO/CLARO (La iluminación)
+                    if (this.perfilDB.interfaz.tema && ['dark', 'light'].includes(this.perfilDB.interfaz.tema)) {
+                        document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                        localStorage.setItem('theme', this.perfilDB.interfaz.tema);
+                    }
+                    // 2. ESTILO VISUAL (Pico, iOS, Android...)
+                    if (this.perfilDB.interfaz.estilo) {
+                        document.body.setAttribute('data-estilo', this.perfilDB.interfaz.estilo);
+                    } else {
+                        document.body.setAttribute('data-estilo', 'pico'); // Pico OS por defecto
+                    }
                 }
             } catch (e) {
                 console.warn("Caché local corrupta, esperando a la nube...");
@@ -363,7 +372,17 @@ export class Core {
             }
 
             if(this.perfilDB.interfaz) {
-                if(this.perfilDB.interfaz.tema) document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                // Recuperar Oscuro/Claro
+                if(this.perfilDB.interfaz.tema && ['dark', 'light'].includes(this.perfilDB.interfaz.tema)) {
+                    document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                }
+                // Recuperar Diseño Visual
+                if(this.perfilDB.interfaz.estilo) {
+                    document.body.setAttribute('data-estilo', this.perfilDB.interfaz.estilo);
+                } else {
+                    document.body.setAttribute('data-estilo', 'pico'); 
+                }
+                
                 if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = this.perfilDB.interfaz.vibracion !== false;
                 if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = this.perfilDB.interfaz.sonidos === true;
             }
@@ -686,15 +705,19 @@ export class Core {
         if(document.getElementById('select-ia-local')) document.getElementById('select-ia-local').value = ia.local || 'smollm';
         if(document.getElementById('label-ialocal')) document.getElementById('label-ialocal').innerText = (ia.local === 'qwen') ? 'QWEN 1.5 (LIGERO)' : 'SMOLLM (ESTÁNDAR)';
 
-        const ui = p.interfaz || { sonidos: false, vibracion: true, tema: 'pico' };
+        const ui = p.interfaz || { sonidos: false, vibracion: true, estilo: 'pico', tema: 'dark' };
+        
         if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = ui.sonidos;
         if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = ui.vibracion;
         if(document.getElementById('check-estado-online')) document.getElementById('check-estado-online').checked = p.estado_online !== false;
         
-        if(document.getElementById('select-perfil-estilo')) document.getElementById('select-perfil-estilo').value = ui.tema || 'pico';
+        // Inteligencia artificial pequeña para arreglar si en el pasado guardaste 'pico' dentro de 'tema'
+        const estiloActual = ui.estilo || (['pico','ios','android','retro'].includes(ui.tema) ? ui.tema : 'pico');
+        
+        if(document.getElementById('select-perfil-estilo')) document.getElementById('select-perfil-estilo').value = estiloActual;
         if(document.getElementById('label-estilo')) {
             const nombresTemas = { 'pico': 'PICO OS (CRISTAL)', 'ios': 'APPLE IOS', 'android': 'ANDROID (MATERIAL)', 'retro': 'RETRO (TERMINAL)' };
-            document.getElementById('label-estilo').innerText = nombresTemas[ui.tema || 'pico'];
+            document.getElementById('label-estilo').innerText = nombresTemas[estiloActual] || 'PICO OS (CRISTAL)';
         }
 
         modal.style.display = 'flex';
@@ -730,7 +753,8 @@ export class Core {
                 interfaz: {
                     sonidos: document.getElementById('check-ui-sonidos').checked,
                     vibracion: document.getElementById('sw-vibration').checked,
-                    tema: document.getElementById('select-perfil-estilo').value
+                    estilo: document.getElementById('select-perfil-estilo').value, // Guardamos el diseño en su cajón
+                    tema: document.body.getAttribute('data-theme') || 'dark' // Mantenemos el modo oscuro actual intacto
                 }
             };
 
@@ -739,6 +763,7 @@ export class Core {
             if (exito) {
                 this.notificar("Perfil sincronizado en la nube", "✅");
                 modal.style.display = 'none';
+                document.body.setAttribute('data-estilo', datosActualizados.interfaz.estilo);
                 document.body.setAttribute('data-theme', datosActualizados.interfaz.tema);
                 
                 const displayUser = document.getElementById('display-username');
