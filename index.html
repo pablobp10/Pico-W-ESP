@@ -303,32 +303,30 @@
                 </button>
             </div>
         </div>
-
-        <button id="btn-save-user-settings" class="btn-action" style="width: 100%; padding: 15px; font-size: 1rem; font-weight: 800; border-radius: 12px; background: var(--primary); color: white; letter-spacing: 1px; margin-top: 10px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">GUARDAR PERFIL</button>
     </div>
 
     <script>
         function toggleModalSelect(dropId) {
-            // Cerramos todos los desplegables del modal menos el que hemos pulsado
             document.querySelectorAll('.modal-custom-dropdown').forEach(el => {
                 if(el.id !== dropId) el.classList.remove('open');
             });
-            // Abrimos o cerramos el pulsado
             document.getElementById(dropId).classList.toggle('open');
         }
 
         function selectModalOption(dropId, inputId, labelId, valor, texto) {
-            // 1. Cambiamos el texto visual para que el usuario sepa qué eligió
+            // 1. Cambiamos el texto visual
             document.getElementById(labelId).innerText = texto;
             
-            // 2. Guardamos el valor técnico en el input oculto (para core.js)
+            // 2. Guardamos el valor técnico
             document.getElementById(inputId).value = valor;
             
             // 3. Cerramos el menú
             document.getElementById(dropId).classList.remove('open');
+            
+            // 🚀 4. DISPARAMOS EL AUTO-GUARDADO (LA MAGIA)
+            if (window.App) window.App.autoGuardarPerfil();
         }
 
-        // Si el usuario hace clic fuera, se cierran automáticamente
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.modal-select-wrapper')) {
                 document.querySelectorAll('.modal-custom-dropdown').forEach(el => el.classList.remove('open'));
