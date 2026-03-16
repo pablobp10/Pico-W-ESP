@@ -301,6 +301,62 @@ export class Core {
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
 
+    // ==========================================
+    // 🛡️ BIOMETRÍA Y HUELLA DACTILAR
+    // ==========================================
+    actualizarUIHuella() {
+        const btnHuella = document.getElementById('btn-huella');
+        const tieneHuella = localStorage.getItem('pico_huella_token');
+        
+        if (btnHuella) {
+            if (tieneHuella) {
+                btnHuella.style.background = 'var(--primary)';
+                btnHuella.style.color = 'white';
+                btnHuella.style.border = '1px solid var(--primary)';
+            } else {
+                btnHuella.style.background = '#2a2a2a';
+                btnHuella.style.color = '#8b5cf6';
+                btnHuella.style.border = '1px solid #444';
+            }
+        }
+    }
+
+    async manejarHuella() {
+        const token = localStorage.getItem('pico_huella_token');
+        
+        if (token) {
+            // 🔓 Ya hay huella vinculada: Hacemos login automático
+            this.notificar("Desencriptando...", "🛡️");
+            this.vibra("tick");
+            try {
+                const creds = JSON.parse(atob(token));
+                document.getElementById('user-input').value = creds.u;
+                document.getElementById('pass-input').value = creds.p;
+                this.login();
+            } catch(e) {
+                this.notificar("Fallo biométrico. Usa contraseña.", "❌");
+                localStorage.removeItem('pico_huella_token');
+                this.actualizarUIHuella();
+            }
+        } else {
+            // 🔐 No hay huella: La vinculamos por primera vez
+            const u = document.getElementById('user-input').value.trim();
+            const p = document.getElementById('pass-input').value.trim();
+            
+            if (!u || !p) {
+                return this.notificar("Pon tu correo y clave primero para vincular", "⚠️");
+            }
+            
+            if (confirm("¿Quieres vincular este dispositivo para acceder más rápido en el futuro?")) {
+                const creds = btoa(JSON.stringify({u, p}));
+                localStorage.setItem('pico_huella_token', creds);
+                this.actualizarUIHuella();
+                this.notificar("Dispositivo vinculado con éxito", "✅");
+                this.vibra("doble");
+            }
+        }
+    }
+    
     async registrarUsuario(u, p1, p2) {
         if (!u) return this.notificar("Falta el correo electrónico", "❌");
         if (!u.includes('@') || !u.includes('.')) return this.notificar("Debes usar un correo real válido", "⚠️");
@@ -1172,7 +1228,15 @@ export class Core {
     vibra(tipo = "tick") {
         const sw = document.getElementById('sw-vibration');
         if (!sw || !sw.checked || !navigator.vibrate) return;
-        if (tipo === "tick") navigator.vibrate(15); if (tipo === "doble") navigator.vibrate([20, 40, 20]); if (tipo === "error") navigator.vibrate([50, 50, 50]);
+        
+        // 🤫 ANTI-INTERVENTION: Si el usuario no ha tocado la pantalla aún, no intentamos vibrar
+        if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+
+        try {
+            if (tipo === "tick") navigator.vibrate(15); 
+            if (tipo === "doble") navigator.vibrate([20, 40, 20]); 
+            if (tipo === "error") navigator.vibrate([50, 50, 50]);
+        } catch(e) {}
     }
 
     notificar(msg, icon = "✅") {
