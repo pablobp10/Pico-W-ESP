@@ -199,7 +199,7 @@ export class Core {
             btnPlaza.addEventListener('click', () => {
                 // 1. Mostrar el overlay de La Plaza
                 document.getElementById('plaza-view').style.display = 'block';
-document.getElementById('side-menu').classList.remove('open')
+                document.getElementById('side-menu').classList.remove('open')
                 
                 // 2. Ejecutar el escáner para dibujar las tarjetas reales
                 this.cargarPlazaPublica();
@@ -813,14 +813,11 @@ document.getElementById('side-menu').classList.remove('open')
     // ==========================================================
     
     renderGrid() {
-        const tarjetasFiltradas = this.cards.filter(c => this.filtroActual === 'all' || c.category === this.filtroActual);
-        const grid = document.getElementById('dashboard-grid');
-        grid.innerHTML = "";
-        
-        // 💾 Recuperar orden y tamaños de SUPABASE (O caché local si no ha entrado)
+        // 💾 1. Recuperar orden y tamaños de SUPABASE (o caché local)
         let order = this.perfilDB?.tarjetas?.orden || JSON.parse(localStorage.getItem('gridOrder')) || [];
         let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
 
+        // 🔄 2. Ordenamos TODAS las tarjetas primero según el orden guardado
         if(order.length > 0) {
             this.cards.sort((a, b) => {
                 const idxA = order.indexOf(a.id);
@@ -828,6 +825,20 @@ document.getElementById('side-menu').classList.remove('open')
                 return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
             });
         }
+
+        // 🛡️ 3. Filtramos por Categoría Y por Nivel de Permisos (Rol)
+        const tarjetasFiltradas = this.cards.filter(c => {
+            const pasaCategoria = this.filtroActual === 'all' || c.category === this.filtroActual;
+            const pasaRol = this.tienePermiso(c.rol); 
+            // Mantenemos compatibilidad con el sistema antiguo por si acaso
+            const pasaLegacy = c.adminOnly ? (this.rol === 'admin' || this.rol === 'god') : true; 
+            
+            return pasaCategoria && pasaRol && pasaLegacy;
+        });
+
+        // 🎨 4. Empezamos a dibujar en el lienzo
+        const grid = document.getElementById('dashboard-grid');
+        grid.innerHTML = "";
 
         tarjetasFiltradas.forEach((card, index) => {
             const div = document.createElement('div');
