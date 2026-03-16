@@ -276,6 +276,32 @@ document.getElementById('side-menu').classList.remove('open')
         window.addEventListener('offline', () => this.setNetworkStatus(false));
     }
 
+    // ==========================================
+    // 🛡️ CONTROL DE ROLES Y DEBUG
+    // ==========================================
+    initSeguridadRoles() {
+        if (this.rol === 'god') {
+            // 1. Inyectar Eruda dinámicamente solo para el rol God
+            if (!document.getElementById('eruda-script')) {
+                const script = document.createElement('script');
+                script.id = 'eruda-script';
+                script.src = "https://cdn.jsdelivr.net/npm/eruda";
+                script.onload = () => eruda.init();
+                document.head.appendChild(script);
+                this.notificar("Consola GOD activada", "👁️");
+            }
+        } else {
+            // 2. Ofuscar la consola para Admins y Guests
+            const _errOriginal = console.error;
+            console.error = (...args) => {
+                if (this.rol === 'admin') {
+                    _errOriginal("⚠️ [ACCESO ADMIN] Se ha producido un error técnico en la ejecución del sistema.");
+                } 
+                // Si es Guest, simplemente silencio absoluto, no imprimimos nada crítico.
+            };
+        }
+    }
+
     // ==========================================================
     // 🛡️ SISTEMA DE LOGIN Y SINCRONIZACIÓN DE PERFIL (V2)
     // ==========================================================
@@ -362,6 +388,7 @@ document.getElementById('side-menu').classList.remove('open')
 
             this.rol = this.perfilDB.rol;
             this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
+            this.initSeguridadRoles();
 
             // 5. Aplicar UI
             const displayUser = document.getElementById('display-username');
