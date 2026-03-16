@@ -1482,9 +1482,35 @@ export class Core {
     }
 
     toggleHUD() {
-        if(this.rol !== 'god') return;
+        if(this.rol !== 'god') return; // Seguridad anti-trampas
+        
         let hud = document.getElementById('hud-console');
-        if(!hud) { hud = document.createElement('div'); hud.id = 'hud-console'; document.body.appendChild(hud); this.logHUD("SISTEMA CIBERFÍSICO V22 INICIADO. INTERCEPTANDO TRÁFICO MQTT..."); }
+        if(!hud) { 
+            hud = document.createElement('div'); 
+            hud.id = 'hud-console'; 
+            document.body.appendChild(hud); 
+            
+            // 💣 NUEVO: Botón de purga exclusivo para God
+            const btnPurgar = document.createElement('button');
+            btnPurgar.innerHTML = "💣 PURGAR MEMORIA";
+            btnPurgar.style.cssText = "position: absolute; top: 10px; right: 10px; background:#ff9f0a; color:white; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer; z-index: 1000;";
+            
+            btnPurgar.onclick = () => {
+                if(confirm('¿⚠️ ALERTA GOD: Formatear toda la memoria local, perfiles, cachés y service workers?')) {
+                    this.sysLog('SEC', 'PURGA', 'Iniciando autodestrucción de caché...', 'warn');
+                    localStorage.clear(); 
+                    sessionStorage.clear();
+                    if('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+                    }
+                    caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+                    window.location.reload();
+                }
+            };
+            hud.appendChild(btnPurgar);
+
+            this.logHUD("INTERCEPTANDO TRÁFICO MQTT..."); 
+        }
         hud.classList.toggle('active');
     }
 
