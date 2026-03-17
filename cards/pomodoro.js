@@ -1,77 +1,63 @@
-let pInt = null;
-let pSec = 1500;
-
-const actualizarPantalla = () => {
-    const el = document.getElementById('pomo-time');
-    if(el) el.innerText = `${Math.floor(pSec/60)}:${(pSec%60).toString().padStart(2,'0')}`;
-};
-
-const iniciarTimer = () => {
-    if(pInt) clearInterval(pInt);
-    pInt = setInterval(() => {
-        pSec--;
-        actualizarPantalla();
-        if(pSec <= 0) {
-            clearInterval(pInt); pInt = null;
-            if (window.App) window.App.notificar("¡Tiempo finalizado!", "⏰");
-        }
-    }, 1000);
-};
-
 export const PomodoroCard = {
     id: "Pomodoro",
+    category: "herramientas",
+    rol: "guest",
     defaultSize: "1x1",
     html: `
-        <style>
-            #pomo-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 5cqmin; }
-            .pomo-label { font-size: clamp(0.7rem, 8cqmin, 1.5rem); font-weight: bold; color: var(--text-sec); text-transform: uppercase; }
-            #pomo-time { font-size: clamp(2.5rem, 35cqmin, 8rem); font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; margin: 0; line-height: 1; }
-            .pomo-btn-group { display: flex; gap: 10px; width: 100%; }
-            .pomo-btn { flex-grow: 1; padding: clamp(10px, 6cqmin, 20px); font-size: clamp(1rem, 10cqmin, 2rem); border-radius: clamp(8px, 4cqmin, 16px); }
-            
-            @container (aspect-ratio > 1.2) {
-                #pomo-wrapper { flex-direction: row; justify-content: space-around; }
-                #pomo-time { width: 50%; font-size: clamp(2.5rem, 40cqh, 8rem); }
-                .pomo-controls { width: 40%; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
-            }
-        </style>
-        
-        <div id="pomo-wrapper">
-            <div class="pomo-label">Focus</div>
-            <div id="pomo-time">25:00</div>
-            <div class="pomo-controls" style="width:100%;">
-                <div class="pomo-btn-group">
-                    <button class="btn-action pomo-btn" style="background:#22c55e; margin:0;" id="pomo-start">▶</button>
-                    <button class="btn-action pomo-btn" style="background:#ef4444; margin:0;" id="pomo-reset">⏹</button>
-                </div>
-            </div>
+        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; width:100%; cursor:pointer;" id="pomo-area">
+            <span id="val-Pomodoro" class="val-text" style="font-size:2.5rem; font-weight:900; color:var(--primary); font-variant-numeric: tabular-nums;">25:00</span>
+            <span id="pomo-lbl" style="font-size:0.8rem; font-weight:bold; color:var(--text-sec); margin-top:5px; letter-spacing:1px;">TOCAR PARA INICIAR</span>
         </div>
     `,
     onInit: (core) => {
-        pSec = (parseInt(localStorage.getItem('pico_pomo_mins')) || 25) * 60;
-        actualizarPantalla();
-        document.getElementById('pomo-start').onclick = () => { if(!pInt) iniciarTimer(); };
-        document.getElementById('pomo-reset').onclick = () => {
-            clearInterval(pInt); pInt = null; 
-            pSec = (parseInt(localStorage.getItem('pico_pomo_mins')) || 25) * 60;
-            actualizarPantalla();
+        window._pomoTimer = null;
+        window._pomoTime = 25 * 60;
+        window._pomoActive = false;
+        
+        const formatTime = (secs) => {
+            const m = Math.floor(secs / 60).toString().padStart(2, '0');
+            const s = (secs % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        };
+
+        const updateUI = () => {
+            document.getElementById('val-Pomodoro').innerText = formatTime(window._pomoTime);
+        };
+
+        document.getElementById('pomo-area').onclick = () => {
+            core.vibra("tick");
+            if(window._pomoActive) {
+                clearInterval(window._pomoTimer);
+                window._pomoActive = false;
+                window._pomoTime = 25 * 60;
+                document.getElementById('pomo-lbl').innerText = "TOCAR PARA INICIAR";
+                document.getElementById('val-Pomodoro').style.color = "var(--primary)";
+                updateUI();
+            } else {
+                window._pomoActive = true;
+                document.getElementById('pomo-lbl').innerText = "CONCENTRACIÓN";
+                document.getElementById('val-Pomodoro').style.color = "#ff453a";
+                
+                window._pomoTimer = setInterval(() => {
+                    window._pomoTime--;
+                    updateUI();
+                    if(window._pomoTime <= 0) {
+                        clearInterval(window._pomoTimer);
+                        window._pomoActive = false;
+                        core.notificar("¡Pomodoro Terminado!", "🍅");
+                        core.vibra("error");
+                        core.hablarJARVIS("Tiempo de descanso completado.");
+                        document.getElementById('pomo-lbl').innerText = "COMPLETADO";
+                    }
+                }, 1000);
+            }
         };
     },
-    onData: (val) => {
-        const mins = parseInt(val);
-        if (!isNaN(mins) && mins > 0) {
-            pSec = mins * 60;
-            actualizarPantalla();
-            iniciarTimer(); 
-        }
-    },
-    abrirAjustes: (core) => {
-        let m = prompt("Minutos de concentración:", localStorage.getItem('pico_pomo_mins') || "25");
-        if(m && !isNaN(m)) {
-            localStorage.setItem('pico_pomo_mins', m);
-            pSec = m * 60;
-            actualizarPantalla();
-            core.notificar(`Temporizador fijado a ${m} min`, "⏱️");
+    // Si recibe una orden de la IA (Ej: {"Pomodoro": 10})
+    onData: (val, app, core) => {
+        if(typeof val === 'number') {
+            window._pomoTime = val * 60;
+            document.getElementById('pomo-area').click(); // Auto-inicia
         }
     }
 };
