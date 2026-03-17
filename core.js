@@ -653,22 +653,24 @@ export class Core {
         }
         
         try {
-            // 🛡️ PARCHE DE SEGURIDAD 2: Encriptación AES Extremo a Extremo (E2EE)
-            
-            // 1. Creamos el paquete físico con el comando y un sello de tiempo (Nonce anti-repetición)
+            // 🔍 DIAGNÓSTICO: Comprobamos qué pieza de la máquina de cifrado falla
+            if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
+            if (!this.conf) throw new Error("No hay maletín encriptado.");
+            if (!this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
+
+            // 1. Creamos el paquete físico
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             
-            // 2. Encriptamos el paquete entero usando tu clave secreta PICO_TK
+            // 2. Encriptamos
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
             
             this.sysLog('MQTT', 'TX', `Enviando comando cifrado AES -> [${app}]`);
-            
-            // 3. Enviamos el paquete cifrado. El servidor Python no podrá leer el interior.
             this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: paqueteCifrado }));
             
         } catch (error) {
             this.sysLog('SEC', 'Crypto Err', error.message, 'err');
-            this.notificar("Error de encriptación local", "❌");
+            // 🚨 Ahora la notificación nos dirá el error técnico real
+            this.notificar(`Fallo E2EE: ${error.message}`, "❌");
         }
     }
 
