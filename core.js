@@ -340,6 +340,30 @@ export class Core {
     // ==========================================================
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
+
+    guardarBovedaHardware(confData) {
+        // Encriptamos la llave maestra usando la huella física del PC/Móvil
+        const huella = this.generarHuellaDispositivo();
+        const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), huella).toString();
+        localStorage.setItem('pico_hardware_vault', cifrado);
+        this.sysLog('SEC', 'Vault', 'Bóveda de hardware sellada con éxito.');
+    }
+
+    abrirBovedaHardware() {
+        const cifrado = localStorage.getItem('pico_hardware_vault');
+        if (!cifrado) return null;
+        try {
+            // Intentamos abrir el candado con el hardware actual
+            const huella = this.generarHuellaDispositivo();
+            const bytes = CryptoJS.AES.decrypt(cifrado, huella);
+            const descifrado = bytes.toString(CryptoJS.enc.Utf8);
+            if (!descifrado) return null;
+            return JSON.parse(descifrado);
+        } catch (e) {
+            this.sysLog('SEC', 'Vault Err', 'Fallo al abrir bóveda local (¿Cambio de hardware?).', 'err');
+            return null;
+        }
+    }
     
     generarHuellaDispositivo() {
         const n = navigator;
@@ -478,8 +502,33 @@ export class Core {
             if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
             this.rol = this.perfilDB.rol;
             this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
+            if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
+            this.rol = this.perfilDB.rol;
             
-            this.initSeguridadRoles(); 
+            // 🛡️ PARCHE E2EE: Lógica de auto-sanación y cifrado
+            let confData = null;
+            try {
+                // Intento 1: ¿Está en texto plano en Supabase? (La vulnerabilidad que vamos a matar)
+                confData = JSON.parse(this.perfilDB.maletin_encriptado);
+                
+                // Si llegamos aquí sin error, la BD está expuesta. ¡Lo encriptamos al vuelo!
+                const maletinSeguro = CryptoJS.AES.encrypt(JSON.stringify(confData), p).toString();
+                await this.supabase.from('perfiles').update({ maletin_encriptado: maletinSeguro }).eq('id', this.usuarioLogueado.id);
+                this.sysLog('SEC', 'Upgrade', 'Maletín convertido a AES en la base de datos Supabase.');
+            } catch (e) {
+                // Intento 2: Ya está cifrado con la contraseña (El estado seguro)
+                try {
+                    const bytes = CryptoJS.AES.decrypt(this.perfilDB.maletin_encriptado, p);
+                    confData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                } catch (err) {
+                    throw new Error("No se pudo desencriptar el maletín. Contraseña inválida.");
+                }
+            }
+
+            this.conf = confData;
+            this.guardarBovedaHardware(this.conf); // Metemos la llave en el enclave físico
+            
+            this.initSeguridadRoles();
 
             // Aplicar UI
             const displayUser = document.getElementById('display-username');
@@ -534,9 +583,15 @@ export class Core {
 
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
-            this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
             
-            this.initSeguridadRoles(); 
+            // 🛡️ PARCHE E2EE: Leemos la memoria RAM del hardware, no la Base de Datos
+            this.conf = this.abrirBovedaHardware();
+            if (!this.conf) {
+                this.sysLog('SEC', 'Vault', 'Bóveda física destruida o alterada. Abortando auto-login.', 'warn');
+                throw new Error("Cambio de hardware o caché purgada. Inicia sesión manualmente.");
+            }
+            
+            this.initSeguridadRoles();
 
             // Aplicamos UI
             const displayUser = document.getElementById('display-username');
