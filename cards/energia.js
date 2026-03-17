@@ -1,43 +1,26 @@
 export const EnergiaCard = {
     id: "Energia",
-    category: "sensores",
+    category: "sistema",
+    rol: "admin",
     defaultSize: "2x1",
-    customAccion: {
-        titulo: "Resetear Consumo",
-        icono: "fa-solid fa-rotate-left",
-        color: "#ff9f0a",
-        ejecutar: (core) => {
-            core.cmd('Energia', 'RESET_MAH');
-            core.notificar("Contador de mAh reseteado", "⚡");
-        }
-    },
     html: `
-        <style>
-            #ene-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
-            .ene-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; text-align: center; }
-            .ene-box { background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 5px; border: 1px solid var(--border); }
-            .ene-val { font-size: clamp(1.2rem, 15cqmin, 2.5rem); font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
-            .ene-lbl { font-size: clamp(0.6rem, 8cqmin, 0.8rem); font-weight: bold; color: var(--text-sec); }
-            
-            @container (aspect-ratio > 1.8) {
-                .ene-grid { grid-template-columns: repeat(3, 1fr); }
-            }
-        </style>
-        
-        <div id="ene-wrapper">
-            <div style="align-self: flex-start; font-size: 0.8rem; font-weight: bold; color: #ff9f0a; margin-bottom: 5px;">
-                <i class="fa-solid fa-bolt"></i> TELEMETRÍA
+        <div style="display:flex; justify-content:space-around; align-items:center; height:100%; width:100%;">
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <i class="fa-solid fa-bolt" style="color:#facc15; font-size:1.5rem; margin-bottom:5px;"></i>
+                <span id="ener-watts" class="val-text" style="font-size:1.8rem; font-weight:900; color:var(--text-main);">0</span>
+                <span style="font-size:0.7rem; color:var(--text-sec); font-weight:bold;">WATTS</span>
             </div>
-            <div class="ene-grid">
-                <div class="ene-box"><div id="e-volts" class="ene-val">0.00</div><div class="ene-lbl">VOLTAJE (V)</div></div>
-                <div class="ene-box"><div id="e-amps" class="ene-val">0</div><div class="ene-lbl">CORRIENTE (mA)</div></div>
-                <div class="ene-box"><div id="e-watts" class="ene-val">0.00</div><div class="ene-lbl">POTENCIA (W)</div></div>
+            <div style="width:1px; height:60%; background:var(--border);"></div>
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <span id="ener-volts" style="font-size:1.2rem; font-weight:bold; color:var(--text-main);">230V</span>
+                <span id="ener-amps" style="font-size:1.2rem; font-weight:bold; color:#0a84ff; margin-top:5px;">0.0A</span>
             </div>
         </div>
     `,
     onData: (val) => {
-        if(val.v) document.getElementById('e-volts').innerText = parseFloat(val.v).toFixed(2);
-        if(val.i) document.getElementById('e-amps').innerText = parseInt(val.i);
-        if(val.w) document.getElementById('e-watts').innerText = parseFloat(val.w).toFixed(2);
+        if(!val) return;
+        if(val.w !== undefined) document.getElementById('ener-watts').innerText = val.w;
+        if(val.v !== undefined) document.getElementById('ener-volts').innerText = val.v + "V";
+        if(val.a !== undefined) document.getElementById('ener-amps').innerText = val.a + "A";
     }
 };
