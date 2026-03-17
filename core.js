@@ -255,11 +255,7 @@ export class Core {
         }
         // ------------------------------------
 
-        const btnEliminarHuella = document.getElementById('btn-eliminar-huella');
-        if(btnEliminarHuella) btnEliminarHuella.onclick = (e) => {
-            e.stopPropagation(); localStorage.removeItem('pico_huella_token'); localStorage.removeItem('pico_bio_id');
-            this.actualizarUIHuella(); this.notificar("Huella desvinculada", "🗑️");
-        };
+        
 
         const userProfileMenu = document.getElementById('user-profile-menu');
         if(userProfileMenu) {
@@ -279,7 +275,7 @@ export class Core {
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         if(document.getElementById('btn-logout')) document.getElementById('btn-logout').onclick = () => this.cerrarSesion();
 
-        setTimeout(() => this.actualizarUIHuella(), 500);
+
 
         const swJarvis = document.getElementById('sw-jarvis');
         if (swJarvis) {
