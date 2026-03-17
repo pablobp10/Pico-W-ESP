@@ -306,20 +306,31 @@ export class Core {
             if(!settingsTrigger?.contains(e.target)) settingsMenu?.classList.remove('open');
         };
 
-        const u = localStorage.getItem("u");
         const loginScreen = document.getElementById('login-screen');
-        
-        // 🔒 PARCHE DE SEGURIDAD: Ya no confiamos en "p" almacenado en local.
-        // Solo verificamos si hay sesión activa mediante Supabase en conectar()
-        if(u) { 
-            document.getElementById('user-input').value = u;
-        } 
-        
-        if (loginScreen) { 
-            loginScreen.style.display = 'flex'; 
-            loginScreen.style.opacity = '1'; 
-            loginScreen.style.pointerEvents = 'auto'; 
-        }
+        const u = localStorage.getItem("u");
+        if(u) document.getElementById('user-input').value = u;
+
+        // 🛡️ PARCHE: Autologin hiperseguro usando el Token de Sesión de Supabase
+        this.supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                this.sysLog('SEC', 'AutoLogin', 'Sesión segura recuperada. Saltando pantalla de login.');
+                this.usuarioLogueado = session.user;
+                
+                // Ocultamos la pantalla de login directamente
+                if (loginScreen) loginScreen.style.display = 'none';
+                
+                // Ejecutamos la carga de datos sin pasar por la Edge Function (ya estamos validados)
+                this.cargarDatosDespuesDeLogin(session.access_token);
+            } else {
+                // Si no hay sesión segura, mostramos la pantalla de login normal
+                if (loginScreen) { 
+                    loginScreen.style.display = 'flex'; 
+                    loginScreen.style.opacity = '1'; 
+                    loginScreen.style.pointerEvents = 'auto'; 
+                }
+            }
+        });
+
 
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
         document.getElementById('ai-input').onkeypress = (e) => { if(e.key==='Enter') this.procesarComandoIA(); };
@@ -382,57 +393,6 @@ export class Core {
         const identificadorUnico = huella ? huella.substring(huella.length - 4) : "0000";
 
         return `${navegador} en ${so} (${identificadorUnico})`;
-    }
-
-    actualizarUIHuella() {
-        const btnHuella = document.getElementById('btn-huella');
-        const tieneHuella = localStorage.getItem('pico_huella_token');
-        
-        if (btnHuella) {
-            if (tieneHuella) {
-                btnHuella.style.background = 'var(--primary)';
-                btnHuella.style.color = 'white';
-                btnHuella.style.border = '1px solid var(--primary)';
-            } else {
-                btnHuella.style.background = '#2a2a2a';
-                btnHuella.style.color = '#8b5cf6';
-                btnHuella.style.border = '1px solid #444';
-            }
-        }
-    }
-
-    async manejarHuella() {
-        const token = localStorage.getItem('pico_huella_token');
-        
-        if (token) {
-            this.notificar("Desencriptando...", "🛡️");
-            this.vibra("tick");
-            try {
-                const creds = JSON.parse(atob(token));
-                document.getElementById('user-input').value = creds.u;
-                document.getElementById('pass-input').value = creds.p;
-                this.login();
-            } catch(e) {
-                this.notificar("Fallo biométrico. Usa contraseña.", "❌");
-                localStorage.removeItem('pico_huella_token');
-                this.actualizarUIHuella();
-            }
-        } else {
-            const u = document.getElementById('user-input').value.trim();
-            const p = document.getElementById('pass-input').value.trim();
-            
-            if (!u || !p) {
-                return this.notificar("Pon tu correo y clave primero para vincular", "⚠️");
-            }
-            
-            if (confirm("¿Quieres vincular este dispositivo para acceder más rápido en el futuro?")) {
-                const creds = btoa(JSON.stringify({u, p}));
-                localStorage.setItem('pico_huella_token', creds);
-                this.actualizarUIHuella();
-                this.notificar("Dispositivo vinculado con éxito", "✅");
-                this.vibra("doble");
-            }
-        }
     }
     
     async registrarUsuario(u, p1, p2) {
