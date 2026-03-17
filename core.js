@@ -306,13 +306,19 @@ export class Core {
             if(!settingsTrigger?.contains(e.target)) settingsMenu?.classList.remove('open');
         };
 
-        const u = localStorage.getItem("u"), p = localStorage.getItem("p");
+        const u = localStorage.getItem("u");
         const loginScreen = document.getElementById('login-screen');
-        if(u && p) { 
-            document.getElementById('user-input').value = u; document.getElementById('pass-input').value = p;
-            this.login(); 
-        } else {
-            if (loginScreen) { loginScreen.style.display = 'flex'; loginScreen.style.opacity = '1'; loginScreen.style.pointerEvents = 'auto'; }
+        
+        // 🔒 PARCHE DE SEGURIDAD: Ya no confiamos en "p" almacenado en local.
+        // Solo verificamos si hay sesión activa mediante Supabase en conectar()
+        if(u) { 
+            document.getElementById('user-input').value = u;
+        } 
+        
+        if (loginScreen) { 
+            loginScreen.style.display = 'flex'; 
+            loginScreen.style.opacity = '1'; 
+            loginScreen.style.pointerEvents = 'auto'; 
         }
 
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
@@ -327,6 +333,56 @@ export class Core {
     // ==========================================================
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
+    
+    generarHuellaDispositivo() {
+        const n = navigator;
+        const s = screen;
+        
+        // Recopilamos datos físicos que no cambian al borrar la caché
+        const componentes = [
+            n.userAgent,                                      
+            n.language,                                       
+            s.width + "x" + s.height + "x" + s.colorDepth,    
+            Intl.DateTimeFormat().resolvedOptions().timeZone, 
+            n.hardwareConcurrency || 'unknown',               
+            n.deviceMemory || 'unknown'                       
+        ];
+        
+        const stringBase = componentes.join("||");
+        
+        // Algoritmo rápido de Hash (DJB2)
+        let hash = 5381;
+        for (let i = 0; i < stringBase.length; i++) {
+            hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
+        }
+        
+        return "fp-" + Math.abs(hash).toString(16);
+    }
+   
+    obtenerNombreDispositivo(huella) {
+        const ua = navigator.userAgent;
+        let navegador = "Navegador Desconocido";
+        let so = "Dispositivo Desconocido";
+
+        // 1. Detectar Navegador
+        if (ua.includes("Firefox")) navegador = "Firefox";
+        else if (ua.includes("OPR") || ua.includes("Opera")) navegador = "Opera";
+        else if (ua.includes("Edg")) navegador = "Edge";
+        else if (ua.includes("Chrome")) navegador = "Chrome";
+        else if (ua.includes("Safari")) navegador = "Safari";
+
+        // 2. Detectar Sistema Operativo
+        if (ua.includes("Win")) so = "Windows";
+        else if (ua.includes("Mac")) so = "Mac";
+        else if (ua.includes("Linux")) so = "Linux";
+        else if (ua.includes("Android")) so = "Android";
+        else if (ua.includes("like Mac")) so = "iOS";
+
+        // 3. Extraer 4 letras únicas
+        const identificadorUnico = huella ? huella.substring(huella.length - 4) : "0000";
+
+        return `${navegador} en ${so} (${identificadorUnico})`;
+    }
 
     actualizarUIHuella() {
         const btnHuella = document.getElementById('btn-huella');
@@ -416,12 +472,15 @@ export class Core {
         this.sysLog('SEC', 'Login', `Llamada a Edge Function iniciada`, 'info', { email: emailAuth });
 
         try {
-            let deviceId = localStorage.getItem('pico_device_id');
-            if (!deviceId) {
-                deviceId = window.crypto.randomUUID ? window.crypto.randomUUID() : 'dev-' + Date.now();
-                localStorage.setItem('pico_device_id', deviceId);
-            }
-            const deviceName = this.esMovil ? "Móvil Web" : "PC Web";
+            // 🧬 1. Generamos la huella digital pasiva del dispositivo
+            const deviceId = this.generarHuellaDispositivo();
+            
+            // 📱 2. Detección en tiempo real del tipo de hardware para el frontend
+            const esMovilReal = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            this.esMovil = esMovilReal; 
+            
+            // 🏷️ 3. Generamos el nombre dinámico para la Base de Datos y correos
+            const deviceName = this.obtenerNombreDispositivo(deviceId);
 
             const functionUrl = 'https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro';
             const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
@@ -483,7 +542,8 @@ export class Core {
             }
 
             sessionStorage.setItem('pico_sesion_ok', 'true');
-            localStorage.setItem("u", u); localStorage.setItem("p", p);
+            // 🔒 PARCHE DE SEGURIDAD: Solo guardamos el email (u) por comodidad. La contraseña NO se guarda en texto plano.
+            localStorage.setItem("u", u); 
             
             document.getElementById('login-screen').style.display = 'none';
             if(this.rol === 'admin' || this.rol === 'god') {
@@ -511,7 +571,7 @@ export class Core {
 
     cerrarSesion() {
         this.sysLog('SEC', 'Logout', 'Limpiando llaves y cerrando sesión.');
-        localStorage.removeItem('p'); sessionStorage.removeItem('pico_sesion_ok');
+        sessionStorage.removeItem('pico_sesion_ok');
         if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close();
         if(this.supabase) this.supabase.auth.signOut();
 
@@ -733,10 +793,11 @@ export class Core {
         document.body.setAttribute('data-estilo', datosActualizados.interfaz.estilo);
         
         const displayUser = document.getElementById('display-username');
+        // 🔒 Parche XSS: Evitar innerHTML si el nombre viene de un input de usuario. Usamos innerText que es seguro.
         if (displayUser) displayUser.innerText = datosActualizados.alias || datosActualizados.nombre || "USUARIO";
         if (datosActualizados.avatar_url) {
             const avatarImg = document.querySelector('#user-profile-menu img');
-            if (avatarImg) avatarImg.src = datosActualizados.avatar_url;
+            if (avatarImg) avatarImg.src = datosActualizados.avatar_url; // Modificar .src es seguro, no ejecuta scripts.
         }
 
         const exito = await this.guardarPerfilEnNube(datosActualizados);
@@ -819,7 +880,7 @@ export class Core {
 
             try {
                 const fileExt = file.name.split('.').pop();
-                const fileName = `avatar_${this.usuarioLogueado.id}.${fileExt}`;
+                const fileName = `avatar_${this.usuarioLogueado.id}_${Date.now()}.${fileExt}`;
 
                 const { data, error } = await this.supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: true });
                 if (error) throw error;
@@ -842,6 +903,14 @@ export class Core {
     // ==========================================================
     // 🤝 BLOQUE 4: MOTOR SOCIAL (LA PLAZA)
     // ==========================================================
+    
+    // 🔒 PARCHE DE SEGURIDAD XSS: Función para limpiar textos de usuarios maliciosos.
+    escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
 
     async cargarPlazaPublica() {
         const cReq = document.getElementById('plaza-section-requests');
@@ -868,14 +937,20 @@ export class Core {
             usuarios.forEach(u => {
                 if (u.id === this.usuarioLogueado.id) return; 
 
-                const alias = u.alias || 'Usuario Anónimo';
-                const avatarUrl = u.avatar_url;
+                // 🔒 PARCHE XSS: Limpiamos los datos que vienen de otros usuarios.
+                const alias = this.escapeHTML(u.alias || 'Usuario Anónimo');
+                
+                // Extraemos la URL y comprobamos que empiece por http para evitar inyección javascript: o data:
+                let avatarUrl = u.avatar_url;
+                if (avatarUrl && !avatarUrl.startsWith('http')) { avatarUrl = null; } 
+
                 const estaOnline = (u.estado_online === true || u.estado_online === 'online' || u.estado_online === 'true');
                 const colorEstado = estaOnline ? '#32d74b' : '#a1a1aa';
                 const txtEstado = estaOnline ? 'Online' : 'Desconectado';
 
                 let avatarHtml = `<i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>`;
-                if (avatarUrl) avatarHtml = `<img src="${avatarUrl}" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid ${colorEstado}; object-fit: cover;">`;
+                // Como filtramos la url antes, ya es seguro inyectarla.
+                if (avatarUrl) avatarHtml = `<img src="${this.escapeHTML(avatarUrl)}" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid ${colorEstado}; object-fit: cover;">`;
 
                 const conn = conexiones.find(c => c.solicitante_id === u.id || c.receptor_id === u.id);
                 
@@ -894,8 +969,8 @@ export class Core {
                             </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn-action btn-aceptar" data-id="${u.id}" style="background: rgba(50, 215, 75, 0.2); color: #32d74b; border: 1px solid rgba(50, 215, 75, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-check"></i></button>
-                            <button class="btn-action btn-rechazar" data-id="${u.id}" style="background: rgba(255, 69, 58, 0.2); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                            <button class="btn-action btn-aceptar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(50, 215, 75, 0.2); color: #32d74b; border: 1px solid rgba(50, 215, 75, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-check"></i></button>
+                            <button class="btn-action btn-rechazar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(255, 69, 58, 0.2); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                     </div>`;
                 }
@@ -921,7 +996,7 @@ export class Core {
                     const enviadaPorMi = (conn && conn.estado === 'pendiente' && conn.solicitante_id === this.usuarioLogueado.id);
                     let botonHtml = enviadaPorMi
                         ? `<button class="btn-action" disabled style="background: transparent; color: var(--text-sec); border: 1px solid rgba(255, 255, 255, 0.2); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: not-allowed;"><i class="fa-solid fa-clock"></i> Pendiente</button>`
-                        : `<button class="btn-action btn-conectar" data-id="${u.id}" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.4); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer;"><i class="fa-solid fa-user-plus"></i> Conectar</button>`;
+                        : `<button class="btn-action btn-conectar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.4); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer;"><i class="fa-solid fa-user-plus"></i> Conectar</button>`;
 
                     cOth.innerHTML += `
                     <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.05); opacity: 0.7;">
