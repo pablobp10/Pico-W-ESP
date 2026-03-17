@@ -659,9 +659,27 @@ export class Core {
             this.sysLog('NET', 'Cola', `Offline. Encolando comando para ${app}.`, 'warn');
             return this.notificar("Sin conexión. Orden en cola", "❌");
         }
-        this.sysLog('MQTT', 'TX', `Enviando comando -> [${app}]`, 'info', c);
-        this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: c }));
+        
+        try {
+            // 🛡️ PARCHE DE SEGURIDAD 2: Encriptación AES Extremo a Extremo (E2EE)
+            
+            // 1. Creamos el paquete físico con el comando y un sello de tiempo (Nonce anti-repetición)
+            const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
+            
+            // 2. Encriptamos el paquete entero usando tu clave secreta PICO_TK
+            const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
+            
+            this.sysLog('MQTT', 'TX', `Enviando comando cifrado AES -> [${app}]`);
+            
+            // 3. Enviamos el paquete cifrado. El servidor Python no podrá leer el interior.
+            this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: paqueteCifrado }));
+            
+        } catch (error) {
+            this.sysLog('SEC', 'Crypto Err', error.message, 'err');
+            this.notificar("Error de encriptación local", "❌");
+        }
     }
+
 
     sincronizarColaOffline() {
         if (this.colaOffline.length > 0 && this.ws && this.ws.readyState === WebSocket.OPEN) {
