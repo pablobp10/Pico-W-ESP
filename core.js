@@ -529,6 +529,42 @@ export class Core {
         }
     }
 
+        async cargarDatosDespuesDeLogin(tokenJWT) {
+        try {
+            // Descargamos tu perfil de la base de datos
+            const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
+            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
+
+            this.perfilDB = perfilNube;
+            this.rol = this.perfilDB.rol;
+            this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
+            
+            this.initSeguridadRoles(); 
+
+            // Aplicamos UI
+            const displayUser = document.getElementById('display-username');
+            if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || "USUARIO";
+            if (this.perfilDB.avatar_url) {
+                const iconoMenu = document.querySelector('#user-profile-menu i');
+                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.escapeHTML(this.perfilDB.avatar_url)}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
+            }
+
+            if(this.rol === 'admin' || this.rol === 'god') {
+                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            }
+            
+            this.renderGrid();
+            this.conectar();
+            this.comprobarSolicitudesPendientes();
+            this.notificar("Acceso concedido", "🔐");
+            
+        } catch (error) {
+            this.sysLog('SEC', 'AutoLogin Error', error.message, 'err');
+            this.cerrarSesion();
+        }
+    }
+
     cerrarSesion() {
         this.sysLog('SEC', 'Logout', 'Limpiando llaves y cerrando sesión.');
         sessionStorage.removeItem('pico_sesion_ok');
