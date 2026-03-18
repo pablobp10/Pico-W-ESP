@@ -1414,13 +1414,29 @@ export class Core {
         const utterance = new SpeechSynthesisUtterance(texto); utterance.lang = 'es-ES'; window.speechSynthesis.speak(utterance);
     }
 
-    async procesarComandoIA() {
-        const input = document.getElementById('ai-input'); const orden = input.value.trim(); if(!orden) return;
-        input.value = ""; this.notificar("Consultando al Escudo de IA...", "🧠");
+        async procesarComandoIA() {
+        const input = document.getElementById('ai-input'); 
+        const orden = input.value.trim(); 
+        if(!orden) return;
+        
+        input.value = ""; 
         this.sysLog('IA', 'Input', `Prompt recibido: "${orden}"`);
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ accion: "ia", proveedor: this.conf.ia_favorita || "google", texto: orden }));
+        // 🧠 1. Si el chip de IA LOCAL está activado, procesamos en el navegador
+        if (this.modoIALocal) {
+            this.notificar("Procesando en IA Local...", "🧠");
+            this.ejecutarInferencia(orden, "reactivo");
+        } 
+        // ☁️ 2. Si usamos la NUBE, enviamos la orden al servidor Python cifrada
+        else {
+            this.notificar("Consultando al Escudo de IA...", "☁️");
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                // Leemos el proveedor exacto que configuraste en tus ajustes (Groq, Google, etc.)
+                const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
+                this.ws.send(JSON.stringify({ accion: "ia", proveedor: proveedorElegido, texto: orden }));
+            } else {
+                this.notificar("Sin conexión al Escudo", "❌");
+            }
         }
     }
 
@@ -1428,9 +1444,18 @@ export class Core {
         this.notificar("Agente Autónomo en línea", "🛡️");
         setInterval(() => {
             this.sysLog('IA', 'Proactivo', 'Ejecutando escaneo silencioso de telemetría.');
-            this.ejecutarInferencia("Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.", "proactivo");
+            const ordenAutomata = "Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.";
+            
+            // El agente proactivo también debe respetar si estás en Local o en Nube
+            if (this.modoIALocal) {
+                this.ejecutarInferencia(ordenAutomata, "proactivo");
+            } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
+                this.ws.send(JSON.stringify({ accion: "ia", proveedor: proveedorElegido, texto: ordenAutomata }));
+            }
         }, 600000);
     }
+
 
     async precargarMotorLocal() {
         if (this.localEngine || this.localEngineWASM) return true;
