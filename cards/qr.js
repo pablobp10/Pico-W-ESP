@@ -1,31 +1,70 @@
 export const QrCard = {
-    id: "Qr",
-    category: "herramientas",
-    rol: "guest",
-    defaultSize: "2x2",
+    id: "QR",
+    defaultSize: "2x1",
+    customAccion: {
+        titulo: "Limpiar QR",
+        icono: "fa-solid fa-eraser",
+        color: "#ff453a",
+        ejecutar: (core) => {
+            const input = document.getElementById('qr-text');
+            if (input) {
+                input.value = "";
+                if (window.currentQRious) window.currentQRious.value = " ";
+                core.notificar("QR borrado", "🧹");
+            }
+        }
+    },
     html: `
-        <div style="display:flex; flex-direction:column; align-items:center; height:100%; width:100%; padding:5px;">
-            <div style="width:100px; height:100px; background:white; padding:5px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:center; align-items:center;">
-                <img id="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=PicoOS" style="width:100%; height:100%; object-fit:contain; filter: brightness(0.8) contrast(1.2);">
+        <style>
+            #qr-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; gap: 10px; }
+            .qr-left { display: flex; flex-direction: column; width: 100%; gap: 5px; align-items: center; flex-shrink: 0; }
+            .qr-label { font-size: clamp(0.7rem, 6cqmin, 1rem); font-weight: bold; color: var(--text-sec); }
+            #qr-text { width: 100%; padding: clamp(4px, 4cqmin, 8px); font-size: clamp(0.7rem, 5cqmin, 1rem); border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-main); outline: none; text-align: center;}
+            .qr-canvas-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; min-height: 0; width: 100%; }
+            #qr-canvas { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+            
+            @container (aspect-ratio > 1.2) {
+                #qr-wrapper { flex-direction: row; justify-content: space-around; }
+                .qr-left { width: 45%; }
+                .qr-canvas-container { width: 45%; height: 100%; }
+            }
+        </style>
+        
+        <div id="qr-wrapper">
+            <div class="qr-left">
+                <div class="qr-label"><i class="fa-solid fa-qrcode"></i> COMPARTIR</div>
+                <input id="qr-text" type="text" placeholder="URL o Texto...">
             </div>
-            <div style="display:flex; width:100%; gap:5px;">
-                <input type="text" id="qr-input" placeholder="Texto o URL..." style="flex-grow:1; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text-main); border-radius:8px; padding:6px; outline:none; font-size:0.8rem; text-align:center;">
-                <button id="qr-btn" class="btn-action" style="background:var(--primary); color:white; border:none; border-radius:8px; width:40px; cursor:pointer;"><i class="fa-solid fa-qrcode"></i></button>
+            <div class="qr-canvas-container">
+                <canvas id="qr-canvas"></canvas>
             </div>
         </div>
     `,
     onInit: (core) => {
-        const generar = () => {
-            const txt = document.getElementById('qr-input').value.trim();
-            if(!txt) return;
-            core.vibra("tick");
-            
-            // 🛡️ Solo inyectamos como atributo SRC (es seguro) y con la cadena encodeada
-            const urlSegura = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(txt)}`;
-            document.getElementById('qr-img').src = urlSegura;
-        };
+        if (!window.QRious) {
+            const s = document.createElement('script');
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js";
+            s.onload = () => initQR();
+            document.head.appendChild(s);
+        } else { initQR(); }
 
-        document.getElementById('qr-btn').onclick = generar;
-        document.getElementById('qr-input').onkeypress = (e) => { if(e.key === 'Enter') generar(); };
+        function initQR() {
+            const initial = localStorage.getItem('pico_qr_def') || 'https://github.com';
+            document.getElementById('qr-text').value = initial;
+            
+            window.currentQRious = new QRious({
+                element: document.getElementById('qr-canvas'),
+                value: initial, size: 200 
+            });
+
+            document.getElementById('qr-text').oninput = (e) => {
+                const txt = e.target.value;
+                if(txt) window.currentQRious.value = txt;
+            };
+        }
+    },
+    abrirAjustes: (core) => {
+        let u = prompt("Enlace por defecto para el QR:", localStorage.getItem('pico_qr_def') || "");
+        if(u) { localStorage.setItem('pico_qr_def', u); core.notificar("Enlace guardado", "🔗"); }
     }
 };
