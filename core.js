@@ -682,8 +682,13 @@ export class Core {
             } else if (data.tipo === "ia_voz") {
                 this.hablarJARVIS(data.texto);
                 this.notificar(data.texto, "🗣️");
+            } 
+            // 🚀 ESCUDO PROXY: Recibimos la respuesta de la IA desde Python
+            else if (data.tipo === "ia_respuesta") {
+                this.desplegarPayloadCuantico(data.texto, data.orden, data.modo);
             }
         };
+
 
         this.ws.onclose = () => {
             this.sysLog('NET', 'WS Close', 'Túnel caído. Reintentando en 3s...', 'warn');
@@ -1414,48 +1419,64 @@ export class Core {
         const utterance = new SpeechSynthesisUtterance(texto); utterance.lang = 'es-ES'; window.speechSynthesis.speak(utterance);
     }
 
-        async procesarComandoIA() {
+            async procesarComandoIA() {
         const input = document.getElementById('ai-input'); 
         const orden = input.value.trim(); 
         if(!orden) return;
         
         input.value = ""; 
+        this.notificar("Procesando...", "🧠");
         this.sysLog('IA', 'Input', `Prompt recibido: "${orden}"`);
 
-        // 🧠 1. Si el chip de IA LOCAL está activado, procesamos en el navegador
-        if (this.modoIALocal) {
-            this.notificar("Procesando en IA Local...", "🧠");
-            this.ejecutarInferencia(orden, "reactivo");
-        } 
-        // ☁️ 2. Si usamos la NUBE, enviamos la orden al servidor Python cifrada
-        else {
-            this.notificar("Consultando al Escudo de IA...", "☁️");
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                // Leemos el proveedor exacto que configuraste en tus ajustes (Groq, Google, etc.)
-                const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
-                this.ws.send(JSON.stringify({ accion: "ia", proveedor: proveedorElegido, texto: orden }));
-            } else {
-                this.notificar("Sin conexión al Escudo", "❌");
-            }
-        }
+        // Llamamos al motor central (que lee toda la casa antes de enviar)
+        this.ejecutarInferencia(orden, "reactivo");
     }
 
     iniciarAgenteProactivo() {
         this.notificar("Agente Autónomo en línea", "🛡️");
         setInterval(() => {
             this.sysLog('IA', 'Proactivo', 'Ejecutando escaneo silencioso de telemetría.');
-            const ordenAutomata = "Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.";
-            
-            // El agente proactivo también debe respetar si estás en Local o en Nube
-            if (this.modoIALocal) {
-                this.ejecutarInferencia(ordenAutomata, "proactivo");
-            } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
-                this.ws.send(JSON.stringify({ accion: "ia", proveedor: proveedorElegido, texto: ordenAutomata }));
-            }
+            this.ejecutarInferencia("Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.", "proactivo");
         }, 600000);
     }
 
+    async ejecutarInferencia(orden, modo = "reactivo") {
+        const statusEl = document.querySelector('.pico-info-pill');
+        const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
+        let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
+        document.querySelectorAll('.card').forEach(card => { contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`; });
+        contextoFisico += `- Reloj: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}\n`;
+        
+        let memoriaProfunda = "";
+        if (this.db) { const horaActual = new Date().getHours(); memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${await this.consultarHabitosDB(horaActual)}\n`; }
+        let memoria = "--- CONTEXTO ---\n";
+        (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
+
+        const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
+        
+        if (this.modoIALocal) {
+            await this.procesarConWebLLM(promptSistema, orden, modo);
+        } else {
+            // 🛡️ IA EN LA NUBE (PROXY CUÁNTICO INEXPUGNABLE)
+            // Ya NO exponemos las API Keys en el navegador. Enviamos todo a tu servidor de Render.
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
+                this.ws.send(JSON.stringify({ 
+                    accion: "ia_proxy", 
+                    proveedor: proveedorElegido, 
+                    prompt_sistema: promptSistema,
+                    prompt_humano: orden,
+                    modo: modo
+                }));
+            } else {
+                this.notificar("Sin conexión al Escudo", "❌");
+                if(modo === "reactivo") {
+                    this.notificar("Nube caída. Intentando IA Local...", "🔋");
+                    await this.procesarConWebLLM(promptSistema, orden, modo);
+                }
+            }
+        }
+    }
 
     async precargarMotorLocal() {
         if (this.localEngine || this.localEngineWASM) return true;
@@ -1521,73 +1542,6 @@ export class Core {
             this.sysLog('IA', 'Respuesta Local', textoCrudo);
             this.desplegarPayloadCuantico(textoCrudo, orden, modo);
         } catch(e) { this.sysLog('IA', 'Colapso Local', e.message, 'err'); this.notificar("Colapso lógico en IA Local", "❌"); }
-    }
-
-    async ejecutarInferencia(orden, modo = "reactivo") {
-        if(!localStorage.getItem("p") || !this.apiKeys) return this.notificar("Sesión corrupta o sin permisos.", "❌");
-
-        const statusEl = document.querySelector('.pico-info-pill');
-        const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
-        let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
-        document.querySelectorAll('.card').forEach(card => { contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`; });
-        contextoFisico += `- Reloj: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}\n`;
-        
-        let memoriaProfunda = "";
-        if (this.db) { const horaActual = new Date().getHours(); memoriaProfunda = `--- PATRONES (${horaActual}:00) ---\n${await this.consultarHabitosDB(horaActual)}\n`; }
-        let memoria = "--- CONTEXTO ---\n";
-        (this.historialIA || []).forEach(h => memoria += `Humano: ${h.u}\nJARVIS: ${h.a}\n`);
-
-        const promptSistema = GeneradorPrompt(contextoFisico, memoriaProfunda, memoria, modo, orden);
-        
-        if (this.modoIALocal) {
-            await this.procesarConWebLLM(promptSistema, orden, modo);
-        } else {
-            const keys = { google: this.apiKeys.google || "", openrouter: this.apiKeys.openrouter || "", groq: this.apiKeys.groq || "" };
-            const proveedores = [
-                {
-                    id: "Google (Gemini 1.5 Flash)", url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${keys.google}`, key: keys.google,
-                    headers: () => ({ "Content-Type": "application/json" }),
-                    body: () => JSON.stringify({ contents: [{ parts: [{ text: promptSistema }] }], generationConfig: { responseMimeType: "application/json" } }),
-                    parser: (data) => data.candidates[0].content.parts[0].text
-                },
-                {
-                    id: "OpenRouter (Llama 3)", url: "https://openrouter.ai/api/v1/chat/completions", key: keys.openrouter,
-                    headers: () => ({ "Authorization": `Bearer ${keys.openrouter}`, "Content-Type": "application/json" }),
-                    body: () => JSON.stringify({ model: "meta-llama/llama-3-8b-instruct:free", messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }], response_format: { type: "json_object" } }),
-                    parser: (data) => data.choices[0].message.content
-                },
-                {
-                    id: "Groq (Llama 3 70B)", url: "https://api.groq.com/openai/v1/chat/completions", key: keys.groq,
-                    headers: () => ({ "Authorization": `Bearer ${keys.groq}`, "Content-Type": "application/json" }),
-                    body: () => JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: promptSistema }, { role: "user", content: orden }], response_format: { type: "json_object" } }),
-                    parser: (data) => data.choices[0].message.content
-                }
-            ];
-            let payloadGenerado = null;
-
-            for (const p of proveedores) {
-                if (!p.key) continue;
-                try {
-                    this.sysLog('IA', 'API Call', `Enviando prompt a ${p.id}...`);
-                    const res = await fetch(p.url, { method: 'POST', headers: p.headers(), body: p.body() });
-                    if (!res.ok) { const errD = await res.json().catch(()=>({})); this.sysLog('IA', 'API Error', `Fallo de ${p.id}`, 'warn', errD); continue; }
-                    const data = await res.json(); payloadGenerado = p.parser(data);
-                    this.sysLog('IA', 'API Success', `Respuesta obtenida de ${p.id}`);
-                    break;
-                } catch (e) {
-                    this.sysLog('IA', 'API Crash', e.message, 'err'); this.gestionarFalloIA('nube');
-                }
-            }
-
-            if (payloadGenerado) { this.desplegarPayloadCuantico(payloadGenerado, orden, modo); } 
-            else {
-                if(modo === "reactivo") {
-                    this.sysLog('IA', 'Fallback', 'APIs de Nube agotadas. Rebotando a IA Local.', 'warn');
-                    this.notificar("Nubes caídas. IA Local asumiendo el mando...", "🔋");
-                    await this.procesarConWebLLM(promptSistema, orden, modo);
-                }
-            }
-        }
     }
 
     desplegarPayloadCuantico(textoCrudo, orden, modo) {
