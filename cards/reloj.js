@@ -1,5 +1,6 @@
 export const RelojCard = {
     id: "Clock",
+    category: "info", // Le añadimos categoría para que funcione con los filtros
     defaultSize: "1x2",
     customAccion: {
         titulo: "Mostrar Segundos",
@@ -46,23 +47,41 @@ export const RelojCard = {
         </div>
     `,
     onInit: () => {
-        document.getElementById('c-name-1').innerText = localStorage.getItem('pico_c1') || "Madrid";
-        document.getElementById('c-name-2').innerText = localStorage.getItem('pico_c2') || "Londres";
-        document.getElementById('c-name-3').innerText = localStorage.getItem('pico_c3') || "New York";
+        // 1. Evitar errores si la tarjeta no está renderizada aún
+        const c1 = document.getElementById('c-name-1');
+        if (c1) c1.innerText = localStorage.getItem('pico_c1') || "Madrid";
+        const c2 = document.getElementById('c-name-2');
+        if (c2) c2.innerText = localStorage.getItem('pico_c2') || "Londres";
+        const c3 = document.getElementById('c-name-3');
+        if (c3) c3.innerText = localStorage.getItem('pico_c3') || "New York";
+
+        // 2. Destruir motores viejos (evita lagazos y solapamientos al recargar el grid)
+        if (window.picoClockInterval) clearInterval(window.picoClockInterval);
 
         const update = () => {
+            const clockMad = document.getElementById('clock-mad');
+            
+            // 3. PARCHE: Si el reloj no está en pantalla por los filtros, abortamos la actualización en silencio
+            if (!clockMad) return;
+
             const now = new Date();
             const showSecs = localStorage.getItem('pico_clock_secs') === 'true';
             const opt = showSecs ? {hour:'2-digit', minute:'2-digit', second:'2-digit'} : {hour:'2-digit', minute:'2-digit'};
             
-            document.getElementById('clock-mad').innerText = now.toLocaleTimeString('es-ES', {...opt});
+            clockMad.innerText = now.toLocaleTimeString('es-ES', {...opt});
             document.getElementById('clock-lon').innerText = now.toLocaleTimeString('en-GB', {...opt, timeZone:'Europe/London'});
             document.getElementById('clock-nyc').innerText = now.toLocaleTimeString('en-US', {...opt, timeZone:'America/New_York'});
         };
-        setInterval(update, 1000); update(); 
+        
+        window.picoClockInterval = setInterval(update, 1000); 
+        update(); 
     },
     abrirAjustes: (core) => {
         let c = prompt("Nombre etiqueta 1 (Ej: Tokio):", localStorage.getItem('pico_c1') || "Madrid");
-        if(c) { localStorage.setItem('pico_c1', c); document.getElementById('c-name-1').innerText = c; }
+        if(c) { 
+            localStorage.setItem('pico_c1', c); 
+            const c1 = document.getElementById('c-name-1');
+            if (c1) c1.innerText = c; 
+        }
     }
 };
