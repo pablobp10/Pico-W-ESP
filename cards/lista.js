@@ -50,7 +50,18 @@ export const ListaCard = {
         document.getElementById('shop-input').onkeypress = (e) => {
             if(e.key === 'Enter') addItem(core);
         };
-        window.currentShopList = window.currentShopList || [];
+        
+        // 1. Recuperamos de la memoria local por si no hay conexión o el broker está vacío
+        const cache = localStorage.getItem('pico_lista_cache');
+        window.currentShopList = cache ? JSON.parse(cache) : [];
+        
+        // 2. Forzamos un renderizado inicial (quitamos el "Cargando...") si el servidor no responde rápido
+        setTimeout(() => {
+            const container = document.getElementById('shop-list');
+            if (container && container.innerHTML.includes('Cargando...')) {
+                ListaCard.onData(JSON.stringify(window.currentShopList), 'Lista', core);
+            }
+        }, 500);
     },
     onData: (val, app, core) => {
         let items = window.currentShopList || [];
@@ -75,6 +86,10 @@ export const ListaCard = {
         }
         
         window.currentShopList = items;
+        
+        // 💾 Guardamos una copia de seguridad en el navegador por si se va la luz/internet
+        localStorage.setItem('pico_lista_cache', JSON.stringify(items));
+        
         const container = document.getElementById('shop-list');
         container.innerHTML = ""; 
         
