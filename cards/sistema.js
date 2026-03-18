@@ -1,6 +1,15 @@
 export const SistemaCard = {
     id: "System",
     defaultSize: "2x1",
+    customAccion: {
+        titulo: "Ping Manual",
+        icono: "fa-solid fa-satellite-dish",
+        color: "#0ea5e9",
+        ejecutar: (core) => {
+            core.cmd('Sistema', 'PING');
+            core.notificar("Ping enviado a la Pico", "📡");
+        }
+    },
     html: `
         <style>
             #sys-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 4cqmin; }
