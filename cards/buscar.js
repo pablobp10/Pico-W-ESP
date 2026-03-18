@@ -1,30 +1,57 @@
 export const FindCard = {
     id: "Find",
-    category: "herramientas",
-    rol: "guest",
-    defaultSize: "2x1",
+    defaultSize: "1x1",
+    customAccion: {
+        titulo: "Baliza de Emergencia",
+        icono: "fa-solid fa-triangle-exclamation",
+        color: "#ef4444",
+        ejecutar: (core) => {
+            core.notificar("Activando baliza de emergencia S.O.S", "🚨");
+            let count = 0;
+            const sos = setInterval(() => {
+                core.pub('Find', 'beep', false);
+                count++;
+                if (count >= 5) clearInterval(sos);
+            }, 1000);
+        }
+    },
     html: `
-        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; width:100%;">
-            <div style="display:flex; width:100%; gap:10px; align-items:center;">
-                <i class="fa-brands fa-searchengin" style="color:var(--primary); font-size:1.5rem;"></i>
-                <input type="text" id="find-input" placeholder="Buscar en la red..." style="flex-grow:1; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text-main); border-radius:10px; padding:10px; outline:none; font-size:0.9rem;">
-                <button id="find-btn" class="btn-action" style="background:var(--primary); color:white; border:none; border-radius:10px; width:45px; cursor:pointer; transition:0.3s;"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <style>
+            #find-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 10px; }
+            #find-icon { font-size: clamp(2rem, 25cqmin, 4rem); color: #0ea5e9; margin: 0; }
+            #bat-val { font-size: clamp(0.7rem, 10cqmin, 1.2rem); font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin: 5px 0; }
+            #btn-beep { padding: clamp(6px, 4cqmin, 14px); font-size: clamp(0.7rem, 8cqmin, 1.2rem); width: 100%; border-radius: 12px; background: #0ea5e9; margin: 0; }
+            
+            @container (aspect-ratio > 1.2) {
+                #find-wrapper { flex-direction: row; justify-content: space-around; }
+                #find-icon { font-size: clamp(2rem, 50cqh, 6rem); width: 40%; text-align: center; }
+                .find-controls { width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
+            }
+        </style>
+        
+        <div id="find-wrapper">
+            <i class="fa-solid fa-mobile-screen" id="find-icon"></i>
+            <div class="find-controls" style="width:100%">
+                <div id="bat-val">Batería</div>
+                <button class="btn-action" id="btn-beep">🔊 PITAR</button>
             </div>
         </div>
     `,
+    
     onInit: (core) => {
-        const buscar = () => {
-            const txt = document.getElementById('find-input').value.trim();
-            if(!txt) return;
-            core.vibra("tick");
-            
-            // 🛡️ Sanitizamos la URL para evitar ataques de inyección en la barra de direcciones
-            const urlSegura = `https://duckduckgo.com/?q=${encodeURIComponent(txt)}`;
-            window.open(urlSegura, '_blank');
-            document.getElementById('find-input').value = "";
-        };
-
-        document.getElementById('find-btn').onclick = buscar;
-        document.getElementById('find-input').onkeypress = (e) => { if(e.key === 'Enter') buscar(); };
+        document.getElementById('btn-beep').onclick = () => core.pub('Find','beep',false);
+        if(navigator.getBattery) navigator.getBattery().then(b=>document.getElementById('bat-val').innerText=Math.round(b.level*100)+"%");
+    },
+    onData: (val) => {
+        if(val === 'beep' || val === 'sonar') {
+            const freq = parseInt(localStorage.getItem('pico_beep_freq')) || 440;
+            const c = new AudioContext(); const o = c.createOscillator(); 
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, c.currentTime);
+            o.connect(c.destination); o.start(); setTimeout(()=>o.stop(), 500);
+        }
+    },
+    abrirAjustes: (core) => {
+        let f = prompt("Frecuencia del pitido en Hz (ej: 440 o 880):", localStorage.getItem('pico_beep_freq') || "440");
+        if(f && !isNaN(f)) { localStorage.setItem('pico_beep_freq', f); core.notificar("Tono actualizado", "🎵"); }
     }
 };
