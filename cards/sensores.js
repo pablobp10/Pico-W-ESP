@@ -1,43 +1,72 @@
 export const SensoresCard = {
     id: "Sensores",
-    category: "sensores",
-    rol: "guest",
-    defaultSize: "1x1",
+    defaultSize: "2x1",
+    customAccion: {
+        titulo: "Gráfica ThingSpeak",
+        icono: "fa-solid fa-chart-line",
+        color: "#0a84ff",
+        ejecutar: (core) => {
+            const card = document.getElementById('card-Sensores');
+            const f = document.getElementById('ts-iframe');
+            
+            if (card.classList.contains('modo-grafica')) {
+                card.classList.remove('modo-grafica');
+                card.style.gridRowEnd = ""; 
+                f.classList.remove('active');
+                f.src = "";
+            } else {
+                card.classList.add('modo-grafica');
+                card.style.gridRowEnd = "span 2"; 
+                f.classList.add('active');
+                
+                let ch = localStorage.getItem('pico_ts_ch') || (core.conf && core.conf.ch);
+                if (ch) {
+                    const isDark = document.body.getAttribute('data-theme') === 'dark';
+                    const color = isDark ? '0a84ff' : '007aff';
+                    const bg = isDark ? '000000' : 'f2f2f7';
+                    f.src = `https://thingspeak.com/channels/${ch}/charts/1?bgcolor=%23${bg}&color=%23${color}&dynamic=true&results=60&type=line`;
+                } else {
+                    core.notificar("Canal de ThingSpeak no configurado", "⚠️");
+                }
+            }
+        }
+    },
     html: `
-        <div style="display:flex; flex-direction:column; justify-content:space-evenly; height:100%; width:100%; padding:5px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <i class="fa-solid fa-temperature-three-quarters" style="color:#ff9f0a; font-size:1.2rem;"></i>
-                <span id="sens-temp" style="font-size:1.2rem; font-weight:bold; color:var(--text-main);">--°C</span>
+        <style>
+            #sens-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; }
+            .sens-top { display: flex; justify-content: space-around; align-items: center; width: 100%; height: 100%; padding: 15px 10px; box-sizing: border-box; }
+            .sens-data-row { display: flex; width: 100%; justify-content: space-around; align-items: center; gap: 5px; }
+            .sens-num { margin: 0; font-size: clamp(1.2rem, 15cqmin, 3rem); font-weight: 800; line-height: 1; color: var(--text-main); }
+            .sens-div { height: clamp(20px, 15cqmin, 40px); border-left: 1px solid var(--border); }
+            .sens-label { font-size: clamp(0.6rem, 6cqmin, 0.9rem); color: var(--text-sec); font-weight: bold; margin-top: 5px; text-transform: uppercase;}
+            
+            #ts-iframe { display: none; width: calc(100% + 30px); height: 100%; border: none; margin: 0 -15px -15px -15px; background: var(--bg); border-radius: 0 0 20px 20px; flex-grow: 1; }
+            #ts-iframe.active { display: block; }
+            #card-Sensores.modo-grafica .sens-top { height: auto; }
+        </style>
+        
+        <div id="sens-wrapper">
+            <div class="sens-top">
+                <div class="sens-data-row">
+                    <div style="text-align:center"><div class="sens-num" id="val-s-temp">--°</div><div class="sens-label">TEMP</div></div>
+                    <div class="sens-div"></div>
+                    <div style="text-align:center"><div class="sens-num" id="val-s-hum">--%</div><div class="sens-label">HUM</div></div>
+                    <div class="sens-div"></div>
+                    <div style="text-align:center"><div class="sens-num" id="val-s-pres">--</div><div class="sens-label">hPa</div></div>
+                </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <i class="fa-solid fa-droplet" style="color:#0a84ff; font-size:1.2rem;"></i>
-                <span id="sens-hum" style="font-size:1.2rem; font-weight:bold; color:var(--text-main);">--%</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <i class="fa-solid fa-person-rays" id="icon-pir" style="color:var(--text-sec); font-size:1.2rem; transition:0.3s;"></i>
-                <span id="sens-pir" style="font-size:0.9rem; font-weight:bold; color:var(--text-sec);">Tranquilo</span>
-            </div>
+            <iframe id="ts-iframe"></iframe>
         </div>
     `,
     onData: (val) => {
-        if(!val) return;
-        
-        // Usamos innerText por seguridad XSS
-        if(val.t !== undefined) document.getElementById('sens-temp').innerText = `${val.t}°C`;
-        if(val.h !== undefined) document.getElementById('sens-hum').innerText = `${val.h}%`;
-        
-        if(val.pir !== undefined) {
-            const iconPir = document.getElementById('icon-pir');
-            const txtPir = document.getElementById('sens-pir');
-            if(val.pir === 1 || val.pir === "MOVIMIENTO") {
-                iconPir.style.color = "#ff453a";
-                txtPir.style.color = "#ff453a";
-                txtPir.innerText = "DETECTADO";
-            } else {
-                iconPir.style.color = "var(--text-sec)";
-                txtPir.style.color = "var(--text-sec)";
-                txtPir.innerText = "Tranquilo";
-            }
+        if(val.datos) { 
+            if(val.datos.temp) document.getElementById('val-s-temp').innerText = val.datos.temp + "°"; 
+            if(val.datos.hum) document.getElementById('val-s-hum').innerText = val.datos.hum + "%"; 
+            if(val.datos.pres) document.getElementById('val-s-pres').innerText = val.datos.pres; 
         }
+    },
+    abrirAjustes: (core) => {
+        let ch = prompt("ID del Canal de ThingSpeak:", localStorage.getItem('pico_ts_ch') || "");
+        if(ch) { localStorage.setItem('pico_ts_ch', ch); core.notificar("Canal Guardado", "📊"); }
     }
 };
