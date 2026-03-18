@@ -15,7 +15,7 @@ export const ListaCard = {
     },
     html: `
         <style>
-            #lista-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; box-sizing: border-box; padding: 4cqmin; }
+            #lista-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; box-sizing: border-box; padding: 4cqmin; position: relative; }
             .lista-label { font-size: clamp(0.7rem, 6cqmin, 1.2rem); font-weight: 700; color: var(--text-sec); margin-bottom: 2cqmin; text-align: left; }
             #shop-list { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2cqmin; padding-right: 5px; }
             .shop-item-fluid { display: flex; align-items: center; gap: 2cqmin; background: var(--bg); padding: clamp(6px, 2cqmin, 12px); border-radius: 8px; text-align: left; transition: 0.2s; }
@@ -43,6 +43,8 @@ export const ListaCard = {
                 <input type="text" id="shop-input" placeholder="Añadir producto...">
                 <button id="btn-add"><i class="fa-solid fa-plus"></i></button>
             </div>
+            
+            <div id="lista-ai-data" class="val-text" style="display:none;">Vacía</div>
         </div>
     `,
     onInit: (core) => {
@@ -51,11 +53,9 @@ export const ListaCard = {
             if(e.key === 'Enter') addItem(core);
         };
         
-        // 1. Recuperamos de la memoria local por si no hay conexión o el broker está vacío
         const cache = localStorage.getItem('pico_lista_cache');
         window.currentShopList = cache ? JSON.parse(cache) : [];
         
-        // 2. Forzamos un renderizado inicial (quitamos el "Cargando...") si el servidor no responde rápido
         setTimeout(() => {
             const container = document.getElementById('shop-list');
             if (container && container.innerHTML.includes('Cargando...')) {
@@ -81,18 +81,25 @@ export const ListaCard = {
                     const aAnadir = val.trim().startsWith("+") ? val.substring(1).trim() : val.trim();
                     if(aAnadir) items.push({ txt: aAnadir, done: false });
                 }
-                core.pub('Lista', JSON.stringify(items), true);
+                // Si llegamos aquí por culpa de un comando de IA, actualizamos la memoria central
+                if (core) core.pub('Lista', JSON.stringify(items), true);
             }
         }
         
         window.currentShopList = items;
-        
-        // 💾 Guardamos una copia de seguridad en el navegador por si se va la luz/internet
         localStorage.setItem('pico_lista_cache', JSON.stringify(items));
         
         const container = document.getElementById('shop-list');
         container.innerHTML = ""; 
         
+        // 🧠 Alimentamos el Ojo de la IA
+        const aiDataField = document.getElementById('lista-ai-data');
+        if (aiDataField) {
+            aiDataField.innerText = items.length > 0 
+                ? items.map(i => i.done ? `[X] ${i.txt}` : `[ ] ${i.txt}`).join(", ") 
+                : "Vacía";
+        }
+
         if(items.length === 0) {
             container.innerHTML = '<div style="color:var(--text-sec); font-size:clamp(0.8rem, 5cqmin, 1.2rem); margin-top:10cqmin; text-align:center;">Lista vacía</div>';
             return;
@@ -109,12 +116,13 @@ export const ListaCard = {
             
             div.querySelector('input').onchange = () => {
                 items[index].done = !items[index].done;
-                core.pub('Lista', JSON.stringify(items), true);
+                // 🚀 Usamos ejecutarComandoLocal para auto-redibujar
+                core.ejecutarComandoLocal('Lista', JSON.stringify(items));
             };
 
             div.querySelector('.btn-del').onclick = () => {
                 items.splice(index, 1);
-                core.pub('Lista', JSON.stringify(items), true);
+                core.ejecutarComandoLocal('Lista', JSON.stringify(items));
             };
 
             container.appendChild(div);
@@ -124,7 +132,7 @@ export const ListaCard = {
         if(confirm("¿Eliminar los productos tachados?")) {
             let items = window.currentShopList || [];
             items = items.filter(i => !i.done);
-            core.pub('Lista', JSON.stringify(items), true);
+            core.ejecutarComandoLocal('Lista', JSON.stringify(items));
             core.notificar("Lista depurada", "🧹");
         }
     }
@@ -136,7 +144,10 @@ function addItem(core) {
     if(!txt) return;
     let currentList = window.currentShopList || [];
     currentList.push({ txt: txt, done: false });
-    core.pub('Lista', JSON.stringify(currentList), true);
+    
+    // 🚀 Redibujado instantáneo
+    core.ejecutarComandoLocal('Lista', JSON.stringify(currentList));
+    
     input.value = "";
     input.focus();
 }
