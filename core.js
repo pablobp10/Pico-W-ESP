@@ -1657,9 +1657,20 @@ export class Core {
     ejecutarComandoLocal(app, accion) {
         const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA", "Consciencia", "IA"];
         const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista", "Macros"];
+        
         if (hardwareVirtual.includes(app)) {
             if (this.logHUD) this.logHUD(`Simulando hardware virtual: ${app} -> ${accion}`, "out");
-            if (app === "Dado" && accion === "roll") { this.pub("Dado", Math.floor(Math.random() * 6) + 1, true); } else if (app !== "Macros") { this.pub(app, accion, true); }
+            
+            if (app === "Dado" && accion === "roll") { 
+                this.pub("Dado", Math.floor(Math.random() * 6) + 1, true); 
+            } else if (app !== "Macros") { 
+                this.pub(app, accion, true); 
+                
+                // 🚀 PARCHE DE REDIBUJADO INSTANTÁNEO
+                // Como no hay hardware físico que nos devuelva el "Eco", forzamos a la tarjeta a actualizarse sola
+                const tarjeta = this.cards.find(c => c.id === app);
+                if (tarjeta && tarjeta.onData) tarjeta.onData(accion, app, this);
+            }
             return true;
         }
 
@@ -1682,6 +1693,7 @@ export class Core {
         }
         return true;
     }
+
 
     ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
         const tarjeta = this.cards.find(c => c.id === app);
