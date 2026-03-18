@@ -1,40 +1,87 @@
 export const AlmaCard = {
     id: "Almacenamiento",
-    category: "sistema",
-    rol: "admin",
-    defaultSize: "2x1",
+    defaultSize: "1x1",
+    customAccion: {
+        titulo: "Purgar Caché Local",
+        icono: "fa-solid fa-broom",
+        color: "#ff453a",
+        ejecutar: (core) => {
+            if(confirm("¿Vaciar caché temporal de Pico OS en este navegador?")) {
+                localStorage.removeItem('pico_perfil_cache');
+                localStorage.removeItem('pico_libs_versions');
+                core.notificar("Caché local purgada", "🧹");
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        }
+    },
     html: `
-        <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start; height:100%; width:100%; padding:5px;">
-            <div style="display:flex; align-items:center; gap:10px; width:100%;">
-                <i class="fa-solid fa-microchip" style="font-size:1.8rem; color:#0a84ff;"></i>
-                <div style="display:flex; flex-direction:column; flex-grow:1;">
-                    <span style="font-size:0.8rem; font-weight:bold; color:var(--text-sec);">MEMORIA FLASH</span>
-                    <span id="alma-txt" style="font-size:1.1rem; font-weight:900; color:var(--text-main); font-variant-numeric:tabular-nums;">-- KB Libres</span>
-                </div>
-            </div>
+        <style>
+            #alma-wrapper { display: flex; flex-direction: column; justify-content: space-evenly; height: 100%; width: 100%; box-sizing: border-box; padding: 5cqmin; }
+            .alma-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2cqmin; }
+            .alma-title { margin: 0; font-size: clamp(0.8rem, 12cqmin, 2rem); }
+            #alma-percent { font-size: clamp(1rem, 15cqmin, 3rem); font-weight: bold; color: var(--text-sec); }
+            .alma-bar-bg { background: var(--border); height: clamp(8px, 6cqmin, 24px); border-radius: 12px; overflow: hidden; width: 100%; }
+            #alma-bar { width: 0%; background: #28a745; height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+            .alma-details { display: flex; justify-content: space-between; font-size: clamp(0.7rem, 8cqmin, 1.2rem); color: var(--text-sec); margin-top: 3cqmin; }
+            #btn-alma-update { margin-top: 4cqmin; padding: clamp(6px, 4cqmin, 16px); font-size: clamp(0.7rem, 8cqmin, 1.2rem); border-radius: clamp(8px, 3cqmin, 16px); }
             
-            <div style="width:100%; background:rgba(0,0,0,0.3); height:10px; border-radius:5px; margin-top:15px; overflow:hidden; border:1px solid rgba(255,255,255,0.1);">
-                <div id="alma-bar" style="width:0%; height:100%; background:#32d74b; transition:width 0.5s ease, background 0.5s ease;"></div>
+            @container (aspect-ratio > 1.5) {
+                #alma-wrapper { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+                .alma-header { width: 100%; }
+                .alma-bar-bg { width: 65%; margin: 0; }
+                .alma-details { width: 30%; flex-direction: column; align-items: flex-end; margin: 0; gap: 5px; }
+                #btn-alma-update { width: 100%; margin-top: 10px; }
+            }
+        </style>
+        
+        <div id="alma-wrapper">
+            <div class="alma-header">
+                <h3 class="alma-title"><i class="fa-solid fa-hard-drive"></i> Disco</h3>
+                <span id="alma-percent">--%</span>
             </div>
+            <div class="alma-bar-bg"><div id="alma-bar"></div></div>
+            <div class="alma-details">
+                <span id="alma-used">Usado: --</span>
+                <span id="alma-free">Libre: --</span>
+            </div>
+            <button class="btn-action" id="btn-alma-update">ACTUALIZAR</button>
         </div>
     `,
+    onInit: (core) => {
+        document.getElementById('btn-alma-update').onclick = () => core.cmd('Almacenamiento', 'get');
+        setTimeout(() => core.cmd('Almacenamiento', 'get'), 1000);
+    },
     onData: (val) => {
-        // Esperamos un payload de la Pico como: {"libre_kb": 1250, "total_kb": 2048}
-        if(!val || val.libre_kb === undefined || val.total_kb === undefined) return;
-        
-        const libre = val.libre_kb;
-        const total = val.total_kb;
-        const usado = total - libre;
-        const porcentaje = Math.round((usado / total) * 100);
-        
-        document.getElementById('alma-txt').innerText = `${libre} KB Libres`;
-        
+        if (typeof val !== 'object') return;
+        const p = val.porcentaje || 0;
         const bar = document.getElementById('alma-bar');
-        bar.style.width = `${porcentaje}%`;
+        const txtPercent = document.getElementById('alma-percent');
         
-        // Colores de advertencia si la flash se está llenando
-        if(porcentaje > 90) bar.style.background = "#ff453a";
-        else if(porcentaje > 75) bar.style.background = "#ff9f0a";
-        else bar.style.background = "#32d74b";
+        bar.style.width = p + "%";
+        txtPercent.innerText = p.toFixed(1) + "%";
+        
+        const limit = parseInt(localStorage.getItem('pico_alma_limit')) || 80;
+        if(p > limit) bar.style.background = "#dc3545";
+        else if(p > limit - 20) bar.style.background = "#ffc107";
+        else bar.style.background = "#28a745";
+
+        const fmt = (bytes) => {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        document.getElementById('alma-used').innerText = "Usado: " + fmt(val.usado_bytes);
+        document.getElementById('alma-free').innerText = "Libre: " + fmt(val.libre_bytes);
+    },
+    abrirAjustes: (core) => {
+        let current = localStorage.getItem('pico_alma_limit') || "80";
+        let limit = prompt("Límite de alerta roja en porcentaje (ej: 80):", current);
+        if (limit && !isNaN(limit)) {
+            localStorage.setItem('pico_alma_limit', limit);
+            core.notificar(`Alerta configurada al ${limit}%`, "⚙️");
+        }
     }
 };
