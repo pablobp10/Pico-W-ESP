@@ -1,6 +1,18 @@
 export const NotasCard = {
     id: "Notas",
     defaultSize: "1x2",
+    customAccion: {
+        titulo: "Copiar al Portapapeles",
+        icono: "fa-regular fa-copy",
+        color: "#0ea5e9",
+        ejecutar: (core) => {
+            const txt = document.getElementById('nota-compartida');
+            if (txt && txt.value) {
+                navigator.clipboard.writeText(txt.value);
+                core.notificar("Nota copiada", "📋");
+            }
+        }
+    },
     html: `
         <style>
             #notas-wrapper { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 4cqmin; }
@@ -19,7 +31,6 @@ export const NotasCard = {
     },
     onData: (val) => {
         const txt = document.getElementById('nota-compartida');
-        // Evitamos sobrescribir si el usuario está escribiendo justo ahora
         if (document.activeElement !== txt) txt.value = val;
     },
     abrirAjustes: (core) => {
