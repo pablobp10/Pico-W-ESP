@@ -506,9 +506,6 @@ export class Core {
 
             if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
             this.rol = this.perfilDB.rol;
-            this.conf = JSON.parse(this.perfilDB.maletin_encriptado); 
-            if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
-            this.rol = this.perfilDB.rol;
             
             // 🛡️ PARCHE E2EE: Lógica de auto-sanación y cifrado
             let confData = null;
@@ -532,6 +529,7 @@ export class Core {
 
             this.conf = confData;
             this.guardarBovedaHardware(this.conf); // Metemos la llave en el enclave físico
+
             
             this.initSeguridadRoles();
 
