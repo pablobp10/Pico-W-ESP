@@ -95,20 +95,25 @@ export class Core {
         }
     }
 
-    sysLog(modulo, accion, mensaje, tipo = "info", dataExtra = null) {
-        if (this.rol !== 'god') return; 
-
-        const log = window._consolaOriginal[tipo === 'err' ? 'error' : tipo === 'warn' ? 'warn' : 'log'];
-        const colores = { net: "#0a84ff", sec: "#ff453a", db: "#bf5af2", ia: "#32d74b", sys: "#ff9f0a", mqtt: "#00c7be" };
-        const color = colores[modulo.toLowerCase()] || "#a1a1aa";
-        
-        const timestamp = new Date().toISOString().split('T')[1].slice(0,-1);
-        
-        log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: #fff; font-weight: normal;`, mensaje);
-        if (dataExtra) {
-            try { log(JSON.parse(JSON.stringify(dataExtra))); } 
-            catch(e) { log("[Objeto complejo/Binario no imprimible]", dataExtra); }
+    sysLog(modulo, accion, mensaje, tipo = "info", dataExtra = null, solucion = null) {
+        // 1. Consola F12 (Navegador) -> Solo Nivel GOD
+        if (this.rol === 'god' && window._consolaOriginal) {
+            const log = window._consolaOriginal[tipo === 'err' || tipo === 'error' ? 'error' : tipo === 'warn' ? 'warn' : 'log'];
+            const colores = { net: "#0a84ff", sec: "#ff453a", db: "#bf5af2", ia: "#32d74b", sys: "#ff9f0a", mqtt: "#00c7be" };
+            const color = colores[modulo.toLowerCase()] || "#a1a1aa";
+            const timestamp = new Date().toISOString().split('T')[1].slice(0,-1);
+            
+            log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: #fff; font-weight: normal;`, mensaje);
+            if (dataExtra) { try { log(JSON.parse(JSON.stringify(dataExtra))); } catch(e) { log("[Objeto complejo]", dataExtra); } }
+            
+            // Si hay una solución propuesta, la imprimimos en verde chillón
+            if ((tipo === 'error' || tipo === 'err') && solucion) {
+                log(`%c💡 SUGERENCIA DE FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: #fff; font-weight: normal;`);
+            }
         }
+
+        // 2. Puente al HUD flotante de la pantalla (el HUD decide qué muestra según el rol)
+        this.logHUD(`[${modulo.toUpperCase()}] ${accion}: ${mensaje}`, tipo, dataExtra, solucion);
     }
 
     tienePermiso(rolRequerido) {
@@ -1389,11 +1394,72 @@ export class Core {
         } catch(e) {}
     }
 
-    notificar(msg, icon = "✅") {
-        const container = document.getElementById('toast-area'); if(!container) return;
-        const t = document.createElement('div'); t.className = "toast"; t.innerHTML = `${icon} <span style="margin-left:8px">${msg}</span>`;
-        container.appendChild(t); setTimeout(() => t.remove(), 3500); this.vibra("doble");
+        // 1. INYECTAMOS EL CSS DE LA ISLA DINÁMICA Y PREPARAMOS LA COLA
+    initColaNotificaciones() {
+        if (document.getElementById('toast-queue-container')) return;
+        this.colaNotificaciones = [];
+        this.notificacionActiva = false;
+        
+        const style = document.createElement('style');
+        style.innerHTML = `
+            #toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; z-index: 9999; pointer-events: none; }
+            .toast-badge { background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-size: 0.75rem; font-weight: bold; margin-right: 10px; opacity: 0; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(0); box-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
+            .toast-badge.active { opacity: 1; transform: scale(1); }
+            .toast-island { background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 0; display: flex; align-items: center; max-width: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            .toast-island.open { max-width: 350px; padding: 8px 16px; opacity: 1; }
+        `;
+        document.head.appendChild(style);
+        
+        const container = document.createElement('div');
+        container.id = 'toast-queue-container';
+        container.innerHTML = `<div id="toast-badge" class="toast-badge"></div><div id="toast-island" class="toast-island"></div>`;
+        document.body.appendChild(container);
     }
+
+    // 2. LA FUNCIÓN QUE RECIBE LOS MENSAJES
+    notificar(msg, icon = "✅") {
+        if (!this.colaNotificaciones) this.initColaNotificaciones();
+        
+        // Anti-spam básico: Si el mensaje es idéntico al último de la cola, lo ignoramos
+        if (this.colaNotificaciones.length > 0 && this.colaNotificaciones[this.colaNotificaciones.length - 1].msg === msg) return;
+        
+        this.colaNotificaciones.push({msg, icon});
+        this.procesarSiguienteNotificacion();
+    }
+
+    // 3. EL MOTOR QUE DESPLIEGA LA ISLA HACIA LA DERECHA
+    procesarSiguienteNotificacion() {
+        if (this.notificacionActiva || this.colaNotificaciones.length === 0) return;
+        
+        this.notificacionActiva = true;
+        const actual = this.colaNotificaciones.shift(); // Sacamos la primera de la cola
+        
+        const badge = document.getElementById('toast-badge');
+        const island = document.getElementById('toast-island');
+        
+        // Si quedan notificaciones en espera, mostramos el círculo con el número a la izquierda
+        if (this.colaNotificaciones.length > 0) {
+            badge.innerText = `+${this.colaNotificaciones.length}`;
+            badge.classList.add('active');
+        } else {
+            badge.classList.remove('active');
+        }
+        
+        // 🛡️ PARCHE XSS: Desinfectamos el texto del mensaje antes de inyectarlo en el HTML
+        const textoSeguro = this.escapeHTML(actual.msg);
+        island.innerHTML = `<span style="font-size:1.2rem; margin-right:8px;">${actual.icon}</span> <span style="font-size:0.85rem; font-weight:600;">${textoSeguro}</span>`;
+
+        
+        // La mantenemos abierta 3 segundos, la cerramos, y tras 0.4s procesamos la siguiente
+        setTimeout(() => {
+            island.classList.remove('open');
+            setTimeout(() => {
+                this.notificacionActiva = false;
+                this.procesarSiguienteNotificacion();
+            }, 400); 
+        }, 3000); 
+    }
+
 
     // ==========================================================
     // 🧠 BLOQUE 6: IA NATIVA, JARVIS Y LLM
@@ -1725,11 +1791,47 @@ export class Core {
         hud.classList.toggle('active');
     }
 
-    logHUD(msg, tipo = "info") {
-        if(this.rol !== 'god') return;
-        const hud = document.getElementById('hud-console'); if(!hud) return;
-        const linea = document.createElement('div'); linea.className = `hud-msg ${tipo === 'error' ? 'hud-err' : tipo === 'out' ? 'hud-out' : ''}`;
-        linea.innerText = `[${new Date().toLocaleTimeString()}] > ${msg}`; hud.appendChild(linea); hud.scrollTop = hud.scrollHeight;
+    logHUD(msg, tipo = "info", dataExtra = null, solucion = null) {
+        const hud = document.getElementById('hud-console'); 
+        if(!hud) return;
+
+        let textoFinal = "";
+
+        // 👑 NIVEL GOD: Acceso Total (Traza, Payloads y Soluciones)
+        if (this.rol === 'god') {
+            textoFinal = `> ${msg}`;
+            if (dataExtra) {
+                const dataStr = typeof dataExtra === 'object' ? JSON.stringify(dataExtra) : dataExtra;
+                textoFinal += `\n   📦 DATA: ${dataStr}`;
+            }
+            if ((tipo === 'error' || tipo === 'err') && solucion) {
+                textoFinal += `\n   💡 FIX: ${solucion}`;
+            }
+        } 
+        // 👮‍♂️ NIVEL ADMIN: Diagnóstico sin datos sensibles
+        else if (this.rol === 'admin') {
+            if (tipo === 'out' || msg.includes('DATA:')) return; 
+            textoFinal = `> ${msg}`;
+        } 
+        // 👤 NIVEL GUEST: Ceguera técnica (solo errores ofuscados)
+        else {
+            if (tipo !== 'error' && tipo !== 'err') return; 
+            const pseudoCodigo = Math.random().toString(36).substring(7).toUpperCase();
+            textoFinal = `> ⚠️ Error de sistema interceptado. (Código: ${pseudoCodigo}). Notifique al administrador.`;
+        }
+
+        if (!textoFinal) return;
+
+        const linea = document.createElement('div'); 
+        linea.className = `hud-msg ${tipo === 'error' || tipo === 'err' ? 'hud-err' : tipo === 'out' ? 'hud-out' : ''}`;
+        linea.innerText = `[${new Date().toLocaleTimeString()}] ${textoFinal}`; 
+        hud.appendChild(linea); 
+        
+        hud.scrollTop = hud.scrollHeight;
+
+        // Auto-limpieza en DOM: No borramos logs de la variable real, pero sí del HTML para que no laguee el móvil (Max 100 líneas)
+        const mensajes = hud.querySelectorAll('.hud-msg');
+        if (mensajes.length > 100) mensajes[0].remove();
     }
 
     initParallax() {
