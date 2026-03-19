@@ -1392,7 +1392,7 @@ export class Core {
         } catch(e) {}
     }
 
-            // 1. INYECTAMOS EL CSS DE LA ISLA DINÁMICA (AHORA MULTILÍNEA)
+        // 1. INYECTAMOS EL CSS Y PREPARAMOS LA COLA VISUAL
     initColaNotificaciones() {
         if (document.getElementById('toast-queue-container')) return;
         this.colaNotificaciones = [];
@@ -1400,16 +1400,21 @@ export class Core {
         
         const style = document.createElement('style');
         style.innerHTML = `
-            #toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; z-index: 9999; pointer-events: none; width: 90%; max-width: 400px; justify-content: center; }
-            .toast-badge { background: #ff453a; color: white; border-radius: 50%; min-width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; font-size: 0.75rem; font-weight: bold; margin-right: 8px; opacity: 0; transition: 0.3s; transform: scale(0); box-shadow: 0 0 10px rgba(255, 69, 58, 0.5); padding: 0 6px; flex-shrink: 0; margin-top: 5px; }
-            .toast-badge.active { opacity: 1; transform: scale(1); }
+            #toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; z-index: 9999; pointer-events: none; width: 90%; max-width: 500px; justify-content: center; }
             
-            .toast-island { background: rgba(20, 20, 20, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            /* LA NUEVA COLA DE PELOTAS SOLAPADAS */
+            #toast-stack { display: flex; flex-direction: row; align-items: center; margin-right: 10px; padding-top: 2px; }
+            .toast-ball { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: white; border: 2px solid #1c1c1e; margin-right: -12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: pop-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: relative; }
+            .toast-ball:last-child { margin-right: 0; }
             
-            .toast-island.open { max-width: 100%; max-height: 300px; padding: 12px 20px; opacity: 1; }
+            @keyframes pop-in { 0% { opacity: 0; transform: scale(0) translateX(-10px); } 100% { opacity: 1; transform: scale(1) translateX(0); } }
+            
+            /* LA ISLA DINÁMICA QUE SE EXPANDE */
+            .toast-island { background: rgba(20, 20, 20, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); min-height: 36px; }
+            .toast-island.open { max-width: 100vw; max-height: 300px; padding: 10px 18px; opacity: 1; }
             
             .toast-content { display: flex; align-items: center; gap: 10px; width: 100%; }
-            .toast-icon { font-size: 1.5rem; flex-shrink: 0; }
+            .toast-icon-wrapper { width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.2); }
             .toast-text { font-size: 0.9rem; font-weight: 500; line-height: 1.3; overflow-wrap: break-word; word-break: break-word; text-align: left; }
         `;
         document.head.appendChild(style);
@@ -1417,63 +1422,82 @@ export class Core {
         const container = document.createElement('div');
         container.id = 'toast-queue-container';
         container.innerHTML = `
-            <div id="toast-badge" class="toast-badge"></div>
+            <div id="toast-stack"></div>
             <div id="toast-island" class="toast-island">
-                <div class="toast-content"><span id="toast-i" class="toast-icon"></span><span id="toast-t" class="toast-text"></span></div>
+                <div class="toast-content"><div id="toast-i" class="toast-icon-wrapper"></div><span id="toast-t" class="toast-text"></span></div>
             </div>`;
         document.body.appendChild(container);
     }
 
-    // 2. ACTUALIZADOR DEL GLOBO EN TIEMPO REAL
-    actualizarBadgeCola() {
-        const badge = document.getElementById('toast-badge');
-        if (!badge) return;
-        if (this.colaNotificaciones.length > 0) {
-            badge.innerText = `+${this.colaNotificaciones.length}`;
-            badge.classList.add('active');
-        } else {
-            badge.classList.remove('active');
-        }
+    // 2. MOTOR DE COLORES INTELIGENTE (Basado en el Emoji)
+    obtenerColorIcono(icon) {
+        if (!icon) return '#48484a';
+        if (icon.includes('✅') || icon.includes('🔋') || icon.includes('🌿')) return '#32d74b'; // Verde Éxito
+        if (icon.includes('❌') || icon.includes('🚨') || icon.includes('🛑') || icon.includes('🗑️')) return '#ff453a'; // Rojo Alerta
+        if (icon.includes('⚠️') || icon.includes('🧹') || icon.includes('⚡') || icon.includes('⏳')) return '#ff9f0a'; // Naranja Proceso
+        if (icon.includes('ℹ️') || icon.includes('🌐') || icon.includes('🔀') || icon.includes('🗣️') || icon.includes('📡') || icon.includes('🔎')) return '#0a84ff'; // Azul Info
+        if (icon.includes('🧠') || icon.includes('🤖') || icon.includes('🧬') || icon.includes('🎲') || icon.includes('🔮')) return '#bf5af2'; // Morado IA
+        return '#8e8e93'; // Gris por defecto
     }
 
-    // 3. RECEPCIÓN DE MENSAJES
+    // 3. ACTUALIZADOR VISUAL DE LAS PELOTAS
+    actualizarBadgeCola() {
+        const stack = document.getElementById('toast-stack');
+        if (!stack) return;
+        stack.innerHTML = '';
+        
+        // Dibujamos una pelota por cada mensaje en espera
+        this.colaNotificaciones.forEach((notif, index) => {
+            const ball = document.createElement('div');
+            ball.className = 'toast-ball';
+            ball.style.backgroundColor = notif.color;
+            // Hacemos que la más antigua esté por encima para crear el efecto de pila de cartas
+            ball.style.zIndex = this.colaNotificaciones.length - index; 
+            ball.innerHTML = notif.icon;
+            stack.appendChild(ball);
+        });
+    }
+
+    // 4. RECEPCIÓN DE MENSAJES (MANTENIENDO EL ESCUDO ANTI-SPAM)
     notificar(msg, icon = "✅") {
         if (!this.colaNotificaciones) this.initColaNotificaciones();
         
-        // Convertimos todo a texto por si llega un error bruto y evitamos que explote
         const mensajeStr = String(msg || "");
         
-        // Anti-spam: Si el mensaje ya está en cola, o es el que se está mostrando ahora, lo ignoramos
         if (this.colaNotificaciones.length > 0 && this.colaNotificaciones[this.colaNotificaciones.length - 1].msg === mensajeStr) return;
         if (this.notificacionActiva && this.mensajeActual === mensajeStr) return;
         
-        this.colaNotificaciones.push({msg: mensajeStr, icon});
-        this.actualizarBadgeCola(); // Inflamos el globo rojo al instante
+        const color = this.obtenerColorIcono(icon);
+        this.colaNotificaciones.push({msg: mensajeStr, icon, color});
         
+        this.actualizarBadgeCola(); // Aparece la pelota al instante
         this.procesarSiguienteNotificacion();
     }
 
-    // 4. MOTOR DE RENDERIZADO DE LA COLA
+    // 5. ANIMACIÓN Y RENDERIZADO (MANTENIENDO EL BLINDAJE XSS)
     procesarSiguienteNotificacion() {
         if (this.notificacionActiva || this.colaNotificaciones.length === 0) return;
         
         this.notificacionActiva = true;
-        const actual = this.colaNotificaciones.shift(); // Extraemos la más antigua
-        this.mensajeActual = actual.msg; // La guardamos en memoria para el anti-spam
+        const actual = this.colaNotificaciones.shift(); // Sacamos la bola de la cola
+        this.mensajeActual = actual.msg;
         
-        this.actualizarBadgeCola(); // Actualizamos el contador al sacar la notificación
+        this.actualizarBadgeCola(); // La bola desaparece de la cola visual
         
         const island = document.getElementById('toast-island');
-        const iconEl = document.getElementById('toast-i');
+        const iconWrapper = document.getElementById('toast-i');
         const textEl = document.getElementById('toast-t');
         
-        iconEl.innerHTML = actual.icon;
-        textEl.innerHTML = this.escapeHTML(actual.msg); // Blindaje XSS incorporado
+        // El icono de la isla hereda el color de la pelota
+        iconWrapper.style.backgroundColor = actual.color;
+        iconWrapper.innerHTML = actual.icon;
+        
+        // 🛡️ PARCHE XSS ESTRICTO MANTENIDO
+        textEl.innerHTML = this.escapeHTML(actual.msg); 
         
         island.classList.add('open');
         this.vibra("tick");
         
-        // Magia: Calculamos cuánto tiempo dejarla abierta según lo larga que sea la frase (mínimo 3 seg)
         const tiempoLectura = Math.max(3000, actual.msg.length * 60);
         
         setTimeout(() => {
@@ -1481,11 +1505,11 @@ export class Core {
             setTimeout(() => {
                 this.notificacionActiva = false;
                 this.mensajeActual = null;
-                // Al cerrarse del todo, llamamos a la siguiente automáticamente
-                this.procesarSiguienteNotificacion(); 
-            }, 400); // 400ms es lo que tarda la animación de guardarse en CSS
+                this.procesarSiguienteNotificacion(); // Empujamos la siguiente bola si la hay
+            }, 400); 
         }, tiempoLectura); 
     }
+
 
     // ==========================================================
     // 🧠 BLOQUE 6: IA NATIVA, JARVIS Y LLM
