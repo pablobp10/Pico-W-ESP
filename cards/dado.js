@@ -11,7 +11,8 @@ export const DadoCard = {
             const t2 = Math.floor(Math.random() * caras) + 1;
             const mejor = Math.max(t1, t2);
             core.notificar(`Tiraste ${t1} y ${t2}. ¡Te quedas con el ${mejor}!`, "🎲");
-            core.cmd('Dado', mejor);
+            // 🚀 PARCHE: Usamos ejecución local para que la UI se actualice al instante
+            core.ejecutarComandoLocal('Dado', mejor);
         }
     },
     html: `
@@ -48,11 +49,13 @@ export const DadoCard = {
         document.getElementById('btn-dado').onclick = () => {
             const caras = parseInt(localStorage.getItem('pico_dado_faces')) || 6;
             const resultado = Math.floor(Math.random() * caras) + 1;
-            core.cmd('Dado', resultado);
+            // 🚀 PARCHE: Ejecución local en lugar de cifrar directamente hacia fuera
+            core.ejecutarComandoLocal('Dado', resultado);
         };
     },
     onData: (val) => {
         const num = parseInt(val);
+        // Al usar ejecutarComandoLocal, 'val' será un número real (desencriptado), no el churro de AES
         if(!isNaN(num)) {
             const ico = document.getElementById('dice-icon');
             const numText = document.getElementById('dice-number');
