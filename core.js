@@ -1392,7 +1392,7 @@ export class Core {
         } catch(e) {}
     }
 
-        // 1. INYECTAMOS EL CSS Y PREPARAMOS LA COLA VISUAL
+            // 1. INYECTAMOS EL CSS Y PREPARAMOS LA COLA VISUAL
     initColaNotificaciones() {
         if (document.getElementById('toast-queue-container')) return;
         this.colaNotificaciones = [];
@@ -1402,15 +1402,15 @@ export class Core {
         style.innerHTML = `
             #toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; z-index: 9999; pointer-events: none; width: 90%; max-width: 500px; justify-content: center; }
             
-            /* LA NUEVA COLA DE PELOTAS SOLAPADAS */
-            #toast-stack { display: flex; flex-direction: row; align-items: center; margin-right: 10px; padding-top: 2px; }
-            .toast-ball { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: white; border: 2px solid #1c1c1e; margin-right: -12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: pop-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: relative; }
-            .toast-ball:last-child { margin-right: 0; }
+            /* LA NUEVA COLA DE PELOTAS SOLAPADAS (MÁS JUNTAS) */
+            #toast-stack { display: flex; flex-direction: row; align-items: center; padding-top: 2px; }
+            .toast-ball { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: white; border: 2px solid rgba(20, 20, 20, 0.95); margin-right: -22px; box-shadow: -3px 0 8px rgba(0,0,0,0.3); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: pop-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: relative; }
+            .toast-ball:last-child { margin-right: 12px; } /* Espacio de respiración entre la bola líder y la isla */
             
             @keyframes pop-in { 0% { opacity: 0; transform: scale(0) translateX(-10px); } 100% { opacity: 1; transform: scale(1) translateX(0); } }
             
             /* LA ISLA DINÁMICA QUE SE EXPANDE */
-            .toast-island { background: rgba(20, 20, 20, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); min-height: 36px; }
+            .toast-island { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); min-height: 36px; }
             .toast-island.open { max-width: 100vw; max-height: 300px; padding: 10px 18px; opacity: 1; }
             
             .toast-content { display: flex; align-items: center; gap: 10px; width: 100%; }
@@ -1429,6 +1429,7 @@ export class Core {
         document.body.appendChild(container);
     }
 
+
     // 2. MOTOR DE COLORES INTELIGENTE (Basado en el Emoji)
     obtenerColorIcono(icon) {
         if (!icon) return '#48484a';
@@ -1440,23 +1441,29 @@ export class Core {
         return '#8e8e93'; // Gris por defecto
     }
 
-    // 3. ACTUALIZADOR VISUAL DE LAS PELOTAS
+        // 3. ACTUALIZADOR VISUAL DE LAS PELOTAS (INVERTIDO Y APILADO)
     actualizarBadgeCola() {
         const stack = document.getElementById('toast-stack');
         if (!stack) return;
         stack.innerHTML = '';
         
-        // Dibujamos una pelota por cada mensaje en espera
-        this.colaNotificaciones.forEach((notif, index) => {
+        // 🧠 PARCHE DE DIRECCIÓN: Recorremos la cola al revés.
+        // i = length - 1 (la más nueva, a la izquierda, entra por debajo de todas)
+        // i = 0 (la más vieja, la siguiente en salir, a la derecha, por encima de todas)
+        for (let i = this.colaNotificaciones.length - 1; i >= 0; i--) {
+            const notif = this.colaNotificaciones[i];
             const ball = document.createElement('div');
             ball.className = 'toast-ball';
             ball.style.backgroundColor = notif.color;
-            // Hacemos que la más antigua esté por encima para crear el efecto de pila de cartas
-            ball.style.zIndex = this.colaNotificaciones.length - index; 
+            
+            // Forzamos a que la index 0 tenga el z-index más alto (100)
+            ball.style.zIndex = 100 - i; 
             ball.innerHTML = notif.icon;
+            
             stack.appendChild(ball);
-        });
+        }
     }
+
 
     // 4. RECEPCIÓN DE MENSAJES (MANTENIENDO EL ESCUDO ANTI-SPAM)
     notificar(msg, icon = "✅") {
