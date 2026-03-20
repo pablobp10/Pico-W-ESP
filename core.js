@@ -63,25 +63,31 @@ export class Core {
     // 🛡️ BLOQUE 0: NÚCLEO, SEGURIDAD Y DEPURACIÓN EXTREMA
     // ==========================================================
     
-    initSeguridadRoles() {
+        initSeguridadRoles() {
+        // 1. Guardamos la consola nativa una sola vez (la caja fuerte original)
         if (!window._consolaOriginal) {
             window._consolaOriginal = { log: console.log, warn: console.warn, error: console.error, info: console.info };
         }
 
         if (this.rol === 'god') {
-            if (!document.getElementById('eruda-script')) {
-                const script = document.createElement('script');
-                script.id = 'eruda-script';
-                script.src = "https://cdn.jsdelivr.net/npm/eruda";
-                script.onload = () => { eruda.init(); this.sysLog('SEC', 'Inyección', 'Herramientas de depuración Eruda montadas.', 'info'); };
-                document.head.appendChild(script);
-            }
+            // Restauramos la consola pública para que Eruda pueda "secuestrarla"
             console.log = window._consolaOriginal.log;
             console.warn = window._consolaOriginal.warn;
             console.error = window._consolaOriginal.error;
             console.info = window._consolaOriginal.info;
-            
+
+            if (!document.getElementById('eruda-script')) {
+                const script = document.createElement('script');
+                script.id = 'eruda-script';
+                script.src = "https://cdn.jsdelivr.net/npm/eruda";
+                script.onload = () => { 
+                    eruda.init(); 
+                    this.sysLog('SEC', 'Inyección', 'Terminal Eruda (GOD MODE) en línea.', 'info'); 
+                };
+                document.head.appendChild(script);
+            }
         } else {
+            // 🛡️ ANTI-HACKEO: Silenciamos por completo la consola para Admin y Guest
             const ofuscador = () => {};
             console.log = ofuscador;
             console.info = ofuscador;
@@ -89,32 +95,41 @@ export class Core {
             
             console.error = (...args) => {
                 if (this.rol === 'admin') {
-                    window._consolaOriginal.warn("⚠️ [SISTEMA] Error técnico detectado. Contacta con el GOD de la red.");
+                    window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada. Reporte al GOD.");
                 }
             };
         }
     }
 
     sysLog(modulo, accion, mensaje, tipo = "info", dataExtra = null, solucion = null) {
-        // 1. Consola F12 (Navegador) -> Solo Nivel GOD
-        if (this.rol === 'god' && window._consolaOriginal) {
-            const log = window._consolaOriginal[tipo === 'err' || tipo === 'error' ? 'error' : tipo === 'warn' ? 'warn' : 'log'];
+        // 1. Consola F12 / Eruda -> Solo Nivel GOD
+        if (this.rol === 'god') {
+            // 🚀 PARCHE: Ya NO usamos _consolaOriginal. Usamos el console global
+            // que Eruda está escuchando activamente.
+            const metodo = tipo === 'err' || tipo === 'error' ? 'error' : tipo === 'warn' ? 'warn' : 'log';
+            const log = console[metodo] || console.log; 
+            
             const colores = { net: "#0a84ff", sec: "#ff453a", db: "#bf5af2", ia: "#32d74b", sys: "#ff9f0a", mqtt: "#00c7be" };
             const color = colores[modulo.toLowerCase()] || "#a1a1aa";
             const timestamp = new Date().toISOString().split('T')[1].slice(0,-1);
             
-            log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: #fff; font-weight: normal;`, mensaje);
-            if (dataExtra) { try { log(JSON.parse(JSON.stringify(dataExtra))); } catch(e) { log("[Objeto complejo]", dataExtra); } }
+            log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: inherit; font-weight: normal;`, mensaje);
             
-            // Si hay una solución propuesta, la imprimimos en verde chillón
+            // Inyectamos el objeto crudo (el payload de red, etc) para que puedas inspeccionarlo en Eruda
+            if (dataExtra) { 
+                try { log(JSON.parse(JSON.stringify(dataExtra))); } 
+                catch(e) { log("[Payload Complejo/Binario]", dataExtra); } 
+            }
+            
             if ((tipo === 'error' || tipo === 'err') && solucion) {
-                log(`%c💡 SUGERENCIA DE FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: #fff; font-weight: normal;`);
+                log(`%c💡 FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: inherit; font-weight: normal;`);
             }
         }
 
-        // 2. Puente al HUD flotante de la pantalla (el HUD decide qué muestra según el rol)
+        // 2. Puente automático hacia el HUD flotante de la interfaz web
         this.logHUD(`[${modulo.toUpperCase()}] ${accion}: ${mensaje}`, tipo, dataExtra, solucion);
     }
+
 
     tienePermiso(rolRequerido) {
         const jerarquia = { 'guest': 1, 'admin': 2, 'god': 3 };
