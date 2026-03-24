@@ -250,6 +250,7 @@
                         <div class="modal-custom-dropdown" id="drop-ianube">
                             <div class="dropdown-item" onclick="selectModalOption('drop-ianube', 'select-ia-nube', 'label-ianube', 'groq', 'Groq (Ultra Rápido)')">Groq (Ultra Rápido)</div>
                             <div class="dropdown-item" onclick="selectModalOption('drop-ianube', 'select-ia-nube', 'label-ianube', 'google', 'Google (Equilibrado)')">Google (Equilibrado)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ianube', 'select-ia-nube', 'label-ianube', 'openrouter', 'OpenRouter (Llama 3 Libre)')">OpenRouter (Llama 3 Libre)</div>
                         </div>
                         <input type="hidden" id="select-ia-nube" value="groq">
                     </div>
@@ -259,12 +260,22 @@
                     <label style="font-size: 0.75rem; font-weight: bold; color: var(--text-sec); text-transform: uppercase;">Motor Local</label>
                     <div class="modal-select-wrapper">
                         <div class="modal-select-trigger" onclick="toggleModalSelect('drop-ialocal')">
-                            <span id="label-ialocal">SmolLM (Estándar)</span>
+                            <span id="label-ialocal">SmolLM (135M)</span>
                             <i class="fa-solid fa-chevron-down" style="color: var(--primary); font-size: 0.7rem;"></i>
                         </div>
                         <div class="modal-custom-dropdown" id="drop-ialocal">
-                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'smollm', 'SmolLM (Estándar)')">SmolLM (Estándar)</div>
-                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'qwen', 'Qwen 1.5 (Ligero)')">Qwen 1.5 (Ligero)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'smollm', 'SmolLM (135M)')">SmolLM (135M)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'qwen', 'Qwen 1.5 (0.5B)')">Qwen 1.5 (0.5B)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'tinyllama', 'TinyLlama (1.1B)')">TinyLlama (1.1B)</div>
+                            
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'gemma', 'Gemma 2 (2B)')">Gemma 2 (2B)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'phi3', 'Phi-3 Mini (3.8B)')">Phi-3 Mini (3.8B)</div>
+                            
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'mistral', 'Mistral (7B)')">Mistral (7B)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'llama3', 'Llama 3 (8B)')">Llama 3 (8B)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'hermes', 'Nous Hermes (Llama)')">Nous Hermes (Llama)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'vicuna', 'Vicuna (7B)')">Vicuna (7B)</div>
+                            <div class="dropdown-item" onclick="selectModalOption('drop-ialocal', 'select-ia-local', 'label-ialocal', 'wizardlm', 'WizardLM (Mates/Código)')">WizardLM (Mates/Código)</div>
                         </div>
                         <input type="hidden" id="select-ia-local" value="smollm">
                     </div>
