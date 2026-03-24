@@ -908,9 +908,32 @@ export class Core {
         
         const ia = p.ia || { nube: 'groq', local: 'smollm' };
         if(document.getElementById('select-ia-nube')) document.getElementById('select-ia-nube').value = ia.nube || 'groq';
-        if(document.getElementById('label-ianube')) document.getElementById('label-ianube').innerText = (ia.nube === 'google') ? 'GOOGLE (EQUILIBRADO)' : 'GROQ (ULTRA RÁPIDO)';
+        if(document.getElementById('label-ianube')) {
+    const nombresNube = { 
+        'groq': 'GROQ (ULTRA RÁPIDO)', 
+        'google': 'GOOGLE (EQUILIBRADO)', 
+        'openrouter': 'OPENROUTER (LLAMA 3 LIBRE)' 
+    };
+    document.getElementById('label-ianube').innerText = nombresNube[ia.nube] || 'GROQ (ULTRA RÁPIDO)';
+}
+
         if(document.getElementById('select-ia-local')) document.getElementById('select-ia-local').value = ia.local || 'smollm';
-        if(document.getElementById('label-ialocal')) document.getElementById('label-ialocal').innerText = (ia.local === 'qwen') ? 'QWEN 1.5 (LIGERO)' : 'SMOLLM (ESTÁNDAR)';
+                if(document.getElementById('label-ialocal')) {
+            const nombresLocal = { 
+                'smollm': 'SMOLLM (135M)', 
+                'qwen': 'QWEN 1.5 (0.5B)', 
+                'tinyllama': 'TINYLLAMA (1.1B)',
+                'gemma': 'GEMMA 2 (2B)',
+                'phi3': 'PHI-3 MINI (3.8B)',
+                'mistral': 'MISTRAL (7B)',
+                'llama3': 'LLAMA 3 (8B)',
+                'hermes': 'NOUS HERMES (LLAMA)',
+                'vicuna': 'VICUNA (7B)',
+                'wizardlm': 'WIZARDLM (MATES/CÓDIGO)'
+            };
+            document.getElementById('label-ialocal').innerText = nombresLocal[ia.local] || 'SMOLLM (135M)';
+        }
+
 
         const ui = p.interfaz || { sonidos: false, vibracion: true, estilo: 'pico', tema: 'dark' };
         if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = ui.sonidos;
@@ -1618,6 +1641,7 @@ export class Core {
 
     async precargarMotorLocal() {
         if (this.localEngine || this.localEngineWASM) return true;
+        
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
             const container = document.getElementById('toast-area') || document.body;
@@ -1625,29 +1649,88 @@ export class Core {
         }
 
         this.esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // 🧠 LEEMOS EL MODELO ELEGIDO EN EL PERFIL DE SUPABASE
+        const modeloElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.local) ? this.perfilDB.ia.local : 'smollm';
+        
         try {
             if (!this.esMovil) {
-                this.sysLog('IA', 'Motor Local', 'Arrancando WebLLM (WebGPU)');
+                this.sysLog('IA', 'Motor Local', `Arrancando WebLLM (PC) -> ${modeloElegido}`);
                 const versionIA = this.versiones["@mlc-ai/web-llm"];
                 const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
-                this.localEngine = await CreateMLCEngine("SmolLM-135M-Instruct-q4f16_1-MLC", {
-                    initProgressCallback: (p) => { const pct = Math.round(p.progress * 100); const textEl = document.getElementById('ia-dl-text'); const barEl = document.getElementById('ia-dl-bar'); if(textEl) textEl.innerText = `WebGPU (PC): ${pct}%`; if(barEl) barEl.style.width = `${pct}%`; },
-                    chatOpts: { context_window_size: 1024 } 
+                
+                // 📚 DICCIONARIO DE MODELOS WEBGPU (PC - Alto Rendimiento)
+                const modelosPC = {
+                    'smollm': "SmolLM-135M-Instruct-q4f16_1-MLC",
+                    'qwen': "Qwen2-0.5B-Instruct-q4f16_1-MLC",
+                    'tinyllama': "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+                    'gemma': "gemma-2b-it-q4f16_1-MLC",
+                    'phi3': "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+                    'mistral': "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+                    'llama3': "Llama-3-8B-Instruct-q4f32_1-MLC",
+                    'hermes': "Nous-Hermes-2-Mistral-7B-DPO-q4f16_1-MLC",
+                    'vicuna': "vicuna-7b-v1.5-q4f16_1-MLC",
+                    'wizardlm': "WizardMath-7B-V1.1-q4f16_1-MLC"
+                };
+                
+                const modeloMLC = modelosPC[modeloElegido] || modelosPC['smollm'];
+
+                this.localEngine = await CreateMLCEngine(modeloMLC, {
+                    initProgressCallback: (p) => { 
+                        const pct = Math.round(p.progress * 100); 
+                        const textEl = document.getElementById('ia-dl-text'); 
+                        const barEl = document.getElementById('ia-dl-bar'); 
+                        if(textEl) textEl.innerText = `Cargando ${modeloElegido.toUpperCase()}: ${pct}%`; 
+                        if(barEl) barEl.style.width = `${pct}%`; 
+                    },
+                    chatOpts: { context_window_size: 2048 } 
                 });
             } else {
-                this.sysLog('IA', 'Motor Local', 'Arrancando WASM Móvil (CPU/WebGPU)');
+                this.sysLog('IA', 'Motor Local', `Arrancando WASM Móvil -> ${modeloElegido}`);
+                
+                // 🛡️ PROTECCIÓN ANTI-COLAPSO PARA MÓVILES
+                const modelosPesados = ['mistral', 'llama3', 'hermes', 'vicuna', 'wizardlm'];
+                if (modelosPesados.includes(modeloElegido)) {
+                    throw new Error("Este modelo es demasiado pesado para el móvil. Usa uno < 3B.");
+                }
+
                 try {
                     const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
-                    env.allowLocalModels = false; env.useBrowserCache = true; env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
-                    const textEl = document.getElementById('ia-dl-text'); if(textEl) textEl.innerText = "Iniciando motor WASM...";
-                    const modelo = 'Xenova/Qwen1.5-0.5B-Chat';
-                    this.localEngineWASM = await pipeline('text-generation', modelo, {
-                        device: 'webgpu',
-                        progress_callback: (x) => { if (x.status === 'downloading' || x.status === 'progress') { const tEl = document.getElementById('ia-dl-text'); const bEl = document.getElementById('ia-dl-bar'); if(tEl) tEl.innerText = `Cargando IA: ${Math.round(x.progress)}%`; if(bEl) bEl.style.width = `${x.progress}%`; } }
+                    env.allowLocalModels = false; 
+                    env.useBrowserCache = true; 
+                    env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+                    
+                    const textEl = document.getElementById('ia-dl-text'); 
+                    if(textEl) textEl.innerText = "Iniciando motor WASM...";
+                    
+                    // 📚 DICCIONARIO DE MODELOS WASM (MÓVIL - Eficiencia)
+                    const modelosMovil = {
+                        'smollm': 'Xenova/SmolLM-135M-Instruct',
+                        'qwen': 'Xenova/Qwen1.5-0.5B-Chat',
+                        'tinyllama': 'Xenova/TinyLlama-1.1B-Chat-v1.0',
+                        'gemma': 'Xenova/gemma-2b-it',
+                        'phi3': 'Xenova/Phi-3-mini-4k-instruct'
+                    };
+                    
+                    // Si eligen algo raro, volvemos al super-rápido Qwen 0.5B
+                    const modeloWASM = modelosMovil[modeloElegido] || modelosMovil['qwen'];
+
+                    this.localEngineWASM = await pipeline('text-generation', modeloWASM, {
+                        device: 'webgpu', // Fallback automático a WASM si no hay WebGPU en el móvil
+                        progress_callback: (x) => { 
+                            if (x.status === 'downloading' || x.status === 'progress') { 
+                                const tEl = document.getElementById('ia-dl-text'); 
+                                const bEl = document.getElementById('ia-dl-bar'); 
+                                if(tEl) tEl.innerText = `Cargando IA: ${Math.round(x.progress)}%`; 
+                                if(bEl) bEl.style.width = `${x.progress}%`; 
+                            } 
+                        }
                     });
                 } catch (err) {
                     this.sysLog('IA', 'WASM Err', err.message, 'err');
-                    const textEl = document.getElementById('ia-dl-text'); if(textEl) { textEl.innerText = "Fallo de compatibilidad"; textEl.style.color = "#ff453a"; }
+                    const textEl = document.getElementById('ia-dl-text'); 
+                    if(textEl) { textEl.innerText = "Fallo de compatibilidad"; textEl.style.color = "#ff453a"; }
+                    throw err; // Re-lanzamos para que lo atrape el catch principal
                 }
             }
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
@@ -1655,9 +1738,13 @@ export class Core {
         } catch (e) {
             this.sysLog('IA', 'Precarga Fallida', e.message, 'err');
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
+            
+            // Avisamos al usuario del error (ej: si intentó cargar Llama 3 en el móvil)
+            this.notificar(`${e.message}`, "❌");
             return false;
         }
     }
+
 
     async procesarConWebLLM(promptSistema, orden, modo) {
         this.sysLog('IA', 'Inferencia Local', 'Disparando LLM in-browser');
