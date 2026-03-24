@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Concedido | Pico OS</title>
+    <style>
+        body { font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #141414; margin: 0; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+        .card { background: #1c1c1e; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 400px; width: 100%; border: 1px solid #32d74b; animation: floatIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .icon { font-size: 4rem; margin-bottom: 1rem; text-shadow: 0 0 20px rgba(50, 215, 75, 0.6); }
+        h1 { margin: 0 0 1rem; font-size: 1.5rem; color: #32d74b; letter-spacing: 1px; text-transform: uppercase; }
+        p { margin-bottom: 1rem; color: #a1a1aa; line-height: 1.5; font-size: 0.95rem; }
+        .aviso { font-size: 0.95rem; color: #e2e8f0; font-weight: bold; margin-bottom: 2rem; background: rgba(50, 215, 75, 0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(50, 215, 75, 0.2); }
+        .btn { background-color: #8b5cf6; color: white; padding: 0.85rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; transition: background 0.3s; display: inline-block; width: 100%; box-sizing: border-box; border: none; cursor: pointer; font-size: 1rem; }
+        .btn:hover { background-color: #7c3aed; }
+        
+        @keyframes floatIn { 0% { opacity: 0; transform: translateY(20px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon" id="ui-icon">🛡️</div>
+        <h1 id="ui-title">Identidad Verificada</h1>
+        <p id="ui-desc">El usuario ha sido validado correctamente en la base de datos de <b>Pico OS</b>. La cuenta ya está activa.</p>
+        
+        <div class="aviso">Ya puedes cerrar esta pestaña y volver a la WebApp para iniciar sesión.</div>
+        
+        <button class="btn" onclick="window.close()">Cerrar Ventana</button>
+    </div>
+
+    <script>
+        // 🧠 MAGIA FRONTEND: Leemos la URL para saber de dónde venimos
+        const params = new URLSearchParams(window.location.search);
+        const dispositivo = params.get('dispositivo');
+
+        if (dispositivo) {
+            // Cambiamos el diseño en tiempo real para autorizar hardware
+            document.getElementById('ui-icon').innerText = '💻';
+            document.getElementById('ui-title').innerText = 'Dispositivo Autorizado';
+            
+            // Sanitización básica Anti-XSS por seguridad
+            const nombreSeguro = dispositivo.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+            
+            document.getElementById('ui-desc').innerHTML = `La huella de seguridad de <b>${nombreSeguro}</b> ha sido vinculada a tu cuenta con éxito.`;
+            document.title = "Dispositivo Autorizado | Pico OS";
+        }
+    </script>
+</body>
+</html>
