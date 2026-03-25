@@ -1,13 +1,32 @@
+// =========================================================================
+// ARCHIVO: sw.js (Service Worker - Escudo de Caché y Offline)
+// =========================================================================
+
+// 🛡️ Cambia este número cada vez que modifiques archivos HTML/CSS/JS grandes
+const CACHE_NAME = 'pico-os-core-v3';
+
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] Instalado y listo para PWA');
+    console.log('[Service Worker] Instalando Búnker PWA...');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+    // 🛡️ Autodestrucción de memorias caché contaminadas u obsoletas
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log(`[Service Worker] Purgando caché obsoleta: ${cacheName}`);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
+    );
 });
 
-// 📡 INTERCEPTOR DE RED (Fusión: Tu Network-First + Mi Escudo Anti-CORS)
+// 📡 INTERCEPTOR DE RED
 self.addEventListener('fetch', (event) => {
     // 🛡️ ESCUDO ANTI-CORS Y BYPASS DINÁMICO
     if (
@@ -23,20 +42,26 @@ self.addEventListener('fetch', (event) => {
     }
 
     event.respondWith(
-        // 1. ESTRATEGIA NETWORK-FIRST (Tu código exacto)
+        // 1. ESTRATEGIA NETWORK-FIRST 
         fetch(event.request)
             .then((respuestaRed) => {
                 if (respuestaRed && respuestaRed.status === 200 && respuestaRed.type === 'basic') {
                     const respuestaClonada = respuestaRed.clone();
-                    caches.open('pico-os-auto-cache').then((cache) => {
+                    caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, respuestaClonada);
                     });
                 }
                 return respuestaRed;
             })
-            .catch(() => {
-                // 2. MODO OFFLINE (Rescate sin internet)
-                return caches.match(event.request);
+            .catch(async () => {
+                // 2. MODO OFFLINE (Rescate sin internet + Prevención de pantalla blanca)
+                const respuestaCache = await caches.match(event.request);
+                if (respuestaCache) return respuestaCache;
+                
+                if (event.request.mode === 'navigate') {
+                    return new Response('<h1 style="color:#ff453a;text-align:center;font-family:sans-serif;margin-top:20vh;background:#000;padding:20px;">[SISTEMA OFFLINE]</h1><p style="text-align:center;color:#fff;">Conexión perdida y caché vacía.</p>', { headers: { 'Content-Type': 'text/html' }});
+                }
+                return new Response('', { status: 408, statusText: 'Request Timeout' });
             })
     );
 });
