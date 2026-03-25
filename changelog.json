@@ -1,0 +1,13 @@
+{
+  "version": "v1.0.0",
+  "fecha": "25-03-2026",
+  "titulo": "Primera versión Online",
+  "cambios": [
+    "✅ Despliegue de los 10 Motores de IA Local (WASM y WebGPU).",
+    "✅ Nuevo motor OpenRouter activado en la nube.",
+    "🛡️ Parche crítico: Eliminada vulnerabilidad IDOR en base de datos.",
+    "🛡️ Sistema de Tokens JWT desechables implementado.",
+    "✨ Nueva interfaz de autorizaciones unificada."
+  ],
+  "forzar_recarga": true
+}
