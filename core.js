@@ -362,29 +362,52 @@ export class Core {
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
 
-    guardarBovedaHardware(confData, tokenJWT) {
+        guardarBovedaHardware(confData, tokenJWT) {
         if (!tokenJWT) return;
         const huella = this.generarHuellaDispositivo(tokenJWT);
-        const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), huella).toString();
-        localStorage.setItem('pico_hardware_vault', cifrado);
-        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con Token de Sesión.');
+        
+        // 🛡️ PARCHE CRIPTOGRÁFICO: Bóveda Local con PBKDF2 y Vector Dinámico (IV)
+        const salt = CryptoJS.lib.WordArray.random(128/8);
+        const iv = CryptoJS.lib.WordArray.random(128/8);
+        const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
+        
+        const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), llaveFuerte, { iv: iv }).toString();
+        const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
+        
+        localStorage.setItem('pico_hardware_vault', payloadFinal);
+        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2 y Token de Sesión.');
     }
 
     abrirBovedaHardware(tokenJWT) {
         if (!tokenJWT) return null;
-        const cifrado = localStorage.getItem('pico_hardware_vault');
-        if (!cifrado) return null;
+        const payload = localStorage.getItem('pico_hardware_vault');
+        if (!payload) return null;
         try {
             const huella = this.generarHuellaDispositivo(tokenJWT);
-            const bytes = CryptoJS.AES.decrypt(cifrado, huella);
-            const descifrado = bytes.toString(CryptoJS.enc.Utf8);
-            if (!descifrado) return null;
-            return JSON.parse(descifrado);
+            const partes = payload.split('::');
+            
+            if (partes.length === 3) {
+                // Formato Acorazado Nuevo
+                const salt = CryptoJS.enc.Hex.parse(partes[0]);
+                const iv = CryptoJS.enc.Hex.parse(partes[1]);
+                const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
+                const bytes = CryptoJS.AES.decrypt(partes[2], llaveFuerte, { iv: iv });
+                const descifrado = bytes.toString(CryptoJS.enc.Utf8);
+                if (!descifrado) return null;
+                return JSON.parse(descifrado);
+            } else {
+                // Retrocompatibilidad por si aún queda la bóveda antigua en memoria
+                const bytes = CryptoJS.AES.decrypt(payload, huella);
+                const descifrado = bytes.toString(CryptoJS.enc.Utf8);
+                if (!descifrado) return null;
+                return JSON.parse(descifrado);
+            }
         } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o distinta.', 'err');
+            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o manipulada.', 'err');
             return null;
         }
     }
+
     
     generarHuellaDispositivo(tokenJWT = null) {
         // Si no hay token (ej. antes del login para identificar el PC), usamos un hash genérico.
@@ -804,14 +827,17 @@ export class Core {
             }, 20000);
             
             let ramPercent = 0;
-            if (val && val.r_pct !== undefined) ramPercent = val.r_pct;
-            else if (val && val.ram !== undefined) ramPercent = Math.round((((264 * 1024) - val.ram) / (264 * 1024)) * 100);
-            
+            if (val && val.r_pct !== undefined) ramPercent = parseInt(val.r_pct);
+            else if (val && val.ram !== undefined) ramPercent = Math.round((((264 * 1024) - parseInt(val.ram)) / (264 * 1024)) * 100);
             if(ramPercent < 0) ramPercent = 0; if(ramPercent > 100) ramPercent = 100;
             let ramColor = ramPercent > 85 ? "#ff453a" : (ramPercent > 60 ? "#ff9f0a" : "var(--text-sec)");
 
-            let tempTxt = (val && val.t !== undefined) ? val.t + "°C" : ((val && val.temp) ? val.temp + "°C" : "");
-            let rssi = (val && val.rssi) ? val.rssi : -60;
+            // 🛡️ PARCHE XSS: Sanitizar los valores crudos de MQTT
+            let tBruto = (val && val.t !== undefined) ? val.t : ((val && val.temp) ? val.temp : "");
+            let tempTxt = tBruto !== "" ? this.escapeHTML(String(tBruto)) + "°C" : "";
+            
+            let rssiBruto = (val && val.rssi) ? val.rssi : -60;
+            let rssi = this.escapeHTML(String(rssiBruto));
             let wifiColor = rssi > -50 ? "#32d74b" : (rssi > -70 ? "#ff9f0a" : "#ff453a"); 
             
             container.innerHTML = `
@@ -826,6 +852,7 @@ export class Core {
             container.innerHTML = `<div class="pico-info-pill" style="border-color:var(--text-sec); opacity:0.7"><span class="dot red"></span><span style="font-weight:600; color:var(--text-sec);">Offline</span></div>`;
         }
     }
+
 
 
     // ==========================================================
@@ -1800,8 +1827,10 @@ export class Core {
         if (this.centinelaActivo) { this.notificar("Centinela auditivo ya activo", "🛡️"); return; }
         try {
             this.notificar("Cargando red neuronal auditiva...", "⏳");
-            if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs");
-            const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands");
+            // 🛡️ PARCHE SUPPLY-CHAIN: Anclamos las versiones de IA
+            if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs@4.17.0");
+            const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands@0.5.4");
+
 
             this.recognizer = speechCommands.create("BROWSER_FFT");
             await this.recognizer.ensureModelLoaded();
@@ -2185,11 +2214,27 @@ export class Core {
         });
     }
 
-    registrarEnDB(app, accion, valorExtra = null) {
+        registrarEnDB(app, accion, valorExtra = null) {
         if (!this.db) return;
-        const transaccion = this.db.transaction(['habitos'], 'readwrite'); const store = transaccion.objectStore('habitos');
-        store.add({ app: app, accion: accion, valor: valorExtra, hora: new Date().getHours(), minuto: new Date().getMinutes(), diaSemana: new Date().getDay(), timestamp: Date.now() });
+        
+        // 🛡️ PARCHE PROMPT INJECTION: Desactivamos posibles comandos ocultos
+        const appLimpio = this.escapeHTML(String(app));
+        const accionLimpio = this.escapeHTML(String(accion));
+        const valorLimpio = valorExtra ? this.escapeHTML(String(valorExtra)) : null;
+
+        const transaccion = this.db.transaction(['habitos'], 'readwrite'); 
+        const store = transaccion.objectStore('habitos');
+        store.add({ 
+            app: appLimpio, 
+            accion: accionLimpio, 
+            valor: valorLimpio, 
+            hora: new Date().getHours(), 
+            minuto: new Date().getMinutes(), 
+            diaSemana: new Date().getDay(), 
+            timestamp: Date.now() 
+        });
     }
+
 
     consultarHabitosDB(horaActual) {
         return new Promise((resolve) => {
