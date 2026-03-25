@@ -598,7 +598,7 @@ export class Core {
             this.rol = this.perfilDB.rol;
             
             // 🛡️ PARCHE E2EE: Leemos la memoria RAM del hardware, no la Base de Datos
-            this.conf = this.abrirBovedaHardware();
+            this.conf = this.abrirBovedaHardware(tokenJWT);
             if (!this.conf) {
                 this.sysLog('SEC', 'Vault', 'Bóveda física destruida o alterada. Abortando auto-login.', 'warn');
                 throw new Error("Cambio de hardware o caché purgada. Inicia sesión manualmente.");
@@ -2247,3 +2247,4 @@ export class Core {
             this.notificar("Fallo al autorizar usuario", "❌");
         }
     }
+}
