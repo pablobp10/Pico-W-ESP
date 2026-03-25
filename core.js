@@ -585,8 +585,9 @@ export class Core {
             const loginBox = document.querySelector('.login-box');
             if (loginBox) { loginBox.classList.remove('error-shake'); void loginBox.offsetWidth; loginBox.classList.add('error-shake'); }
         }
+    }
 
-        async cargarDatosDespuesDeLogin(tokenJWT) {
+    async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
             // Descargamos tu perfil de la base de datos
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
