@@ -354,6 +354,7 @@ export class Core {
         window.addEventListener('online', () => this.setNetworkStatus(true));
         window.addEventListener('offline', () => this.setNetworkStatus(false));
         this.sincronizarColaOffline();
+        setTimeout(() => this.comprobarActualizaciones(true), 3000);
     }
 
 
@@ -1898,7 +1899,59 @@ export class Core {
         return true;
     }
 
+    async comprobarActualizaciones(esArranqueSilencioso = false) {
+        if (!esArranqueSilencioso) this.notificar("Buscando transmisiones en GitHub...", "📡");
+        
+        try {
+            // El '?t=...' evita que el navegador use un changelog viejo de la caché
+            const res = await fetch(`changelog.json?t=${new Date().getTime()}`);
+            if (!res.ok) throw new Error("Servidor de versiones inaccesible");
+            
+            const nube = await res.json();
+            const versionLocal = localStorage.getItem('pico_version') || 'v1.0.0';
 
+            if (nube.version !== versionLocal) {
+                this.sysLog('SYS', 'Update', `Nueva versión detectada: ${nube.version}`);
+                
+                // Rellenamos el Modal
+                document.getElementById('cl-version-badge').innerText = `${nube.version} (${nube.fecha})`;
+                document.getElementById('cl-title').innerText = nube.titulo;
+                
+                const lista = document.getElementById('cl-list');
+                lista.innerHTML = "";
+                nube.cambios.forEach(cambio => {
+                    const li = document.createElement('li');
+                    li.style.marginBottom = "8px";
+                    li.innerHTML = this.escapeHTML(cambio);
+                    lista.appendChild(li);
+                });
+
+                // Mostramos el Modal
+                const modal = document.getElementById('changelog-modal');
+                modal.style.display = 'flex';
+                this.vibra("doble");
+                
+                document.getElementById('btn-close-changelog').onclick = () => {
+                    localStorage.setItem('pico_version', nube.version);
+                    modal.style.display = 'none';
+                    this.notificar(`Sistema actualizado a ${nube.version}`, "✅");
+                    
+                    // Si la actualización es crítica, forzamos la purga del Service Worker
+                    if (nube.forzar_recarga && 'serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(registrations => {
+                            for(let registration of registrations) { registration.update(); }
+                        });
+                    }
+                };
+            } else {
+                if (!esArranqueSilencioso) this.notificar("El sistema ya está en la última versión", "✅");
+            }
+        } catch (error) {
+            this.sysLog('SYS', 'Update Err', error.message, 'warn');
+            if (!esArranqueSilencioso) this.notificar("Fallo al contactar con la central", "❌");
+        }
+    }
+    
     ejecutarConDeshacer(app, comando, tiempoGracia = 3000) {
         const tarjeta = this.cards.find(c => c.id === app);
         if (tarjeta && tarjeta.undo) {
