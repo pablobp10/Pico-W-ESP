@@ -502,39 +502,45 @@ export class Core {
             this.rol = this.perfilDB.rol;
 
             // --- 🛡️ SOLUCIÓN BRECHA 3: FORJA ZERO-KNOWLEDGE ---
-            // Si el usuario acaba de ser aprobado y no tiene maletín, se lo creamos ahora 
-            // usando la contraseña 'p' que acaba de teclear.
             if (!this.perfilDB.maletin_encriptado) {
                 this.sysLog('SEC', 'Init', 'Primer login detectado. Forjando Bóveda Zero-Knowledge...');
                 
                 const confInicial = {
                     topic: "pico/casa/", 
-                    tk: CryptoJS.lib.WordArray.random(32).toString(), // Llave secreta E2EE única
+                    tk: CryptoJS.lib.WordArray.random(32).toString(), 
                     apis: { google: "", groq: "", openrouter: "" },
-                    escudo_url: "wss://tu_servidor_python.onrender.com/ws" // Ajusta esto luego
+                    escudo_url: "wss://tu_servidor_python.onrender.com/ws" 
                 };
                 
-                // Encriptación Militar (PBKDF2 10.000 iteraciones)
-                const salt = CryptoJS.lib.WordArray.random(128/8).toString();
-                const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(salt), { keySize: 256/32, iterations: 10000 });
-                const maletinCifrado = CryptoJS.AES.encrypt(JSON.stringify(confInicial), llaveFuerte).toString();
+                // 🚀 PARCHE CRIPTOGRÁFICO: Generación de Salt y Vector de Inicialización (IV)
+                const salt = CryptoJS.lib.WordArray.random(128/8);
+                const iv = CryptoJS.lib.WordArray.random(128/8);
                 
-                const payloadFinal = `${salt}::${maletinCifrado}`;
+                const llaveFuerte = CryptoJS.PBKDF2(p, salt, { keySize: 256/32, iterations: 10000 });
+                const maletinCifrado = CryptoJS.AES.encrypt(JSON.stringify(confInicial), llaveFuerte, { iv: iv }).toString();
+                
+                // Formato acorazado: salt::iv::criptograma
+                const payloadFinal = `${salt.toString()}::${iv.toString()}::${maletinCifrado}`;
                 
                 await this.supabase.from('perfiles').update({ maletin_encriptado: payloadFinal }).eq('id', this.usuarioLogueado.id);
                 this.perfilDB.maletin_encriptado = payloadFinal;
                 this.notificar("Llaves de cifrado generadas con éxito", "🛡️");
             }
 
-            // --- 🛡️ DESENCRIPTADO DEL MALETÍN (PBKDF2) ---
+            // --- 🛡️ DESENCRIPTADO DEL MALETÍN (PBKDF2 + IV Dinámico) ---
             try {
                 const partes = this.perfilDB.maletin_encriptado.split('::');
-                if (partes.length === 2) {
+                if (partes.length === 3) {
+                    const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(partes[0]), { keySize: 256/32, iterations: 10000 });
+                    const ivExtraido = CryptoJS.enc.Hex.parse(partes[1]);
+                    const bytes = CryptoJS.AES.decrypt(partes[2], llaveFuerte, { iv: ivExtraido });
+                    this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                } else if (partes.length === 2) {
+                    // Soporte temporal para el formato sin IV (retrocompatibilidad)
                     const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(partes[0]), { keySize: 256/32, iterations: 10000 });
                     const bytes = CryptoJS.AES.decrypt(partes[1], llaveFuerte);
                     this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
                 } else {
-                    // Criptografía antigua vulnerable (solo se ejecutará si tenías usuarios viejos)
                     const bytes = CryptoJS.AES.decrypt(this.perfilDB.maletin_encriptado, p);
                     this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
                 }
@@ -2149,11 +2155,18 @@ export class Core {
             window.addEventListener('keydown', capturer);
         };
         btnCompile.onclick = async () => {
-            const prompt = promptInput.value.trim(); if(!currentBinding || !prompt) return this.notificar("Falta el atajo o el texto", "⚠️");
+            const promptCrudo = promptInput.value.trim(); 
+            if(!currentBinding || !promptCrudo) return this.notificar("Falta el atajo o el texto", "⚠️");
+            
+            // 🛡️ Sanitización estricta antes de renderizar
+            const promptSeguro = this.escapeHTML(promptCrudo);
+            
             btnCompile.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Compilando...`; this.vibra("tick");
             setTimeout(() => {
                 const codigoJSONGenerado = JSON.stringify({ "Led": "toggle", "Pomodoro": 25 }); if(emptyMsg) emptyMsg.style.display = 'none';
-                const li = document.createElement('li'); li.className = "macro-item cascade-in"; li.innerHTML = `<div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:monospace; font-weight:900; color:var(--primary); font-size:1.1rem;"><i class="fa-regular fa-keyboard"></i> ${currentBinding}</span><span style="font-size:0.85rem; color:var(--text-sec);">"${prompt}"</span><span style="font-family:monospace; font-size:0.75rem; color:#32d74b;">> ${codigoJSONGenerado}</span></div><button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>`;
+                const li = document.createElement('li'); li.className = "macro-item cascade-in"; 
+                // Inyectamos promptSeguro en lugar de prompt
+                li.innerHTML = `<div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:monospace; font-weight:900; color:var(--primary); font-size:1.1rem;"><i class="fa-regular fa-keyboard"></i> ${currentBinding}</span><span style="font-size:0.85rem; color:var(--text-sec);">"${promptSeguro}"</span><span style="font-family:monospace; font-size:0.75rem; color:#32d74b;">> ${codigoJSONGenerado}</span></div><button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>`;
                 list.appendChild(li); promptInput.value = ""; displayKey.innerText = "Sin asignar"; currentBinding = ""; btnCompile.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar`; this.notificar("Atajo compilado con éxito", "✅");
             }, 1000);
         };
@@ -2214,12 +2227,11 @@ export class Core {
     }
 
     async ejecutarForjaAutomatica(userId) {
-        this.sysLog('SEC', 'Aprobación', Otorgando acceso a UserID: ${userId});
+        this.sysLog('SEC', 'Aprobación', `Otorgando acceso a UserID: ${userId}`);
         
         try {
             this.notificar("Aprobando acceso en la base de datos...", "⏳");
             
-            // Simplemente pasamos su rol de 'pendiente' a 'guest'.
             const { error } = await this.supabase.from('perfiles')
                 .update({ rol: 'guest', updated_at: new Date() }).eq('id', userId);
             
@@ -2227,7 +2239,7 @@ export class Core {
             
             this.sysLog('SEC', 'Aprobación OK', 'Usuario verificado. Esperando su primer login.');
             this.notificar("Usuario autorizado en el sistema", "✅");
-            this.logHUD(USUARIO APROBADO: Al iniciar sesión, su propio equipo forjará las llaves E2EE., "out");
+            this.logHUD(`USUARIO APROBADO: Al iniciar sesión, su propio equipo forjará las llaves E2EE.`, "out");
             
         } catch (error) {
             this.sysLog('SEC', 'Aprobación Err', error.message, 'err');
