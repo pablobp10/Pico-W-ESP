@@ -362,52 +362,47 @@ export class Core {
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
 
-    guardarBovedaHardware(confData) {
-        // Encriptamos la llave maestra usando la huella física del PC/Móvil
-        const huella = this.generarHuellaDispositivo();
+    guardarBovedaHardware(confData, tokenJWT) {
+        if (!tokenJWT) return;
+        const huella = this.generarHuellaDispositivo(tokenJWT);
         const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), huella).toString();
         localStorage.setItem('pico_hardware_vault', cifrado);
-        this.sysLog('SEC', 'Vault', 'Bóveda de hardware sellada con éxito.');
+        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con Token de Sesión.');
     }
 
-    abrirBovedaHardware() {
+    abrirBovedaHardware(tokenJWT) {
+        if (!tokenJWT) return null;
         const cifrado = localStorage.getItem('pico_hardware_vault');
         if (!cifrado) return null;
         try {
-            // Intentamos abrir el candado con el hardware actual
-            const huella = this.generarHuellaDispositivo();
+            const huella = this.generarHuellaDispositivo(tokenJWT);
             const bytes = CryptoJS.AES.decrypt(cifrado, huella);
             const descifrado = bytes.toString(CryptoJS.enc.Utf8);
             if (!descifrado) return null;
             return JSON.parse(descifrado);
         } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Fallo al abrir bóveda local (¿Cambio de hardware?).', 'err');
+            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o distinta.', 'err');
             return null;
         }
     }
     
-    generarHuellaDispositivo() {
+    generarHuellaDispositivo(tokenJWT = null) {
+        // Si no hay token (ej. antes del login para identificar el PC), usamos un hash genérico.
+        // Si hay token, lo inyectamos en la criptografía.
         const n = navigator;
         const s = screen;
         
-        // Recopilamos datos físicos que no cambian al borrar la caché
         const componentes = [
             n.userAgent,                                      
-            n.language,                                       
             s.width + "x" + s.height + "x" + s.colorDepth,    
-            Intl.DateTimeFormat().resolvedOptions().timeZone, 
-            n.hardwareConcurrency || 'unknown',               
-            n.deviceMemory || 'unknown'                       
+            tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login-state"
         ];
         
         const stringBase = componentes.join("||");
-        
-        // Algoritmo rápido de Hash (DJB2)
         let hash = 5381;
         for (let i = 0; i < stringBase.length; i++) {
             hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
         }
-        
         return "fp-" + Math.abs(hash).toString(16);
     }
    
@@ -473,14 +468,9 @@ export class Core {
         this.sysLog('SEC', 'Login', `Llamada a Edge Function iniciada`, 'info', { email: emailAuth });
 
         try {
-            // 🧬 1. Generamos la huella digital pasiva del dispositivo
-            const deviceId = this.generarHuellaDispositivo();
-            
-            // 📱 2. Detección en tiempo real del tipo de hardware para el frontend
+            const deviceId = this.generarHuellaDispositivo(); // Pre-login (sin token)
             const esMovilReal = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             this.esMovil = esMovilReal; 
-            
-            // 🏷️ 3. Generamos el nombre dinámico para la Base de Datos y correos
             const deviceName = this.obtenerNombreDispositivo(deviceId);
 
             const functionUrl = 'https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro';
@@ -493,63 +483,71 @@ export class Core {
             });
             
             const rawText = await req.text();
-            if (!req.ok) throw new Error(`Servidor rechazó la petición (HTTP ${req.status}): ${rawText}`);
+            if (!req.ok) throw new Error(`Servidor rechazó la petición: ${rawText}`);
             
             const data = JSON.parse(rawText);
             await this.supabase.auth.setSession(data.session);
             this.usuarioLogueado = data.user;
-            this.sysLog('SEC', 'Login OK', 'Token JWT adquirido correctamente.', 'info', data.user.id);
+            
+            // 🚀 EXTRAEMOS EL TOKEN DE LA SESIÓN RECIÉN CREADA
+            const tokenJWT = data.session.access_token;
+            this.sysLog('SEC', 'Login OK', 'Token JWT adquirido correctamente.', 'info');
 
-            // SINCRONIZACIÓN
+            // SINCRONIZACIÓN DE PERFIL
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
 
-            const localSyncDate = localStorage.getItem('pico_last_sync');
-            const fechaNube = new Date(perfilNube.updated_at).getTime();
-            const fechaLocal = localSyncDate ? new Date(localSyncDate).getTime() : 0;
-
-            if (fechaNube >= fechaLocal) {
-                this.perfilDB = perfilNube;
-                localStorage.setItem('pico_perfil_cache', JSON.stringify(perfilNube));
-                localStorage.setItem('pico_last_sync', perfilNube.updated_at);
-                this.sysLog('DB', 'Sync', 'Descargada versión más reciente de la nube.');
-            } else {
-                this.perfilDB = JSON.parse(localStorage.getItem('pico_perfil_cache'));
-                await this.guardarPerfilEnNube(this.perfilDB); 
-                this.sysLog('DB', 'Sync', 'Subida versión local (más reciente) a la nube.');
-            }
-
-            if (!this.perfilDB.tarjetas) this.perfilDB.tarjetas = { orden: [], tamanos: {} };
+            this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
-            
-            // 🛡️ PARCHE E2EE: Lógica de auto-sanación y cifrado
-            let confData = null;
-            try {
-                // Intento 1: ¿Está en texto plano en Supabase? (La vulnerabilidad que vamos a matar)
-                confData = JSON.parse(this.perfilDB.maletin_encriptado);
+
+            // --- 🛡️ SOLUCIÓN BRECHA 3: FORJA ZERO-KNOWLEDGE ---
+            // Si el usuario acaba de ser aprobado y no tiene maletín, se lo creamos ahora 
+            // usando la contraseña 'p' que acaba de teclear.
+            if (!this.perfilDB.maletin_encriptado) {
+                this.sysLog('SEC', 'Init', 'Primer login detectado. Forjando Bóveda Zero-Knowledge...');
                 
-                // Si llegamos aquí sin error, la BD está expuesta. ¡Lo encriptamos al vuelo!
-                const maletinSeguro = CryptoJS.AES.encrypt(JSON.stringify(confData), p).toString();
-                await this.supabase.from('perfiles').update({ maletin_encriptado: maletinSeguro }).eq('id', this.usuarioLogueado.id);
-                this.sysLog('SEC', 'Upgrade', 'Maletín convertido a AES en la base de datos Supabase.');
-            } catch (e) {
-                // Intento 2: Ya está cifrado con la contraseña (El estado seguro)
-                try {
-                    const bytes = CryptoJS.AES.decrypt(this.perfilDB.maletin_encriptado, p);
-                    confData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-                } catch (err) {
-                    throw new Error("No se pudo desencriptar el maletín. Contraseña inválida.");
-                }
+                const confInicial = {
+                    topic: "pico/casa/", 
+                    tk: CryptoJS.lib.WordArray.random(32).toString(), // Llave secreta E2EE única
+                    apis: { google: "", groq: "", openrouter: "" },
+                    escudo_url: "wss://tu_servidor_python.onrender.com/ws" // Ajusta esto luego
+                };
+                
+                // Encriptación Militar (PBKDF2 10.000 iteraciones)
+                const salt = CryptoJS.lib.WordArray.random(128/8).toString();
+                const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(salt), { keySize: 256/32, iterations: 10000 });
+                const maletinCifrado = CryptoJS.AES.encrypt(JSON.stringify(confInicial), llaveFuerte).toString();
+                
+                const payloadFinal = `${salt}::${maletinCifrado}`;
+                
+                await this.supabase.from('perfiles').update({ maletin_encriptado: payloadFinal }).eq('id', this.usuarioLogueado.id);
+                this.perfilDB.maletin_encriptado = payloadFinal;
+                this.notificar("Llaves de cifrado generadas con éxito", "🛡️");
             }
 
-            this.conf = confData;
-            this.guardarBovedaHardware(this.conf); // Metemos la llave en el enclave físico
+            // --- 🛡️ DESENCRIPTADO DEL MALETÍN (PBKDF2) ---
+            try {
+                const partes = this.perfilDB.maletin_encriptado.split('::');
+                if (partes.length === 2) {
+                    const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(partes[0]), { keySize: 256/32, iterations: 10000 });
+                    const bytes = CryptoJS.AES.decrypt(partes[1], llaveFuerte);
+                    this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                } else {
+                    // Criptografía antigua vulnerable (solo se ejecutará si tenías usuarios viejos)
+                    const bytes = CryptoJS.AES.decrypt(this.perfilDB.maletin_encriptado, p);
+                    this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                }
+            } catch (err) {
+                throw new Error("Desencriptación fallida. Contraseña inválida.");
+            }
 
+            // 🚀 GUARDAMOS EN HARDWARE USANDO EL TOKEN DE SESIÓN
+            this.guardarBovedaHardware(this.conf, tokenJWT);
             
             this.initSeguridadRoles();
 
-            // Aplicar UI
+            // APLICAR UI
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
             
@@ -558,15 +556,7 @@ export class Core {
                 if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
             }
 
-            if(this.perfilDB.interfaz) {
-                if(this.perfilDB.interfaz.tema) document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
-                document.body.setAttribute('data-estilo', this.perfilDB.interfaz.estilo || 'pico');
-                if(document.getElementById('sw-vibration')) document.getElementById('sw-vibration').checked = this.perfilDB.interfaz.vibracion !== false;
-                if(document.getElementById('check-ui-sonidos')) document.getElementById('check-ui-sonidos').checked = this.perfilDB.interfaz.sonidos === true;
-            }
-
             sessionStorage.setItem('pico_sesion_ok', 'true');
-            // 🔒 PARCHE DE SEGURIDAD: Solo guardamos el email (u) por comodidad. La contraseña NO se guarda en texto plano.
             localStorage.setItem("u", u); 
             
             document.getElementById('login-screen').style.display = 'none';
@@ -574,15 +564,13 @@ export class Core {
                 document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             }
             
-            if (fechaNube > fechaLocal || document.getElementById('dashboard-grid').children.length === 0) {
-                this.renderGrid();
-            }
-
+            this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
-            this.logHUD("Login completado con éxito.", "✅");
+            this.logHUD("Login completado y Bóveda sellada.", "✅");
 
         } catch (error) {  
+            // ... (resto del catch se mantiene igual)
             this.sysLog('SEC', 'Login Error', error.message, 'err');
             this.logHUD(`[ERROR]: ${error.message}`, "error");
             document.getElementById('error-msg').innerText = "❌ " + error.message;
@@ -591,7 +579,6 @@ export class Core {
             const loginBox = document.querySelector('.login-box');
             if (loginBox) { loginBox.classList.remove('error-shake'); void loginBox.offsetWidth; loginBox.classList.add('error-shake'); }
         }
-    }
 
         async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
@@ -649,8 +636,7 @@ export class Core {
         document.getElementById('settings-menu')?.classList.remove('open');
         this.notificar("Sesión cerrada", "🔒");
     }
-
-
+        
     // ==========================================================
     // 🌐 BLOQUE 2: RED, MQTT Y ESTADO DE DISPOSITIVOS
     // ==========================================================
@@ -2228,42 +2214,23 @@ export class Core {
     }
 
     async ejecutarForjaAutomatica(userId) {
-        this.sysLog('SEC', 'Forja', `Iniciando Forja para UserID: ${userId}`);
-        const alias = prompt("Escribe el nombre de usuario (ej: hermano):"); if (!alias) return;
-        const pass = prompt(`Escribe la contraseña que el usuario ${alias} escogió al registrarse:`); if (!pass) return;
-        const pin = prompt(`Inventa un PIN Maestro de 4 números para ${alias}:`); if (!pin) return;
+        this.sysLog('SEC', 'Aprobación', Otorgando acceso a UserID: ${userId});
         
         try {
-            this.notificar("Forjando Bóveda Criptográfica...", "⚙️");
+            this.notificar("Aprobando acceso en la base de datos...", "⏳");
             
-            const nuevaConf = {
-                topic: this.conf.topic, 
-                tk: this.conf.tk, 
-                rol: "guest",
-                apis: { google: "", groq: "", openrouter: "" } 
-            };
+            // Simplemente pasamos su rol de 'pendiente' a 'guest'.
+            const { error } = await this.supabase.from('perfiles')
+                .update({ rol: 'guest', updated_at: new Date() }).eq('id', userId);
             
-            const ghostKey = CryptoJS.lib.WordArray.random(32).toString();
-            const keyData = CryptoJS.SHA256(pass + ghostKey); const ivData = CryptoJS.lib.WordArray.random(16);
-            const encData = CryptoJS.AES.encrypt(JSON.stringify(nuevaConf), keyData, {iv: ivData, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
-            const payloadData = CryptoJS.enc.Base64.stringify(ivData.concat(encData.ciphertext));
-            
-            const keyEnv = CryptoJS.SHA256(pass + pin); const ivEnv = CryptoJS.lib.WordArray.random(16);
-            const encEnv = CryptoJS.AES.encrypt(ghostKey, keyEnv, {iv: ivEnv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7});
-            const payloadEnv = CryptoJS.enc.Base64.stringify(ivEnv.concat(encEnv.ciphertext));
-            
-            const finalJSON = JSON.stringify({ e: payloadEnv, d: payloadData });
-            const maletinBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(finalJSON));
-            
-            const { error } = await this.supabase.from('perfiles').update({ maletin_encriptado: maletinBase64, rol: 'guest', updated_at: new Date() }).eq('id', userId);
             if (error) throw error;
             
-            this.sysLog('SEC', 'Forja OK', `Bóveda sellada. PIN temporal: ${pin}`);
-            this.notificar("Usuario autorizado y encriptado con éxito", "✅");
-            this.logHUD(`USUARIO APROBADO: Pásale su PIN temporal: ${pin}`, "out");
+            this.sysLog('SEC', 'Aprobación OK', 'Usuario verificado. Esperando su primer login.');
+            this.notificar("Usuario autorizado en el sistema", "✅");
+            this.logHUD(USUARIO APROBADO: Al iniciar sesión, su propio equipo forjará las llaves E2EE., "out");
+            
         } catch (error) {
-            this.sysLog('SEC', 'Forja Err', error.message, 'err');
-            this.notificar("Fallo al forjar el maletín", "❌");
+            this.sysLog('SEC', 'Aprobación Err', error.message, 'err');
+            this.notificar("Fallo al autorizar usuario", "❌");
         }
     }
-}
