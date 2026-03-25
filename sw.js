@@ -3,7 +3,7 @@
 // =========================================================================
 
 // 🛡️ Cambia este número cada vez que modifiques archivos HTML/CSS/JS grandes
-const CACHE_NAME = 'pico-os-core-v3';
+const CACHE_NAME = 'pico-os-core-v4';
 
 self.addEventListener('install', (event) => {
     console.log('[Service Worker] Instalando Búnker PWA...');
@@ -34,19 +34,20 @@ self.addEventListener('fetch', (event) => {
         event.request.url.includes('api.open-meteo.com') || 
         event.request.url.includes('googleapis.com') || 
         event.request.url.includes('esm.run') || 
-        event.request.url.includes('registry.npmjs.org') || // <-- Bypass API de versiones
-        event.request.url.includes('?v=') ||                // <-- Bypass cache buster
+        event.request.url.includes('registry.npmjs.org') || 
+        event.request.url.includes('changelog.json') || // <--- 🚀 PROHIBIMOS AL SW TOCAR EL CHANGELOG
+        event.request.url.includes('?t=') ||            // <--- 🚀 Coincide con el bypass de core.js
         !event.request.url.startsWith('http')
     ) {
-        return; // Dejamos que el navegador gestione esto sin cachear
+        return; 
     }
 
     event.respondWith(
-        // 1. ESTRATEGIA NETWORK-FIRST 
         fetch(event.request)
             .then((respuestaRed) => {
                 if (respuestaRed && respuestaRed.status === 200 && respuestaRed.type === 'basic') {
                     const respuestaClonada = respuestaRed.clone();
+                    // 🚀 CORRECCIÓN: Usamos la variable oficial, no el string fijo
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, respuestaClonada);
                     });
@@ -54,7 +55,7 @@ self.addEventListener('fetch', (event) => {
                 return respuestaRed;
             })
             .catch(async () => {
-                // 2. MODO OFFLINE (Rescate sin internet + Prevención de pantalla blanca)
+                // 2. MODO OFFLINE (Rescate sin internet)
                 const respuestaCache = await caches.match(event.request);
                 if (respuestaCache) return respuestaCache;
                 
@@ -70,7 +71,6 @@ self.addEventListener('fetch', (event) => {
 // 🚀 SUPERPODERES PWABUILDER (Play Store Ready)
 // =========================================================================
 
-// 🔔 PUSH NOTIFICATIONS
 self.addEventListener('push', function(event) {
     const data = event.data ? event.data.json() : { title: "Pico OS", body: "Notificación del sistema", icon: "logo-192.png" };
     const options = {
@@ -88,7 +88,6 @@ self.addEventListener('notificationclick', function(event) {
     event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 
-// 🔄 BACKGROUND SYNC 
 self.addEventListener('sync', function(event) {
     if (event.tag === 'sync-comandos') {
         console.log("[Pico OS] Ejecutando sincronización en segundo plano...");
@@ -96,7 +95,6 @@ self.addEventListener('sync', function(event) {
     }
 });
 
-// ⏱️ PERIODIC SYNC 
 self.addEventListener('periodicsync', function(event) {
     if (event.tag === 'update-clima') {
         console.log("[Pico OS] Sincronización periódica activada...");
