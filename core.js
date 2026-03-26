@@ -479,7 +479,8 @@ export class Core {
                 this.conf = { topic: nuevoTopic, tk: nuevaClave, escudo_url: "wss://tu_servidor_python.onrender.com/ws" };
                 this.notificar("Frecuencia base construida", "📻");
             } else {
-                this.conf = { topic: miHogar.topic_base, tk: miHogar.pico_tk, escudo_url: "wss://tu_servidor_python.onrender.com/ws" };
+                this.conf = { topic: miHogar.topic_base, tk: miHogar.pico_tk };
+                this.miHogarId = miHogar.id;
             }
 
             this.guardarBovedaHardware(this.conf, tokenJWT);
@@ -513,12 +514,18 @@ export class Core {
         }
     }
 
-    async cargarDatosDespuesDeLogin(tokenJWT) {
+        async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
+
+            // 🚀 AÑADIDO VITAL: Recuperar el ID de tu canal/hogar para que los botones sepan a dónde enviar la orden al recargar
+            const { data: miHogar } = await this.supabase.from('hogares').select('id').eq('owner_id', this.usuarioLogueado.id).single();
+            if (miHogar) {
+                this.miHogarId = miHogar.id;
+            }
             
             this.conf = this.abrirBovedaHardware(tokenJWT);
             if (!this.conf) throw new Error("Caché local borrada. Inicia sesión manualmente.");
@@ -539,7 +546,9 @@ export class Core {
             this.conectar();
             this.comprobarSolicitudesPendientes();
             this.notificar("Sesión restaurada", "🔐");
-        } catch (error) { this.cerrarSesion(); }
+        } catch (error) { 
+            this.cerrarSesion(); 
+        }
     }
 
     restaurarEstadoCanal() {
@@ -669,47 +678,55 @@ export class Core {
     // ==========================================================
 
     async conectar() {
-        if (!this.conf || !this.conf.escudo_url) return;
-        const wsUrl = this.conf.escudo_url;
-        this.ws = new WebSocket(wsUrl);
+        if (!this.conf) return;
+        this.setNetworkStatus(true);
         const dot = document.getElementById('mqtt-dot');
+        if (dot) dot.className = "dot green";
 
-        this.ws.onopen = async () => {
-            this.setNetworkStatus(true);
-            if (dot) dot.className = "dot green";
-            const { data: { session } } = await this.supabase.auth.getSession();
-            
-            this.ws.send(JSON.stringify({ 
-                accion: "cambiar_broker", 
-                host: this.brokers[this.brIdx].h,
-                auth_token: session ? session.access_token : null,
-                topic_base: this.conf.topic 
-            }));
-        };
+        // Determinar qué casa estamos escuchando
+        const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
+        if (!hogarTargetId) return;
 
-        this.ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.tipo === "mqtt") {
-                const app = data.topic.split("/").pop();
-                let val = data.payload;
-                try { val = JSON.parse(val); } catch(e){}
-                
-                if (app === "sistema_hb" || app === "sistema" || (val && val.sistema)) this.updatePicoStatus(val);
-                this.cards.forEach(c => {
-                    if(c.id === app || (c.subs && c.subs.includes(app))) {
-                        if(c.onData) c.onData(val, app, this);
-                    }
-                });
-            } else if (data.tipo === "ia_respuesta") {
-                this.desplegarPayloadCuantico(data.texto, data.orden, data.modo);
-            }
-        };
+        // Limpiar suscripciones anteriores si las hay
+        if (this.suscripcionRealtime) {
+            this.supabase.removeChannel(this.suscripcionRealtime);
+        }
 
-        this.ws.onclose = () => {
-            this.setNetworkStatus(false);
-            if (dot) dot.className = "dot red";
-            setTimeout(() => this.conectar(), 3000); 
-        };
+        this.sysLog('NET', 'Sintonizando', `Escuchando telemetría del canal: ${hogarTargetId.substring(0,8)}`);
+
+        // Suscripción a Supabase Realtime (Reemplaza al viejo WebSocket)
+        this.suscripcionRealtime = this.supabase.channel('custom-all-channel')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'estado_hogares', filter: `hogar_id=eq.${hogarTargetId}` },
+                (payload) => {
+                    const datos = payload.new;
+                    if (!datos || !datos.estado_modulos) return;
+                    
+                    const telemetria = datos.estado_modulos;
+                    
+                    // Actualizar barra superior (Pico Status)
+                    this.updatePicoStatus(telemetria);
+                    
+                    // Repartir los datos a las tarjetas correspondientes
+                    this.cards.forEach(c => {
+                        // Si la telemetría trae datos directos para esta app (ej: {"Led": "ON"})
+                        if (telemetria[c.id]) {
+                            if(c.onData) c.onData(telemetria[c.id], c.id, this);
+                        }
+                    });
+                }
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    this.sysLog('NET', 'Enlace OK', 'Sintonizado a la frecuencia del Trastero DB.');
+                }
+                if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                    this.setNetworkStatus(false);
+                    if (dot) dot.className = "dot red";
+                    setTimeout(() => this.conectar(), 3000); // Reintento automático
+                }
+            });
     }
 
     pub(app, v, r) { 
@@ -718,21 +735,41 @@ export class Core {
         }
     }
 
-    cmd(app, c) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    async cmd(app, c) {
+        if (!navigator.onLine) {
             this.colaOffline.push({app, c});
             return this.notificar("Sin conexión. Orden en cola", "❌");
         }
+        
         try {
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
-            if (!this.conf) throw new Error("No hay maletín encriptado.");
-            if (!this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
+            if (!this.conf || !this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
 
+            // 1. Encriptación E2EE en el navegador
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
-            this.ws.send(JSON.stringify({ accion: "comando", app: app, comando: paqueteCifrado }));
             
-        } catch (error) { this.notificar(`Fallo E2EE: ${error.message}`, "❌"); }
+            // 2. Identificar en qué canal estamos operando
+            const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
+            const brokerActual = this.brokers[this.brIdx].h;
+
+            // 3. Inyectar el comando en el buzón (Esto dispara el Webhook)
+            const { error } = await this.supabase.from('cola_comandos').insert({
+                hogar_id: hogarTargetId,
+                app: app,
+                comando: paqueteCifrado,
+                broker_host: brokerActual,
+                topic_base: this.conf.topic,
+                pico_tk: this.conf.tk
+            });
+
+            if (error) throw error;
+            this.sysLog('DB', 'TX', `Comando inyectado en cola para [${app}]`);
+            
+        } catch (error) { 
+            this.notificar(`Fallo de transmisión: ${error.message}`, "❌"); 
+            this.sysLog('DB', 'TX Err', error.message, 'err');
+        }
     }
 
     sincronizarColaOffline() {
