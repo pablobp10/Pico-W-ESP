@@ -573,12 +573,13 @@ export class Core {
 
     cerrarSesion() {
         sessionStorage.removeItem('pico_sesion_ok');
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close();
+        if(this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
         if(this.supabase) this.supabase.auth.signOut();
         document.getElementById('pass-input').value = "";
         document.getElementById('login-screen').style.display = 'flex'; 
         document.getElementById('side-menu').classList.remove('open');
     }
+
 
     // ==========================================================
     // 💾 BLOQUE 3: AUTO-GUARDADO Y AJUSTES DE PERFIL
@@ -730,9 +731,8 @@ export class Core {
     }
 
     pub(app, v, r) { 
-        if(this.ws?.readyState === WebSocket.OPEN) {
-            this.cmd(app, v);
-        }
+        // Ya no comprobamos WebSockets. Disparamos directamente a Supabase.
+        this.cmd(app, v);
     }
 
     async cmd(app, c) {
@@ -773,7 +773,8 @@ export class Core {
     }
 
     sincronizarColaOffline() {
-        if (this.colaOffline.length > 0 && this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // En vez de comprobar 'this.ws', comprobamos si hay internet en el navegador
+        if (this.colaOffline.length > 0 && navigator.onLine) {
             this.colaOffline.forEach((orden, i) => { setTimeout(() => this.cmd(orden.app, orden.c), i * 200); });
             this.colaOffline = []; 
         }
@@ -789,7 +790,7 @@ export class Core {
         }
     }
 
-    setupBrokerMenu() {
+        setupBrokerMenu() {
         const menu = document.getElementById('broker-menu');
         const current = document.getElementById('current-broker-name');
         current.innerText = this.brokers[this.brIdx].name;
@@ -798,20 +799,15 @@ export class Core {
             const item = document.createElement('div');
             item.className = `dropdown-item ${idx === this.brIdx ? 'selected' : ''}`;
             item.innerText = b.name;
-            item.onclick = async () => {
+            item.onclick = () => {
                 this.brIdx = idx; current.innerText = b.name; menu.classList.remove('open');
                 this.setupBrokerMenu(); this.notificar(`Enrutando a ${b.name}...`, "🔀");
-                
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    const { data: { session } } = await this.supabase.auth.getSession();
-                    this.ws.send(JSON.stringify({ 
-                        accion: "cambiar_broker", host: b.h, auth_token: session ? session.access_token : null, topic_base: this.conf.topic 
-                    }));
-                }
+                // Ya no enviamos un paquete WS aquí. Python se enterará en el próximo comando.
             };
             menu.appendChild(item);
         });
     }
+
 
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
@@ -959,12 +955,9 @@ export class Core {
             id, nombre, topic, tk, privada: this.confPrivada
         }));
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: topic }));
-        }
-
         document.getElementById('dashboard-grid').innerHTML = "";
         this.renderGrid(); 
+        this.conectar(); // 🚀 RE-SINTONIZA SUPABASE REALTIME AL NUEVO CANAL
         
         document.getElementById('canal-activo-nombre').innerText = nombre;
         document.getElementById('canal-activo-nombre').style.color = '#0a84ff';
@@ -987,12 +980,9 @@ export class Core {
 
         sessionStorage.removeItem('pico_canal_activo');
 
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: this.conf.topic }));
-        }
-
         document.getElementById('dashboard-grid').innerHTML = "";
         this.renderGrid(); 
+        this.conectar(); // 🚀 RE-SINTONIZA SUPABASE REALTIME A TU PROPIO CANAL
         
         document.getElementById('canal-activo-nombre').innerText = 'Canal Privado';
         document.getElementById('canal-activo-nombre').style.color = 'white';
