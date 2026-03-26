@@ -37,14 +37,14 @@ export class Core {
             PlantaCard, EnergiaCard, SintetizadorCard, OCRCard, ConscienciaCard
         ];
         this.conf = null;
-        this.confPrivada = null; // 🚀 Almacena la llave E2EE personal cuando visitas un Canal
-        this.canalActivo = null; // 🚀 Almacena los datos del canal actual
+        this.confPrivada = null;
+        this.canalActivo = null;
         this.perfilDB = null; 
-        this.mqtt = null;
+        this.miHogarId = null;
         this.rol = "guest";
         this.editMode = false;
         
-        // 🚀 CONEXIÓN A LA NUBE SUPABASE
+        // CONEXIÓN A LA NUBE SUPABASE
         const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
         this.supabase = createClient(supabaseUrl, supabaseKey);
@@ -64,40 +64,22 @@ export class Core {
     }
 
     // ==========================================================
-    // 🛡️ BLOQUE 0: NÚCLEO, SEGURIDAD Y DEPURACIÓN EXTREMA
+    // 🛡️ BLOQUE 0: NÚCLEO Y SEGURIDAD
     // ==========================================================
     
     initSeguridadRoles() {
         if (!window._consolaOriginal) {
             window._consolaOriginal = { log: console.log, warn: console.warn, error: console.error, info: console.info };
         }
-
         if (this.rol === 'god') {
             console.log = window._consolaOriginal.log;
             console.warn = window._consolaOriginal.warn;
             console.error = window._consolaOriginal.error;
             console.info = window._consolaOriginal.info;
-
-            if (!document.getElementById('eruda-script')) {
-                const script = document.createElement('script');
-                script.id = 'eruda-script';
-                script.src = "https://cdn.jsdelivr.net/npm/eruda";
-                script.onload = () => { 
-                    eruda.init(); 
-                    this.sysLog('SEC', 'Inyección', 'Terminal Eruda (GOD MODE) en línea.', 'info'); 
-                };
-                document.head.appendChild(script);
-            }
         } else {
             const ofuscador = () => {};
-            console.log = ofuscador;
-            console.info = ofuscador;
-            console.warn = ofuscador;
-            console.error = (...args) => {
-                if (this.rol === 'admin') {
-                    window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada. Reporte al GOD.");
-                }
-            };
+            console.log = ofuscador; console.info = ofuscador; console.warn = ofuscador;
+            console.error = (...args) => { if (this.rol === 'admin') window._consolaOriginal.warn("⚠️ Alerta de seguridad interceptada."); };
         }
     }
 
@@ -105,20 +87,11 @@ export class Core {
         if (this.rol === 'god') {
             const metodo = tipo === 'err' || tipo === 'error' ? 'error' : tipo === 'warn' ? 'warn' : 'log';
             const log = console[metodo] || console.log; 
-            
             const colores = { net: "#0a84ff", sec: "#ff453a", db: "#bf5af2", ia: "#32d74b", sys: "#ff9f0a", mqtt: "#00c7be" };
             const color = colores[modulo.toLowerCase()] || "#a1a1aa";
             const timestamp = new Date().toISOString().split('T')[1].slice(0,-1);
-            
             log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: inherit; font-weight: normal;`, mensaje);
-            
-            if (dataExtra) { 
-                try { log(JSON.parse(JSON.stringify(dataExtra))); } 
-                catch(e) { log("[Payload Complejo/Binario]", dataExtra); } 
-            }
-            if ((tipo === 'error' || tipo === 'err') && solucion) {
-                log(`%c💡 FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: inherit; font-weight: normal;`);
-            }
+            if (dataExtra) { try { log(JSON.parse(JSON.stringify(dataExtra))); } catch(e) { log("[Payload]", dataExtra); } }
         }
         this.logHUD(`[${modulo.toUpperCase()}] ${accion}: ${mensaje}`, tipo, dataExtra, solucion);
     }
@@ -142,7 +115,6 @@ export class Core {
     }
 
     async inicializarModulos() {
-        this.sysLog('SYS', 'Modulos', 'Comprobando librerías en caché...');
         this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
             "@mlc-ai/web-llm": "0.2.81", "paho-mqtt": "1.0.1", "crypto-js": "4.2.0", "sortable": "1.15.0"
         };
@@ -151,41 +123,15 @@ export class Core {
             mqtt: `https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/${this.versiones["paho-mqtt"]}/mqttws31.min.js`,
             sortable: `https://cdnjs.cloudflare.com/ajax/libs/Sortable/${this.versiones["sortable"]}/Sortable.min.js`
         };
-        
         for (const [nombre, url] of Object.entries(this.librerias)) {
             if (!document.querySelector(`script[src="${url}"]`)) {
                 try {
                     await new Promise((resolve, reject) => {
                         const script = document.createElement('script'); script.src = url;
-                        script.onload = resolve; script.onerror = reject;
-                        document.head.appendChild(script);
+                        script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
                     });
-                    this.sysLog('SYS', 'Inyección', `Módulo cargado: ${nombre}`);
-                } catch(e) {
-                    this.sysLog('SYS', 'Error Fatal', `Fallo al montar ${nombre}`, 'err');
-                }
+                } catch(e) {}
             }
-        }
-        setTimeout(() => this.buscarActualizacionesSilenciosas(), 10000);
-    }
-
-    async buscarActualizacionesSilenciosas() {
-        this.sysLog('NET', 'Update', 'Buscando actualizaciones en npmjs...');
-        let hayNovedades = false;
-        const nuevasVersiones = { ...this.versiones };
-        for (const pkg of ["crypto-js", "@mlc-ai/web-llm"]) {
-            try {
-                const res = await fetch(`https://registry.npmjs.org/${pkg}/latest`);
-                const data = await res.json();
-                if (data.version && data.version !== this.versiones[pkg]) {
-                    nuevasVersiones[pkg] = data.version; hayNovedades = true;
-                    this.sysLog('SYS', 'Update', `Parche disponible para ${pkg}: v${data.version}`);
-                }
-            } catch (e) {}
-        }
-        if (hayNovedades) {
-            localStorage.setItem('pico_libs_versions', JSON.stringify(nuevasVersiones));
-            this.notificar("Actualización interna lista (Se aplicará al recargar)", "🔄");
         }
     }
 
@@ -196,21 +142,11 @@ export class Core {
                 this.perfilDB = JSON.parse(cacheLocal);
                 this.rol = this.perfilDB.rol || "guest";
                 this.initSeguridadRoles();
-                
                 if (this.perfilDB.interfaz) {
-                    if (this.perfilDB.interfaz.tema && ['dark', 'light'].includes(this.perfilDB.interfaz.tema)) {
-                        document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
-                        localStorage.setItem('theme', this.perfilDB.interfaz.tema);
-                    }
-                    if (this.perfilDB.interfaz.estilo) {
-                        document.body.setAttribute('data-estilo', this.perfilDB.interfaz.estilo);
-                    } else {
-                        document.body.setAttribute('data-estilo', 'pico');
-                    }
+                    if (this.perfilDB.interfaz.tema) document.body.setAttribute('data-theme', this.perfilDB.interfaz.tema);
+                    if (this.perfilDB.interfaz.estilo) document.body.setAttribute('data-estilo', this.perfilDB.interfaz.estilo);
                 }
-            } catch (e) { this.sysLog('SYS', 'Caché', 'Caché local corrupta, esperando a DB.', 'warn', e); }
-        } else {
-            this.initSeguridadRoles();
+            } catch (e) {}
         }
 
         this.filtroActual = 'all';
@@ -224,15 +160,13 @@ export class Core {
         this.initMultijugador();
         this.initModosExpertos();
         this.initVozJARVIS();
-        this.iniciarAgenteProactivo();
         this.initBaseDeDatos();
         this.initInterruptorIA();
         this.initSubidaAvatares();
+        this.initColaNotificaciones();
 
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
-        const btnHuella = document.getElementById('btn-huella');
-        if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
         
         const linkRegister = document.getElementById('link-toggle-register');
         const btnRegisterSubmit = document.getElementById('btn-register-submit');
@@ -244,19 +178,10 @@ export class Core {
             linkRegister.onclick = (e) => {
                 e.preventDefault();
                 isRegisterMode = !isRegisterMode;
-                if (isRegisterMode) {
-                    pass2Input.style.display = 'block';
-                    btnRegisterSubmit.style.display = 'block';
-                    btnLogin.style.display = 'none';
-                    if (btnHuella) btnHuella.style.display = 'none';
-                    linkRegister.innerText = "Ya tengo cuenta (Iniciar sesión)";
-                } else {
-                    pass2Input.style.display = 'none';
-                    btnRegisterSubmit.style.display = 'none';
-                    btnLogin.style.display = 'block';
-                    if (btnHuella) btnHuella.style.display = 'block';
-                    linkRegister.innerText = "Crear usuario nuevo";
-                }
+                pass2Input.style.display = isRegisterMode ? 'block' : 'none';
+                btnRegisterSubmit.style.display = isRegisterMode ? 'block' : 'none';
+                btnLogin.style.display = isRegisterMode ? 'none' : 'block';
+                linkRegister.innerText = isRegisterMode ? "Ya tengo cuenta (Iniciar sesión)" : "Crear usuario nuevo";
             };
         }
 
@@ -270,32 +195,18 @@ export class Core {
         }
 
         const userProfileMenu = document.getElementById('user-profile-menu');
-        if(userProfileMenu) {
-            userProfileMenu.onclick = () => { document.getElementById('side-menu').classList.remove('open'); this.abrirAjustesUsuario(); this.vibra("tick"); };
-        }
+        if(userProfileMenu) userProfileMenu.onclick = () => { document.getElementById('side-menu').classList.remove('open'); this.abrirAjustesUsuario(); this.vibra("tick"); };
         
-        const btnPlaza = document.getElementById('btn-nav-plaza');
-        if (btnPlaza) {
-            btnPlaza.addEventListener('click', () => {
-                document.getElementById('plaza-view').style.display = 'block';
-                document.getElementById('side-menu').classList.remove('open');
-                this.cargarPlazaPublica();
-            });
-        }
-        
-        // 🚀 ENGANCHE BOTONES CANAL (UI)
         const btnSalirCanal = document.getElementById('btn-salir-canal');
         if (btnSalirCanal) btnSalirCanal.onclick = () => this.salirCanal();
         
         const btnCrearCanal = document.getElementById('btn-crear-canal');
         if (btnCrearCanal) btnCrearCanal.onclick = () => this.crearCanal();
 
-        // 🚀 ENGANCHE BOTONES MOSTRAR/COPIAR CREDENCIALES
         document.querySelectorAll('.btn-reveal-cred').forEach(btn => {
             btn.onclick = (e) => {
                 e.preventDefault();
-                const targetId = btn.getAttribute('data-target');
-                const input = document.getElementById(targetId);
+                const input = document.getElementById(btn.getAttribute('data-target'));
                 const icon = btn.querySelector('i');
                 if(input.type === 'password') { input.type = 'text'; icon.className = 'fa-solid fa-eye-slash'; } 
                 else { input.type = 'password'; icon.className = 'fa-solid fa-eye'; }
@@ -305,9 +216,7 @@ export class Core {
         document.querySelectorAll('.btn-copy-cred').forEach(btn => {
             btn.onclick = (e) => {
                 e.preventDefault();
-                const targetId = btn.getAttribute('data-target');
-                const input = document.getElementById(targetId);
-                navigator.clipboard.writeText(input.value).then(() => { this.notificar("Copiado al portapapeles", "✅"); });
+                navigator.clipboard.writeText(document.getElementById(btn.getAttribute('data-target')).value).then(() => { this.notificar("Copiado", "✅"); });
             };
         });
 
@@ -315,11 +224,6 @@ export class Core {
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         if(document.getElementById('btn-logout')) document.getElementById('btn-logout').onclick = () => this.cerrarSesion();
 
-        const swJarvis = document.getElementById('sw-jarvis');
-        if (swJarvis) {
-            swJarvis.addEventListener('change', (e) => { if (e.target.checked) this.iniciarCentinelaAudio(); else this.detenerCentinelaAudio(); });
-        }
-        
         document.querySelectorAll('.filter-pill').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
@@ -331,31 +235,19 @@ export class Core {
         const settingsTrigger = document.getElementById('settings-trigger');
         const settingsMenu = document.getElementById('settings-menu');
         const brokerMenu = document.getElementById('broker-menu');
-        settingsTrigger.onclick = (e) => {
-            e.stopPropagation();
-            brokerMenu.classList.remove('open'); settingsMenu.classList.toggle('open');
-        };
+        settingsTrigger.onclick = (e) => { e.stopPropagation(); brokerMenu.classList.remove('open'); settingsMenu.classList.toggle('open'); };
         window.onclick = (e) => {
             if(!document.getElementById('broker-trigger')?.contains(e.target)) brokerMenu?.classList.remove('open');
             if(!settingsTrigger?.contains(e.target)) settingsMenu?.classList.remove('open');
         };
 
-        const loginScreen = document.getElementById('login-screen');
-        const u = localStorage.getItem("u");
-        if(u) document.getElementById('user-input').value = u;
-
         this.supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                this.sysLog('SEC', 'AutoLogin', 'Sesión segura recuperada. Saltando pantalla de login.');
                 this.usuarioLogueado = session.user;
-                if (loginScreen) loginScreen.style.display = 'none';
+                document.getElementById('login-screen').style.display = 'none';
                 this.cargarDatosDespuesDeLogin(session.access_token);
             } else {
-                if (loginScreen) { 
-                    loginScreen.style.display = 'flex'; 
-                    loginScreen.style.opacity = '1'; 
-                    loginScreen.style.pointerEvents = 'auto'; 
-                }
+                document.getElementById('login-screen').style.display = 'flex'; 
             }
         });
 
@@ -364,12 +256,10 @@ export class Core {
         
         window.addEventListener('online', () => this.setNetworkStatus(true));
         window.addEventListener('offline', () => this.setNetworkStatus(false));
-        this.sincronizarColaOffline();
-        setTimeout(() => this.comprobarActualizaciones(true), 3000);
     }
 
     // ==========================================================
-    // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
+    // 🔐 BLOQUE 1: IDENTIDAD Y AUTENTICACIÓN
     // ==========================================================
 
     guardarBovedaHardware(confData, tokenJWT) {
@@ -379,9 +269,7 @@ export class Core {
         const iv = CryptoJS.lib.WordArray.random(128/8);
         const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
         const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), llaveFuerte, { iv: iv }).toString();
-        const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
-        localStorage.setItem('pico_hardware_vault', payloadFinal);
-        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2 y Token de Sesión.');
+        localStorage.setItem('pico_hardware_vault', `${salt.toString()}::${iv.toString()}::${cifrado}`);
     }
 
     abrirBovedaHardware(tokenJWT) {
@@ -397,32 +285,19 @@ export class Core {
                 const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
                 const bytes = CryptoJS.AES.decrypt(partes[2], llaveFuerte, { iv: iv });
                 return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-            } else {
-                const bytes = CryptoJS.AES.decrypt(payload, huella);
-                return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
             }
-        } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Intento de apertura fallido.', 'err');
-            return null;
-        }
+        } catch (e) { return null; }
     }
     
     generarHuellaDispositivo(tokenJWT = null) {
         const n = navigator; const s = screen;
-        const componentes = [n.userAgent, s.width + "x" + s.height + "x" + s.colorDepth, tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login-state"];
-        const stringBase = componentes.join("||");
-        let hash = 5381;
-        for (let i = 0; i < stringBase.length; i++) hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
+        const comp = [n.userAgent, s.width + "x" + s.height + "x" + s.colorDepth, tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login"];
+        const stringBase = comp.join("||");
+        let hash = 5381; for (let i = 0; i < stringBase.length; i++) hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
         return "fp-" + Math.abs(hash).toString(16);
     }
    
-    obtenerNombreDispositivo(huella) {
-        const ua = navigator.userAgent; let navegador = "Navegador", so = "Dispositivo";
-        if (ua.includes("Firefox")) navegador = "Firefox"; else if (ua.includes("Chrome")) navegador = "Chrome";
-        if (ua.includes("Win")) so = "Windows"; else if (ua.includes("Android")) so = "Android"; else if (ua.includes("Mac")) so = "Mac";
-        const identificadorUnico = huella ? huella.substring(huella.length - 4) : "0000";
-        return `${navegador} en ${so} (${identificadorUnico})`;
-    }
+    obtenerNombreDispositivo(huella) { return navigator.userAgent.includes("Win") ? "Windows" : "Dispositivo"; }
     
     async registrarUsuario(u, p1, p2) {
         if (!u || !u.includes('@') || p1 !== p2 || p1.length < 6) return this.notificar("Datos inválidos", "⚠️");
@@ -445,9 +320,7 @@ export class Core {
         try {
             const deviceId = this.generarHuellaDispositivo(); 
             const deviceName = this.obtenerNombreDispositivo(deviceId);
-            const functionUrl = 'https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro';
-            
-            const req = await fetch(functionUrl, {
+            const req = await fetch('https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.supabase.supabaseKey}` },
                 body: JSON.stringify({ email: emailAuth, password: p, device_id: deviceId, device_name: deviceName })
@@ -459,25 +332,16 @@ export class Core {
             this.usuarioLogueado = data.user;
             const tokenJWT = data.session.access_token;
 
-            // Perfil
-            const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
-            if (dbError || !perfilNube) throw new Error("Perfil no encontrado.");
+            const { data: perfilNube } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 MIGRACIÓN A TABLA HOGARES: Ahora las llaves residen en la tabla "hogares"
             const { data: miHogar } = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
             if (!miHogar) {
-                this.sysLog('SEC', 'Init', 'Forjando nuevo Hogar (Canal) y Llaves de Hardware...');
                 const nuevoTopic = `pico/ch_${Date.now()}/`;
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
-                
-                await this.supabase.from('hogares').insert({
-                    owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave
-                });
-                
-                this.conf = { topic: nuevoTopic, tk: nuevaClave, escudo_url: "wss://tu_servidor_python.onrender.com/ws" };
-                this.notificar("Frecuencia base construida", "📻");
+                await this.supabase.from('hogares').insert({ owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave });
+                this.conf = { topic: nuevoTopic, tk: nuevaClave };
             } else {
                 this.conf = { topic: miHogar.topic_base, tk: miHogar.pico_tk };
                 this.miHogarId = miHogar.id;
@@ -485,70 +349,54 @@ export class Core {
 
             this.guardarBovedaHardware(this.conf, tokenJWT);
             this.initSeguridadRoles();
-            
             this.restaurarEstadoCanal();
 
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
             if (this.perfilDB.avatar_url) {
                 const iconoMenu = document.querySelector('#user-profile-menu i');
-                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
+                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover;">`;
             }
 
-            sessionStorage.setItem('pico_sesion_ok', 'true');
             localStorage.setItem("u", u); 
-            
             document.getElementById('login-screen').style.display = 'none';
-            if(this.rol === 'admin' || this.rol === 'god') { document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important')); }
+            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
-            this.logHUD("Login completado y Bóveda sellada.", "✅");
-
+            this.notificar("Acceso concedido", "✅");
         } catch (error) {  
             document.getElementById('error-msg').innerText = "❌ " + error.message;
             document.getElementById('error-msg').style.display = 'block'; 
-            document.querySelector('.login-box').classList.add('error-shake');
-            setTimeout(()=>document.querySelector('.login-box').classList.remove('error-shake'), 500);
         }
     }
 
-        async cargarDatosDespuesDeLogin(tokenJWT) {
+    async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
-            const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
-            if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
+            const { data: perfilNube } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 AÑADIDO VITAL: Recuperar el ID de tu canal/hogar para que los botones sepan a dónde enviar la orden al recargar
             const { data: miHogar } = await this.supabase.from('hogares').select('id').eq('owner_id', this.usuarioLogueado.id).single();
-            if (miHogar) {
-                this.miHogarId = miHogar.id;
-            }
+            if (miHogar) this.miHogarId = miHogar.id;
             
             this.conf = this.abrirBovedaHardware(tokenJWT);
-            if (!this.conf) throw new Error("Caché local borrada. Inicia sesión manualmente.");
+            if (!this.conf) throw new Error("Caché local borrada.");
             
             this.initSeguridadRoles();
             this.restaurarEstadoCanal();
 
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || "USUARIO";
-            if (this.perfilDB.avatar_url) {
-                const iconoMenu = document.querySelector('#user-profile-menu i');
-                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.escapeHTML(this.perfilDB.avatar_url)}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
-            }
             
-            if(this.rol === 'admin' || this.rol === 'god') { document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important')); }
+            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
             this.notificar("Sesión restaurada", "🔐");
-        } catch (error) { 
-            this.cerrarSesion(); 
-        }
+        } catch (error) { this.cerrarSesion(); }
     }
 
     restaurarEstadoCanal() {
@@ -559,13 +407,10 @@ export class Core {
             this.conf.topic = cData.topic;
             this.conf.tk = cData.tk;
             this.canalActivo = { id: cData.id, nombre: cData.nombre };
-            
             setTimeout(() => {
                 const nom = document.getElementById('canal-activo-nombre');
-                const ban = document.getElementById('canal-activo-banner');
+                if(nom) nom.innerText = cData.nombre;
                 const btn = document.getElementById('btn-salir-canal');
-                if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
-                if(ban) ban.style.borderColor = '#0a84ff';
                 if(btn) btn.style.display = 'block';
             }, 500);
         }
@@ -575,14 +420,11 @@ export class Core {
         sessionStorage.removeItem('pico_sesion_ok');
         if(this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
         if(this.supabase) this.supabase.auth.signOut();
-        document.getElementById('pass-input').value = "";
         document.getElementById('login-screen').style.display = 'flex'; 
-        document.getElementById('side-menu').classList.remove('open');
     }
 
-
     // ==========================================================
-    // 💾 BLOQUE 3: AUTO-GUARDADO Y AJUSTES DE PERFIL
+    // 💾 BLOQUE 2: AUTO-GUARDADO Y AJUSTES DE PERFIL
     // ==========================================================
 
     async autoGuardarPerfil() {
@@ -592,11 +434,6 @@ export class Core {
             nombre: document.getElementById('input-perfil-nombre')?.value.trim() || null,
             alias: document.getElementById('input-perfil-alias')?.value.trim() || null,
             idioma: document.getElementById('select-perfil-idioma')?.value || 'es-ES',
-            estado_online: document.getElementById('check-estado-online')?.checked !== false,
-            ia: {
-                nube: document.getElementById('select-ia-nube')?.value || 'groq',
-                local: document.getElementById('select-ia-local')?.value || 'smollm'
-            },
             interfaz: {
                 sonidos: document.getElementById('check-ui-sonidos')?.checked === true,
                 vibracion: document.getElementById('sw-vibration')?.checked !== false,
@@ -604,16 +441,7 @@ export class Core {
                 tema: document.body.getAttribute('data-theme') || 'dark'
             }
         };
-
         document.body.setAttribute('data-estilo', datosActualizados.interfaz.estilo);
-        
-        const displayUser = document.getElementById('display-username');
-        if (displayUser) displayUser.innerText = datosActualizados.alias || datosActualizados.nombre || "USUARIO";
-        if (datosActualizados.avatar_url) {
-            const avatarImg = document.querySelector('#user-profile-menu img');
-            if (avatarImg) avatarImg.src = datosActualizados.avatar_url; 
-        }
-
         await this.supabase.from('perfiles').update(datosActualizados).eq('id', this.usuarioLogueado.id);
         this.perfilDB = { ...this.perfilDB, ...datosActualizados };
     }
@@ -626,16 +454,11 @@ export class Core {
         if(document.getElementById('input-perfil-nombre')) document.getElementById('input-perfil-nombre').value = p.nombre || '';
         if(document.getElementById('input-perfil-alias')) document.getElementById('input-perfil-alias').value = p.alias || '';
         
-        // 🚀 Inyectamos las credenciales de Hardware reales en los inputs protegidos
         const hwTopic = document.getElementById('hw-topic-input');
         const hwTk = document.getElementById('hw-tk-input');
-        
         if(hwTopic && hwTk) {
-            // Mostramos la llave Privada original, independientemente de si estamos visitando otro canal
-            const topicReal = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : 'Error');
-            const tkReal = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : 'Error');
-            hwTopic.value = topicReal;
-            hwTk.value = tkReal;
+            hwTopic.value = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : '');
+            hwTk.value = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : '');
         }
 
         modal.style.display = 'flex';
@@ -643,39 +466,31 @@ export class Core {
 
         const triggerSave = () => this.autoGuardarPerfil();
         ['input-perfil-nombre', 'input-perfil-alias', 'check-ui-sonidos', 'sw-vibration', 'check-estado-online'].forEach(id => {
-            const el = document.getElementById(id); if(el) el.onchange = triggerSave; if(el) el.onblur = triggerSave;
+            const el = document.getElementById(id); if(el) { el.onchange = triggerSave; el.onblur = triggerSave; }
         });
     }
 
     initSubidaAvatares() {
         const btnUpload = document.getElementById('btn-upload-avatar');
         const fileInput = document.getElementById('file-avatar-upload');
-        const urlInput = document.getElementById('input-perfil-avatar');
-
-        if (!btnUpload || !fileInput || !urlInput) return;
+        if (!btnUpload || !fileInput) return;
         btnUpload.onclick = (e) => { e.preventDefault(); fileInput.click(); };
-
         fileInput.onchange = async (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const iconoOriginal = btnUpload.innerHTML;
             btnUpload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            this.notificar("Subiendo imagen al servidor...", "⏳");
             try {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `avatar_${this.usuarioLogueado.id}_${Date.now()}.${fileExt}`;
-                const { error } = await this.supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: true });
-                if (error) throw error;
-                const { data: publicUrlData } = this.supabase.storage.from('avatars').getPublicUrl(fileName);
-                urlInput.value = publicUrlData.publicUrl;
-                this.notificar("¡Imagen subida!", "✅");
-                this.autoGuardarPerfil(); 
-            } catch (err) { this.notificar("Error al subir la imagen", "❌"); } 
-            finally { btnUpload.innerHTML = iconoOriginal; fileInput.value = ''; }
+                const fileName = `avatar_${this.usuarioLogueado.id}_${Date.now()}.${file.name.split('.').pop()}`;
+                await this.supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+                const { data } = this.supabase.storage.from('avatars').getPublicUrl(fileName);
+                document.getElementById('input-perfil-avatar').value = data.publicUrl;
+                this.autoGuardarPerfil(); this.notificar("¡Imagen subida!", "✅");
+            } catch (err) {} 
+            finally { btnUpload.innerHTML = '<i class="fa-solid fa-folder-open"></i>'; }
         };
     }
 
     // ==========================================================
-    // 🌐 BLOQUE 4: RED, MQTT Y ESTADO DE DISPOSITIVOS
+    // 🌐 BLOQUE 3: RED (SUPABASE REALTIME Y WEBHOOKS)
     // ==========================================================
 
     async conectar() {
@@ -684,54 +499,34 @@ export class Core {
         const dot = document.getElementById('mqtt-dot');
         if (dot) dot.className = "dot green";
 
-        // Determinar qué casa estamos escuchando
         const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
         if (!hogarTargetId) return;
 
-        // Limpiar suscripciones anteriores si las hay
-        if (this.suscripcionRealtime) {
-            this.supabase.removeChannel(this.suscripcionRealtime);
-        }
+        if (this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
 
         this.sysLog('NET', 'Sintonizando', `Escuchando telemetría del canal: ${hogarTargetId.substring(0,8)}`);
 
-        // Suscripción a Supabase Realtime (Reemplaza al viejo WebSocket)
         this.suscripcionRealtime = this.supabase.channel('custom-all-channel')
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'estado_hogares', filter: `hogar_id=eq.${hogarTargetId}` },
-                (payload) => {
-                    const datos = payload.new;
-                    if (!datos || !datos.estado_modulos) return;
-                    
-                    const telemetria = datos.estado_modulos;
-                    
-                    // Actualizar barra superior (Pico Status)
-                    this.updatePicoStatus(telemetria);
-                    
-                    // Repartir los datos a las tarjetas correspondientes
-                    this.cards.forEach(c => {
-                        // Si la telemetría trae datos directos para esta app (ej: {"Led": "ON"})
-                        if (telemetria[c.id]) {
-                            if(c.onData) c.onData(telemetria[c.id], c.id, this);
-                        }
-                    });
-                }
-            )
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_hogares', filter: `hogar_id=eq.${hogarTargetId}` }, (payload) => {
+                const datos = payload.new;
+                if (!datos || !datos.estado_modulos) return;
+                const telemetria = datos.estado_modulos;
+                
+                this.updatePicoStatus(telemetria);
+                this.cards.forEach(c => {
+                    if (telemetria[c.id] && c.onData) c.onData(telemetria[c.id], c.id, this);
+                });
+            })
             .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    this.sysLog('NET', 'Enlace OK', 'Sintonizado a la frecuencia del Trastero DB.');
-                }
                 if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
                     this.setNetworkStatus(false);
                     if (dot) dot.className = "dot red";
-                    setTimeout(() => this.conectar(), 3000); // Reintento automático
+                    setTimeout(() => this.conectar(), 3000); 
                 }
             });
     }
 
     pub(app, v, r) { 
-        // Ya no comprobamos WebSockets. Disparamos directamente a Supabase.
         this.cmd(app, v);
     }
 
@@ -740,40 +535,25 @@ export class Core {
             this.colaOffline.push({app, c});
             return this.notificar("Sin conexión. Orden en cola", "❌");
         }
-        
         try {
-            if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
-            if (!this.conf || !this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
-
-            // 1. Encriptación E2EE en el navegador
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
             
-            // 2. Identificar en qué canal estamos operando
             const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
             const brokerActual = this.brokers[this.brIdx].h;
 
-            // 3. Inyectar el comando en el buzón (Esto dispara el Webhook)
             const { error } = await this.supabase.from('cola_comandos').insert({
-                hogar_id: hogarTargetId,
-                app: app,
-                comando: paqueteCifrado,
-                broker_host: brokerActual,
-                topic_base: this.conf.topic,
-                pico_tk: this.conf.tk
+                hogar_id: hogarTargetId, app: app, comando: paqueteCifrado,
+                broker_host: brokerActual, topic_base: this.conf.topic, pico_tk: this.conf.tk
             });
-
             if (error) throw error;
             this.sysLog('DB', 'TX', `Comando inyectado en cola para [${app}]`);
-            
         } catch (error) { 
             this.notificar(`Fallo de transmisión: ${error.message}`, "❌"); 
-            this.sysLog('DB', 'TX Err', error.message, 'err');
         }
     }
 
     sincronizarColaOffline() {
-        // En vez de comprobar 'this.ws', comprobamos si hay internet en el navegador
         if (this.colaOffline.length > 0 && navigator.onLine) {
             this.colaOffline.forEach((orden, i) => { setTimeout(() => this.cmd(orden.app, orden.c), i * 200); });
             this.colaOffline = []; 
@@ -785,12 +565,11 @@ export class Core {
             if(this._wasOffline) { this.notificar("Conexión Recuperada", "🌐"); this._wasOffline = false; }
             this.sincronizarColaOffline();
         } else {
-            this.notificar("Sin conexión al Escudo", "⚠️");
-            this.vibra("error"); this._wasOffline = true;
+            this.notificar("Sin conexión al Escudo", "⚠️"); this.vibra("error"); this._wasOffline = true;
         }
     }
 
-        setupBrokerMenu() {
+    setupBrokerMenu() {
         const menu = document.getElementById('broker-menu');
         const current = document.getElementById('current-broker-name');
         current.innerText = this.brokers[this.brIdx].name;
@@ -802,19 +581,16 @@ export class Core {
             item.onclick = () => {
                 this.brIdx = idx; current.innerText = b.name; menu.classList.remove('open');
                 this.setupBrokerMenu(); this.notificar(`Enrutando a ${b.name}...`, "🔀");
-                // Ya no enviamos un paquete WS aquí. Python se enterará en el próximo comando.
             };
             menu.appendChild(item);
         });
     }
-
 
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
         if (!container) return;
         const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined));
         clearTimeout(this.picoWatchdog);
-        
         container.innerHTML = "";
         if (isOnline) {
             this.picoWatchdog = setTimeout(() => { this.updatePicoStatus("OFFLINE"); }, 20000);
@@ -827,8 +603,9 @@ export class Core {
     }
 
     // ==========================================================
-    // 🎨 BLOQUE 5: MOTOR UI Y TARJETAS
+    // 🎨 BLOQUE 4: RENDERIZADO Y NOTIFICACIONES
     // ==========================================================
+
     renderGrid() {
         let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
         const tarjetasFiltradas = this.cards.filter(c => {
@@ -853,144 +630,226 @@ export class Core {
     }
     initTheme() { const saved = localStorage.getItem('theme'); document.body.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light'); }
     vibra(tipo = "tick") { if (navigator.vibrate) navigator.vibrate(15); }
+    toggleEdit() { this.notificar("Modo edición desactivado temporalmente en esta vista", "ℹ️"); }
+
+    initColaNotificaciones() {
+        if (document.getElementById('toast-queue-container')) return;
+        this.colaNotificaciones = []; this.notificacionActiva = false;
+        const style = document.createElement('style');
+        style.innerHTML = `#toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; z-index: 9999; pointer-events: none; width: 90%; max-width: 500px; justify-content: center; } #toast-stack { display: flex; flex-direction: row; align-items: center; padding-top: 2px; } .toast-ball { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: white; border: 2px solid rgba(20, 20, 20, 0.95); margin-right: -22px; box-shadow: -3px 0 8px rgba(0,0,0,0.3); transition: 0.3s; animation: pop-in 0.3s forwards; position: relative; } .toast-ball:last-child { margin-right: 12px; } @keyframes pop-in { 0% { opacity: 0; transform: scale(0) translateX(-10px); } 100% { opacity: 1; transform: scale(1) translateX(0); } } .toast-island { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s, max-height 0.4s, opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); min-height: 36px; } .toast-island.open { max-width: 100vw; max-height: 300px; padding: 10px 18px; opacity: 1; } .toast-content { display: flex; align-items: center; gap: 10px; width: 100%; } .toast-icon-wrapper { width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.2); } .toast-text { font-size: 0.9rem; font-weight: 500; line-height: 1.3; overflow-wrap: break-word; word-break: break-word; text-align: left; }`;
+        document.head.appendChild(style);
+        const container = document.createElement('div'); container.id = 'toast-queue-container';
+        container.innerHTML = `<div id="toast-stack"></div><div id="toast-island" class="toast-island"><div class="toast-content"><div id="toast-i" class="toast-icon-wrapper"></div><span id="toast-t" class="toast-text"></span></div></div>`;
+        document.body.appendChild(container);
+    }
+
+    obtenerColorIcono(icon) {
+        if (!icon) return '#48484a';
+        if (icon.includes('✅') || icon.includes('🔋') || icon.includes('🌿')) return '#32d74b'; 
+        if (icon.includes('❌') || icon.includes('🚨') || icon.includes('🛑') || icon.includes('🗑️')) return '#ff453a'; 
+        if (icon.includes('⚠️') || icon.includes('🧹') || icon.includes('⚡') || icon.includes('⏳')) return '#ff9f0a'; 
+        if (icon.includes('ℹ️') || icon.includes('🌐') || icon.includes('🔀') || icon.includes('🗣️') || icon.includes('📡') || icon.includes('🔎') || icon.includes('📻')) return '#0a84ff'; 
+        if (icon.includes('🧠') || icon.includes('🤖') || icon.includes('🧬') || icon.includes('🎲') || icon.includes('🔮')) return '#bf5af2'; 
+        return '#8e8e93'; 
+    }
+
+    actualizarBadgeCola() {
+        const stack = document.getElementById('toast-stack'); if (!stack) return; stack.innerHTML = '';
+        for (let i = this.colaNotificaciones.length - 1; i >= 0; i--) {
+            const notif = this.colaNotificaciones[i]; const ball = document.createElement('div');
+            ball.className = 'toast-ball'; ball.style.backgroundColor = notif.color; ball.style.zIndex = 100 - i; ball.innerHTML = notif.icon; stack.appendChild(ball);
+        }
+    }
+
+    notificar(msg, icon = "✅") {
+        if (!this.colaNotificaciones) this.initColaNotificaciones();
+        const mensajeStr = String(msg || "");
+        if (this.colaNotificaciones.length > 0 && this.colaNotificaciones[this.colaNotificaciones.length - 1].msg === mensajeStr) return;
+        if (this.notificacionActiva && this.mensajeActual === mensajeStr) return;
+        this.colaNotificaciones.push({msg: mensajeStr, icon, color: this.obtenerColorIcono(icon)});
+        this.actualizarBadgeCola(); this.procesarSiguienteNotificacion();
+    }
+
+    procesarSiguienteNotificacion() {
+        if (this.notificacionActiva || this.colaNotificaciones.length === 0) return;
+        this.notificacionActiva = true; const actual = this.colaNotificaciones.shift(); this.mensajeActual = actual.msg;
+        this.actualizarBadgeCola(); 
+        const island = document.getElementById('toast-island'); const iconWrapper = document.getElementById('toast-i'); const textEl = document.getElementById('toast-t');
+        iconWrapper.style.backgroundColor = actual.color; iconWrapper.innerHTML = actual.icon; textEl.innerHTML = this.escapeHTML(actual.msg); 
+        island.classList.add('open'); this.vibra("tick");
+        const tiempoLectura = Math.max(3000, actual.msg.length * 60);
+        setTimeout(() => {
+            island.classList.remove('open');
+            setTimeout(() => { this.notificacionActiva = false; this.mensajeActual = null; this.procesarSiguienteNotificacion(); }, 400); 
+        }, tiempoLectura); 
+    }
 
     // ==========================================================
-    // 📻 BLOQUE 9: FRECUENCIAS Y CANALES (Supabase Mapped)
+    // 🧠 BLOQUE 5: IA NATIVA Y JARVIS
+    // ==========================================================
+
+    initVozJARVIS() {}
+    iniciarAgenteProactivo() {}
+    initInterruptorIA() {}
+    procesarComandoIA() { this.notificar("Procesamiento IA temporalmente inactivo.", "🤖"); }
+
+    // ==========================================================
+    // ⚙️ BLOQUE 6: MISCELÁNEA Y HARDWARE VIRTUAL
+    // ==========================================================
+
+    ejecutarComandoLocal(app, accion) {
+        const comandosLocales = ["Tema", "Edicion", "Vibracion", "Actualizaciones", "Vista", "Filtro", "Consola", "Sesion", "VozIA", "Consciencia", "IA"];
+        const hardwareVirtual = ["Dado", "Pomodoro", "Calculadora", "Qr", "Reloj", "Tiempo", "Lista", "Macros"];
+        
+        if (hardwareVirtual.includes(app)) {
+            if (this.logHUD) this.logHUD(`Simulando hardware virtual: ${app} -> ${accion}`, "out");
+            if (app === "Dado" && accion === "roll") { this.pub("Dado", Math.floor(Math.random() * 6) + 1, true); } 
+            else if (app !== "Macros") { 
+                this.pub(app, accion, true); 
+                const tarjeta = this.cards.find(c => c.id === app);
+                if (tarjeta && tarjeta.onData) tarjeta.onData(accion, app, this);
+            }
+            return true;
+        }
+
+        if (!comandosLocales.includes(app)) return false;
+        switch(app) {
+            case "Tema": if (accion === "toggle") this.toggleTheme(); break;
+            case "Filtro": this.filtroActual = accion; this.renderGrid(); document.querySelectorAll('.filter-pill').forEach(b => { b.classList.remove('active'); if (b.dataset.filter === accion) b.classList.add('active'); }); break;
+            case "Consola": const hud = document.getElementById('hud-console'); if (accion === "toggle") this.toggleHUD(); break;
+            case "Sesion": if (accion === "logout") this.cerrarSesion(); break;
+        }
+        return true;
+    }
+
+    initAtajosTeclado() {
+        window.addEventListener('keydown', (e) => {
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if(e.key.toLowerCase() === 'l') { this.vibra("tick"); const st = document.getElementById('val-Led')?.innerText; if(st) this.pub('Led', st === "ON" ? "off" : "on"); }
+            if(e.key === 'h' && this.rol === 'god') this.toggleHUD();
+        });
+    }
+
+    toggleHUD() {
+        if(this.rol !== 'god') return;
+        let hud = document.getElementById('hud-console');
+        if(!hud) { 
+            hud = document.createElement('div'); hud.id = 'hud-console'; document.body.appendChild(hud); 
+            this.logHUD("INTERCEPTANDO TRÁFICO MQTT..."); 
+        }
+        hud.classList.toggle('active');
+    }
+
+    logHUD(msg, tipo = "info", dataExtra = null, solucion = null) {
+        const hud = document.getElementById('hud-console'); if(!hud) return;
+        let textoFinal = `> ${msg}`;
+        const linea = document.createElement('div'); linea.className = `hud-msg ${tipo === 'error' || tipo === 'err' ? 'hud-err' : ''}`;
+        linea.innerText = `[${new Date().toLocaleTimeString()}] ${textoFinal}`; 
+        hud.appendChild(linea); hud.scrollTop = hud.scrollHeight;
+    }
+
+    initParallax() {}
+    initSwipeGestures() {}
+    initSidebar() {
+        const trigger = document.querySelector('.pico-os-title'); const menu = document.getElementById('side-menu');
+        trigger.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); this.vibra("tick"); });
+        document.addEventListener('click', (e) => { if(!menu.contains(e.target) && !trigger.contains(e.target)) menu.classList.remove('open'); });
+        
+        const btnCanales = document.getElementById('btn-nav-canales');
+        if (btnCanales) btnCanales.onclick = () => { 
+            document.getElementById('canales-view').style.display = 'block'; 
+            menu.classList.remove('open'); 
+            this.cargarCanales(); 
+        };
+    }
+    initMultijugador() {}
+    initModosExpertos() {}
+    initBaseDeDatos() {}
+    comprobarSolicitudesPendientes() {}
+
+    // ==========================================================
+    // 📻 BLOQUE 8: CANALES Y FRECUENCIAS
     // ==========================================================
 
     async cargarCanales() {
-        this.sysLog('NET', 'Canales', 'Buscando canales a los que tienes acceso...');
+        this.sysLog('NET', 'Canales', 'Buscando canales...');
         const lista = document.getElementById('lista-canales-publicos');
         const btnCrear = document.getElementById('btn-crear-canal');
-        
         if (!lista) return;
         lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
 
-        if (this.tienePermiso('admin') && btnCrear) {
-            btnCrear.style.setProperty('display', 'block', 'important');
-        }
+        if (this.tienePermiso('admin') && btnCrear) btnCrear.style.setProperty('display', 'block', 'important');
 
         try {
-            // Buscamos las filas en la tabla 'hogares' donde eres dueño o invitado
-            const { data: misCasas, error: errC } = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id);
-            const { data: accesos, error: errA } = await this.supabase.from('accesos_hogares').select('hogar_id').eq('invitado_id', this.usuarioLogueado.id);
+            const { data: misCasas } = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id);
+            const { data: accesos } = await this.supabase.from('accesos_hogares').select('hogar_id').eq('invitado_id', this.usuarioLogueado.id);
             
             let canalesAcceso = [...misCasas];
             if (accesos && accesos.length > 0) {
-                const idsInvitado = accesos.map(a => a.hogar_id);
-                const { data: casasInvitado } = await this.supabase.from('hogares').select('*').in('id', idsInvitado);
+                const { data: casasInvitado } = await this.supabase.from('hogares').select('*').in('id', accesos.map(a => a.hogar_id));
                 if (casasInvitado) canalesAcceso = canalesAcceso.concat(casasInvitado);
             }
 
             lista.innerHTML = '';
-            if (canalesAcceso.length === 0) {
-                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">El éter está vacío. No hay canales.</p>';
-                return;
-            }
+            if (canalesAcceso.length === 0) return lista.innerHTML = '<p style="color:var(--text-sec); text-align:center;">El éter está vacío.</p>';
 
             canalesAcceso.forEach(canal => {
-                const isOwner = canal.owner_id === this.usuarioLogueado.id;
                 const isActivo = this.canalActivo && this.canalActivo.id === canal.id;
-                const badge = isActivo ? `<span style="background:#32d74b; color:black; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; margin-left:10px;">SINTONIZADO</span>` : (isOwner ? '<span style="background:var(--primary); color:white; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; margin-left:10px;">PROPIO</span>' : '');
-                
                 lista.innerHTML += `
                 <div class="user-card glass-element cascade-in" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid ${isActivo ? '#32d74b' : 'var(--border)'};">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="background: rgba(10, 132, 255, 0.1); width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #0a84ff; font-size: 1.2rem; border: 1px solid rgba(10, 132, 255, 0.3);">
-                            <i class="fa-solid fa-tower-broadcast"></i>
-                        </div>
+                        <div style="background: rgba(10, 132, 255, 0.1); width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #0a84ff;"><i class="fa-solid fa-tower-broadcast"></i></div>
                         <div style="display: flex; flex-direction: column; text-align: left;">
-                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${this.escapeHTML(canal.nombre)} ${badge}</span>
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${this.escapeHTML(canal.nombre)}</span>
                             <span style="font-size: 0.75rem; color: var(--text-sec); font-family: monospace;">CH-${canal.id.substring(0,8).toUpperCase()}</span>
                         </div>
                     </div>
-                    <button class="btn-action" onclick="window.App.unirseCanal('${canal.id}', '${this.escapeHTML(canal.nombre)}', '${this.escapeHTML(canal.topic_base)}', '${this.escapeHTML(canal.pico_tk)}')" style="width: auto; background: ${isActivo ? 'transparent' : 'var(--primary)'}; border: ${isActivo ? '1px solid #32d74b' : 'none'}; color: ${isActivo ? '#32d74b' : 'white'}; padding: 8px 15px; font-size: 0.85rem; margin: 0;" ${isActivo ? 'disabled' : ''}>
+                    <button class="btn-action" onclick="window.App.unirseCanal('${canal.id}', '${this.escapeHTML(canal.nombre)}', '${this.escapeHTML(canal.topic_base)}', '${this.escapeHTML(canal.pico_tk)}')" style="width: auto; background: ${isActivo ? 'transparent' : 'var(--primary)'}; border: ${isActivo ? '1px solid #32d74b' : 'none'}; color: ${isActivo ? '#32d74b' : 'white'}; padding: 8px 15px;">
                         ${isActivo ? '<i class="fa-solid fa-check"></i>' : 'Sintonizar'}
                     </button>
                 </div>`;
             });
-        } catch (e) {
-            this.sysLog('NET', 'Canales Err', e.message, 'err');
-            lista.innerHTML = '<p style="color:#ff453a; text-align:center; font-size:0.9rem;">Error al interceptar frecuencias.</p>';
-        }
+        } catch (e) { lista.innerHTML = '<p style="color:#ff453a; text-align:center;">Error al interceptar frecuencias.</p>'; }
     }
 
     async crearCanal() {
         if (!this.tienePermiso('admin')) return;
         const nombre = prompt("Nombre del nuevo Canal:");
         if (!nombre) return;
-
         this.notificar("Forjando canal cifrado...", "⚙️");
         try {
-            const topicBase = `pico/ch_${Date.now()}/`;
-            const pTk = CryptoJS.lib.WordArray.random(32).toString();
-
-            const { error } = await this.supabase.from('hogares').insert({
-                nombre: nombre,
-                topic_base: topicBase,
-                pico_tk: pTk,
-                owner_id: this.usuarioLogueado.id
-            });
-
-            if (error) throw error;
-            this.notificar("Canal operativo", "✅");
-            this.cargarCanales();
-        } catch (e) {
-            this.notificar("Fallo al crear el canal", "❌");
-        }
+            await this.supabase.from('hogares').insert({ nombre: nombre, topic_base: `pico/ch_${Date.now()}/`, pico_tk: CryptoJS.lib.WordArray.random(32).toString(), owner_id: this.usuarioLogueado.id });
+            this.notificar("Canal operativo", "✅"); this.cargarCanales();
+        } catch (e) { this.notificar("Fallo al crear el canal", "❌"); }
     }
 
     async unirseCanal(id, nombre, topic, tk) {
-        this.sysLog('NET', 'Sintonizar', `Sintonizando: ${nombre}`);
+        if (!this.confPrivada) this.confPrivada = { topic: this.conf.topic, tk: this.conf.tk };
+        this.conf.topic = topic; this.conf.tk = tk; this.canalActivo = { id, nombre };
+        sessionStorage.setItem('pico_canal_activo', JSON.stringify({ id, nombre, topic, tk, privada: this.confPrivada }));
         
-        if (!this.confPrivada) {
-            this.confPrivada = { topic: this.conf.topic, tk: this.conf.tk };
-        }
-
-        this.conf.topic = topic;
-        this.conf.tk = tk;
-        this.canalActivo = { id, nombre };
-
-        sessionStorage.setItem('pico_canal_activo', JSON.stringify({
-            id, nombre, topic, tk, privada: this.confPrivada
-        }));
-
         document.getElementById('dashboard-grid').innerHTML = "";
-        this.renderGrid(); 
-        this.conectar(); // 🚀 RE-SINTONIZA SUPABASE REALTIME AL NUEVO CANAL
+        this.renderGrid(); this.conectar();
         
         document.getElementById('canal-activo-nombre').innerText = nombre;
         document.getElementById('canal-activo-nombre').style.color = '#0a84ff';
         document.getElementById('canal-activo-banner').style.borderColor = '#0a84ff';
         document.getElementById('btn-salir-canal').style.display = 'block';
-        
-        this.notificar(`Conectado a: ${nombre}`, "📻");
-        this.vibra("doble");
-        this.cargarCanales(); 
+        this.notificar(`Conectado a: ${nombre}`, "📻"); this.cargarCanales(); 
     }
 
     async salirCanal() {
         if (!this.confPrivada) return;
-
-        this.sysLog('NET', 'Sintonizar', 'Volviendo al Canal Privado');
-        
-        this.conf.topic = this.confPrivada.topic;
-        this.conf.tk = this.confPrivada.tk;
-        this.canalActivo = null;
-
+        this.conf.topic = this.confPrivada.topic; this.conf.tk = this.confPrivada.tk; this.canalActivo = null;
         sessionStorage.removeItem('pico_canal_activo');
-
+        
         document.getElementById('dashboard-grid').innerHTML = "";
-        this.renderGrid(); 
-        this.conectar(); // 🚀 RE-SINTONIZA SUPABASE REALTIME A TU PROPIO CANAL
+        this.renderGrid(); this.conectar();
         
         document.getElementById('canal-activo-nombre').innerText = 'Canal Privado';
         document.getElementById('canal-activo-nombre').style.color = 'white';
         document.getElementById('canal-activo-banner').style.borderColor = '#32d74b';
         document.getElementById('btn-salir-canal').style.display = 'none';
-
-        this.notificar("Canal Privado restaurado", "🔒");
-        this.vibra("tick");
-        this.cargarCanales();
+        this.notificar("Canal Privado restaurado", "🔒"); this.cargarCanales();
     }
 }
