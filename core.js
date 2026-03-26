@@ -544,7 +544,27 @@ export class Core {
             this.guardarBovedaHardware(this.conf, tokenJWT);
             
             this.initSeguridadRoles();
-
+            
+            // --- 🚀 RESTAURACIÓN DE CANAL TRAS RECARGAR ---
+            const canalGuardado = sessionStorage.getItem('pico_canal_activo');
+            if (canalGuardado) {
+                const cData = JSON.parse(canalGuardado);
+                this.confPrivada = cData.privada;
+                this.conf.topic = cData.topic;
+                this.conf.tk = cData.tk;
+                this.canalActivo = { id: cData.id, nombre: cData.nombre };
+                
+                // Restauramos los colores del panel de Canales
+                setTimeout(() => {
+                    const nom = document.getElementById('canal-activo-nombre');
+                    const ban = document.getElementById('canal-activo-banner');
+                    const btn = document.getElementById('btn-salir-canal');
+                    if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
+                    if(ban) ban.style.borderColor = '#0a84ff';
+                    if(btn) btn.style.display = 'block';
+                }, 500);
+            }
+            
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
             
@@ -593,7 +613,27 @@ export class Core {
             }
             
             this.initSeguridadRoles();
-
+            
+            // --- 🚀 RESTAURACIÓN DE CANAL TRAS RECARGAR ---
+            const canalGuardado = sessionStorage.getItem('pico_canal_activo');
+            if (canalGuardado) {
+                const cData = JSON.parse(canalGuardado);
+                this.confPrivada = cData.privada;
+                this.conf.topic = cData.topic;
+                this.conf.tk = cData.tk;
+                this.canalActivo = { id: cData.id, nombre: cData.nombre };
+                
+                // Restauramos los colores del panel de Canales
+                setTimeout(() => {
+                    const nom = document.getElementById('canal-activo-nombre');
+                    const ban = document.getElementById('canal-activo-banner');
+                    const btn = document.getElementById('btn-salir-canal');
+                    if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
+                    if(ban) ban.style.borderColor = '#0a84ff';
+                    if(btn) btn.style.display = 'block';
+                }, 500);
+            }
+            
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || "USUARIO";
             if (this.perfilDB.avatar_url) {
@@ -2304,6 +2344,11 @@ export class Core {
         this.conf.tk = tk;
         this.canalActivo = { id, nombre };
 
+        // 🚀 PARCHE AMNESIA: Guardamos el estado del canal activo en la sesión
+        sessionStorage.setItem('pico_canal_activo', JSON.stringify({
+            id, nombre, topic, tk, privada: this.confPrivada
+        }));
+
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: topic }));
         }
@@ -2329,6 +2374,9 @@ export class Core {
         this.conf.topic = this.confPrivada.topic;
         this.conf.tk = this.confPrivada.tk;
         this.canalActivo = null;
+
+        // 🚀 PARCHE AMNESIA: Borramos el rastro del canal al salir
+        sessionStorage.removeItem('pico_canal_activo');
 
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: this.conf.topic }));
