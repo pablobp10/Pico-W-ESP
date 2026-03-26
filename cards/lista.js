@@ -1,3 +1,7 @@
+// =========================================================================
+// ARCHIVO: cards/lista.js (Módulo Multi-Topic de Lista de la Compra)
+// =========================================================================
+
 export const ListaCard = {
     id: "Lista",
     defaultSize: "1x2", 
@@ -6,9 +10,13 @@ export const ListaCard = {
         icono: "fa-brands fa-whatsapp",
         color: "#25D366",
         ejecutar: (core) => {
-            let items = window.currentShopList || [];
-            if(items.length === 0) return core.notificar("La lista está vacía", "ℹ️");
-            let texto = "*Mi Lista de la Compra:*\n\n";
+            // 🛡️ PARCHE: Usamos la lista específica del topic actual
+            const cacheKey = `pico_lista_cache_${core.conf.topic}`;
+            const cache = localStorage.getItem(cacheKey);
+            let items = cache ? JSON.parse(cache) : [];
+            
+            if(items.length === 0) return core.notificar("La lista de esta frecuencia está vacía", "ℹ️");
+            let texto = `*Lista [${core.canalActivo ? core.canalActivo.nombre : 'Privada'}]:*\n\n`;
             items.forEach(i => texto += i.done ? `~- ${i.txt}~\n` : `- ${i.txt}\n`);
             window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
         }
@@ -35,12 +43,12 @@ export const ListaCard = {
         </style>
         
         <div id="lista-wrapper">
-            <div class="lista-label"><i class="fa-solid fa-cart-shopping" style="color:#eab308"></i> LISTA DE COMPRA</div>
+            <div class="lista-label"><i class="fa-solid fa-cart-shopping" style="color:#eab308"></i> LISTA DE TAREAS</div>
             <div id="shop-list">
                 <div style="color:var(--text-sec); font-size:0.8rem; margin-top:20px">Cargando...</div>
             </div>
             <div class="add-row-fluid">
-                <input type="text" id="shop-input" placeholder="Añadir producto...">
+                <input type="text" id="shop-input" placeholder="Añadir ítem...">
                 <button id="btn-add"><i class="fa-solid fa-plus"></i></button>
             </div>
             
@@ -48,23 +56,31 @@ export const ListaCard = {
         </div>
     `,
     onInit: (core) => {
+        // Encerramos addItem en funciones anónimas para pasarle el topic actual
         document.getElementById('btn-add').onclick = () => addItem(core);
         document.getElementById('shop-input').onkeypress = (e) => {
             if(e.key === 'Enter') addItem(core);
         };
         
-        const cache = localStorage.getItem('pico_lista_cache');
-        window.currentShopList = cache ? JSON.parse(cache) : [];
+        // 🛡️ PARCHE: Leemos la lista del topic activo al iniciar
+        const cacheKey = `pico_lista_cache_${core.conf.topic}`;
+        const cache = localStorage.getItem(cacheKey);
+        const currentList = cache ? JSON.parse(cache) : [];
         
         setTimeout(() => {
             const container = document.getElementById('shop-list');
             if (container && container.innerHTML.includes('Cargando...')) {
-                ListaCard.onData(JSON.stringify(window.currentShopList), 'Lista', core);
+                // Forzamos el redibujado inicial con los datos aislados
+                ListaCard.onData(JSON.stringify(currentList), 'Lista', core);
             }
         }, 500);
     },
     onData: (val, app, core) => {
-        let items = window.currentShopList || [];
+        // 🛡️ PARCHE: Recuperamos siempre del disco duro la versión del topic actual
+        const cacheKey = `pico_lista_cache_${core.conf.topic}`;
+        const cache = localStorage.getItem(cacheKey);
+        let items = cache ? JSON.parse(cache) : [];
+        
         try { 
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed)) items = parsed;
@@ -81,18 +97,16 @@ export const ListaCard = {
                     const aAnadir = val.trim().startsWith("+") ? val.substring(1).trim() : val.trim();
                     if(aAnadir) items.push({ txt: aAnadir, done: false });
                 }
-                // Si llegamos aquí por culpa de un comando de IA, actualizamos la memoria central
                 if (core) core.pub('Lista', JSON.stringify(items), true);
             }
         }
         
-        window.currentShopList = items;
-        localStorage.setItem('pico_lista_cache', JSON.stringify(items));
+        // 🛡️ PARCHE: Guardamos en el archivo exclusivo de este canal
+        localStorage.setItem(cacheKey, JSON.stringify(items));
         
         const container = document.getElementById('shop-list');
         container.innerHTML = ""; 
         
-        // 🧠 Alimentamos el Ojo de la IA
         const aiDataField = document.getElementById('lista-ai-data');
         if (aiDataField) {
             aiDataField.innerText = items.length > 0 
@@ -116,7 +130,6 @@ export const ListaCard = {
             
             div.querySelector('input').onchange = () => {
                 items[index].done = !items[index].done;
-                // 🚀 Usamos ejecutarComandoLocal para auto-redibujar
                 core.ejecutarComandoLocal('Lista', JSON.stringify(items));
             };
 
@@ -129,8 +142,11 @@ export const ListaCard = {
         });
     },
     abrirAjustes: (core) => {
-        if(confirm("¿Eliminar los productos tachados?")) {
-            let items = window.currentShopList || [];
+        if(confirm("¿Eliminar los productos tachados de este canal?")) {
+            const cacheKey = `pico_lista_cache_${core.conf.topic}`;
+            const cache = localStorage.getItem(cacheKey);
+            let items = cache ? JSON.parse(cache) : [];
+            
             items = items.filter(i => !i.done);
             core.ejecutarComandoLocal('Lista', JSON.stringify(items));
             core.notificar("Lista depurada", "🧹");
@@ -142,10 +158,13 @@ function addItem(core) {
     const input = document.getElementById('shop-input');
     const txt = input.value.trim();
     if(!txt) return;
-    let currentList = window.currentShopList || [];
-    currentList.push({ txt: txt, done: false });
     
-    // 🚀 Redibujado instantáneo
+    // 🛡️ PARCHE: Leemos la lista que toca
+    const cacheKey = `pico_lista_cache_${core.conf.topic}`;
+    const cache = localStorage.getItem(cacheKey);
+    let currentList = cache ? JSON.parse(cache) : [];
+    
+    currentList.push({ txt: txt, done: false });
     core.ejecutarComandoLocal('Lista', JSON.stringify(currentList));
     
     input.value = "";
