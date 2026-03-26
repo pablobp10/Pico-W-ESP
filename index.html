@@ -91,8 +91,8 @@
             <li id="btn-nav-plaza" style="color: var(--primary); font-weight: bold; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 15px; margin-bottom: 10px;">
                 <i class="fa-solid fa-users-viewfinder" style="font-size: 1.2rem; margin-right: 10px;"></i> Plaza Social
             </li>
-            <li id="btn-nav-hogares" style="color: #32d74b; font-weight: bold; border-bottom: 1px solid rgba(50, 215, 75, 0.2); padding-bottom: 15px; margin-bottom: 10px;">
-                <i class="fa-solid fa-house-signal" style="font-size: 1.2rem; margin-right: 10px;"></i> Hogares
+            <li id="btn-nav-canales" style="color: #32d74b; font-weight: bold; border-bottom: 1px solid rgba(50, 215, 75, 0.2); padding-bottom: 15px; margin-bottom: 10px;">
+                <i class="fa-solid fa-walkie-talkie" style="font-size: 1.2rem; margin-right: 10px;"></i> Canales
             </li>
             <li id="btn-nav-plano"><i class="fa-solid fa-map"></i> Plano de Planta</li>
             <li id="btn-nav-macros"><i class="fa-solid fa-diagram-project"></i> Macros Visuales</li>
@@ -116,22 +116,22 @@
         </div>
     </div>
     
-    <div id="hogares-view" class="fullscreen-overlay glass-element" style="display: none;">
+    <div id="canales-view" class="fullscreen-overlay glass-element" style="display: none;">
         <div class="overlay-header">
-            <h2><i class="fa-solid fa-house-signal" style="color: #32d74b; margin-right: 10px;"></i> Hogares </h2>
-            <button class="close-btn" onclick="document.getElementById('hogares-view').style.display='none'">
+            <h2><i class="fa-solid fa-walkie-talkie" style="color: #32d74b; margin-right: 10px;"></i> Canales </h2>
+            <button class="close-btn" onclick="document.getElementById('canales-view').style.display='none'">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <div class="plaza-container" style="padding: 20px; overflow-y: auto; height: calc(100% - 70px); box-sizing: border-box; scrollbar-width: none;">
-            <div id="hogar-activo-banner" class="glass-element" style="background: rgba(50, 215, 75, 0.1); border: 1px solid #32d74b; padding: 15px; border-radius: 15px; margin-bottom: 25px; text-align: center;">
-                <h3 style="margin: 0 0 5px 0; color: #32d74b; font-size: 0.9rem;">CONECTADO A:</h3>
-                <div id="hogar-activo-nombre" style="font-size: 1.2rem; font-weight: bold; color: white;">Cargando...</div>
-                <button id="btn-salir-hogar" class="btn-action" style="display: none; background: #ff453a; margin-top: 10px; font-size: 0.8rem; padding: 8px;"><i class="fa-solid fa-plug-circle-xmark"></i> Desconectar y Volver a mi Hogar</button>
+            <div id="canal-activo-banner" class="glass-element" style="background: rgba(50, 215, 75, 0.1); border: 1px solid #32d74b; padding: 15px; border-radius: 15px; margin-bottom: 25px; text-align: center;">
+                <h3 style="margin: 0 0 5px 0; color: #32d74b; font-size: 0.9rem;">ENLACE ACTUAL</h3>
+                <div id="canal-activo-nombre" style="font-size: 1.2rem; font-weight: bold; color: white;">Cargando...</div>
+                <button id="btn-salir-canal" class="btn-action" style="display: none; background: #ff453a; margin-top: 10px; font-size: 0.8rem; padding: 8px;"><i class="fa-solid fa-plug-circle-xmark"></i> Desconectar y Volver a Privado</button>
             </div>
             
-            <button id="btn-crear-hogar" class="btn-action admin-only" style="background: #0a84ff; margin-bottom: 25px; display: none;"><i class="fa-solid fa-satellite-dish"></i> Configurar Nuevo Hogar </button>
-            <div id="lista-hogares-publicos"></div>
+            <button id="btn-crear-canal" class="btn-action admin-only" style="background: #0a84ff; margin-bottom: 25px; display: none;"><i class="fa-solid fa-satellite-dish"></i> Crear Nuevo Canal </button>
+            <div id="lista-canales-publicos"></div>
         </div>
     </div>
 
