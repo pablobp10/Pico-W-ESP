@@ -1,3 +1,7 @@
+// =========================================================================
+// ARCHIVO: core.js (Motor Principal de Pico OS)
+// =========================================================================
+
 import { TiempoCard } from './cards/tiempo.js';
 import { ListaCard } from './cards/lista.js'; 
 import { MegafonoCard } from './cards/megafono.js';
@@ -33,6 +37,8 @@ export class Core {
             PlantaCard, EnergiaCard, SintetizadorCard, OCRCard, ConscienciaCard
         ];
         this.conf = null;
+        this.confPrivada = null; // 🚀 Almacena la llave E2EE personal cuando visitas un Canal
+        this.canalActivo = null; // 🚀 Almacena los datos del canal actual
         this.perfilDB = null; 
         this.mqtt = null;
         this.rol = "guest";
@@ -53,9 +59,7 @@ export class Core {
         this.brIdx = 0;
         this.colaOffline = [];
 
-        // Hacemos que el núcleo sea accesible globalmente para eventos HTML sueltos
         window.App = this;
-        
         this.arranqueSeguro();
     }
 
@@ -63,14 +67,12 @@ export class Core {
     // 🛡️ BLOQUE 0: NÚCLEO, SEGURIDAD Y DEPURACIÓN EXTREMA
     // ==========================================================
     
-        initSeguridadRoles() {
-        // 1. Guardamos la consola nativa una sola vez (la caja fuerte original)
+    initSeguridadRoles() {
         if (!window._consolaOriginal) {
             window._consolaOriginal = { log: console.log, warn: console.warn, error: console.error, info: console.info };
         }
 
         if (this.rol === 'god') {
-            // Restauramos la consola pública para que Eruda pueda "secuestrarla"
             console.log = window._consolaOriginal.log;
             console.warn = window._consolaOriginal.warn;
             console.error = window._consolaOriginal.error;
@@ -87,12 +89,10 @@ export class Core {
                 document.head.appendChild(script);
             }
         } else {
-            // 🛡️ ANTI-HACKEO: Silenciamos por completo la consola para Admin y Guest
             const ofuscador = () => {};
             console.log = ofuscador;
             console.info = ofuscador;
             console.warn = ofuscador;
-            
             console.error = (...args) => {
                 if (this.rol === 'admin') {
                     window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada. Reporte al GOD.");
@@ -102,10 +102,7 @@ export class Core {
     }
 
     sysLog(modulo, accion, mensaje, tipo = "info", dataExtra = null, solucion = null) {
-        // 1. Consola F12 / Eruda -> Solo Nivel GOD
         if (this.rol === 'god') {
-            // 🚀 PARCHE: Ya NO usamos _consolaOriginal. Usamos el console global
-            // que Eruda está escuchando activamente.
             const metodo = tipo === 'err' || tipo === 'error' ? 'error' : tipo === 'warn' ? 'warn' : 'log';
             const log = console[metodo] || console.log; 
             
@@ -115,21 +112,16 @@ export class Core {
             
             log(`%c[${timestamp}] [${modulo.toUpperCase()}] %c${accion.toUpperCase()}:`, `color: ${color}; font-weight: bold;`, `color: inherit; font-weight: normal;`, mensaje);
             
-            // Inyectamos el objeto crudo (el payload de red, etc) para que puedas inspeccionarlo en Eruda
             if (dataExtra) { 
                 try { log(JSON.parse(JSON.stringify(dataExtra))); } 
                 catch(e) { log("[Payload Complejo/Binario]", dataExtra); } 
             }
-            
             if ((tipo === 'error' || tipo === 'err') && solucion) {
                 log(`%c💡 FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: inherit; font-weight: normal;`);
             }
         }
-
-        // 2. Puente automático hacia el HUD flotante de la interfaz web
         this.logHUD(`[${modulo.toUpperCase()}] ${accion}: ${mensaje}`, tipo, dataExtra, solucion);
     }
-
 
     tienePermiso(rolRequerido) {
         const jerarquia = { 'guest': 1, 'admin': 2, 'god': 3 };
@@ -232,13 +224,11 @@ export class Core {
         this.initInterruptorIA();
         this.initSubidaAvatares();
 
-        // --- BOTONES DE LOGIN Y SISTEMA ---
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
         const btnHuella = document.getElementById('btn-huella');
         if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
         
-        // 🆕 Lógica de Registro Conectada
         const linkRegister = document.getElementById('link-toggle-register');
         const btnRegisterSubmit = document.getElementById('btn-register-submit');
         const btnLogin = document.getElementById('btn-login');
@@ -273,9 +263,6 @@ export class Core {
                 this.registrarUsuario(u, p1, p2);
             };
         }
-        // ------------------------------------
-
-        
 
         const userProfileMenu = document.getElementById('user-profile-menu');
         if(userProfileMenu) {
@@ -290,12 +277,17 @@ export class Core {
                 this.cargarPlazaPublica();
             });
         }
+        
+        // 🚀 ENGANCHE BOTONES CANAL (UI)
+        const btnSalirCanal = document.getElementById('btn-salir-canal');
+        if (btnSalirCanal) btnSalirCanal.onclick = () => this.salirCanal();
+        
+        const btnCrearCanal = document.getElementById('btn-crear-canal');
+        if (btnCrearCanal) btnCrearCanal.onclick = () => this.crearCanal();
 
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
         if(document.getElementById('btn-logout')) document.getElementById('btn-logout').onclick = () => this.cerrarSesion();
-
-
 
         const swJarvis = document.getElementById('sw-jarvis');
         if (swJarvis) {
@@ -326,19 +318,13 @@ export class Core {
         const u = localStorage.getItem("u");
         if(u) document.getElementById('user-input').value = u;
 
-        // 🛡️ PARCHE: Autologin hiperseguro usando el Token de Sesión de Supabase
         this.supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 this.sysLog('SEC', 'AutoLogin', 'Sesión segura recuperada. Saltando pantalla de login.');
                 this.usuarioLogueado = session.user;
-                
-                // Ocultamos la pantalla de login directamente
                 if (loginScreen) loginScreen.style.display = 'none';
-                
-                // Ejecutamos la carga de datos sin pasar por la Edge Function (ya estamos validados)
                 this.cargarDatosDespuesDeLogin(session.access_token);
             } else {
-                // Si no hay sesión segura, mostramos la pantalla de login normal
                 if (loginScreen) { 
                     loginScreen.style.display = 'flex'; 
                     loginScreen.style.opacity = '1'; 
@@ -346,7 +332,6 @@ export class Core {
                 }
             }
         });
-
 
         document.getElementById('btn-ai-send').onclick = () => this.procesarComandoIA();
         document.getElementById('ai-input').onkeypress = (e) => { if(e.key==='Enter') this.procesarComandoIA(); };
@@ -357,12 +342,11 @@ export class Core {
         setTimeout(() => this.comprobarActualizaciones(true), 3000);
     }
 
-
     // ==========================================================
     // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
     // ==========================================================
 
-        guardarBovedaHardware(confData, tokenJWT) {
+    guardarBovedaHardware(confData, tokenJWT) {
         if (!tokenJWT) return;
         const huella = this.generarHuellaDispositivo(tokenJWT);
         
@@ -407,11 +391,8 @@ export class Core {
             return null;
         }
     }
-
     
     generarHuellaDispositivo(tokenJWT = null) {
-        // Si no hay token (ej. antes del login para identificar el PC), usamos un hash genérico.
-        // Si hay token, lo inyectamos en la criptografía.
         const n = navigator;
         const s = screen;
         
@@ -434,23 +415,19 @@ export class Core {
         let navegador = "Navegador Desconocido";
         let so = "Dispositivo Desconocido";
 
-        // 1. Detectar Navegador
         if (ua.includes("Firefox")) navegador = "Firefox";
         else if (ua.includes("OPR") || ua.includes("Opera")) navegador = "Opera";
         else if (ua.includes("Edg")) navegador = "Edge";
         else if (ua.includes("Chrome")) navegador = "Chrome";
         else if (ua.includes("Safari")) navegador = "Safari";
 
-        // 2. Detectar Sistema Operativo
         if (ua.includes("Win")) so = "Windows";
         else if (ua.includes("Mac")) so = "Mac";
         else if (ua.includes("Linux")) so = "Linux";
         else if (ua.includes("Android")) so = "Android";
         else if (ua.includes("like Mac")) so = "iOS";
 
-        // 3. Extraer 4 letras únicas
         const identificadorUnico = huella ? huella.substring(huella.length - 4) : "0000";
-
         return `${navegador} en ${so} (${identificadorUnico})`;
     }
     
@@ -491,7 +468,7 @@ export class Core {
         this.sysLog('SEC', 'Login', `Llamada a Edge Function iniciada`, 'info', { email: emailAuth });
 
         try {
-            const deviceId = this.generarHuellaDispositivo(); // Pre-login (sin token)
+            const deviceId = this.generarHuellaDispositivo(); 
             const esMovilReal = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             this.esMovil = esMovilReal; 
             const deviceName = this.obtenerNombreDispositivo(deviceId);
@@ -512,11 +489,9 @@ export class Core {
             await this.supabase.auth.setSession(data.session);
             this.usuarioLogueado = data.user;
             
-            // 🚀 EXTRAEMOS EL TOKEN DE LA SESIÓN RECIÉN CREADA
             const tokenJWT = data.session.access_token;
             this.sysLog('SEC', 'Login OK', 'Token JWT adquirido correctamente.', 'info');
 
-            // SINCRONIZACIÓN DE PERFIL
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
@@ -524,7 +499,6 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // --- 🛡️ SOLUCIÓN BRECHA 3: FORJA ZERO-KNOWLEDGE ---
             if (!this.perfilDB.maletin_encriptado) {
                 this.sysLog('SEC', 'Init', 'Primer login detectado. Forjando Bóveda Zero-Knowledge...');
                 
@@ -535,14 +509,12 @@ export class Core {
                     escudo_url: "wss://tu_servidor_python.onrender.com/ws" 
                 };
                 
-                // 🚀 PARCHE CRIPTOGRÁFICO: Generación de Salt y Vector de Inicialización (IV)
                 const salt = CryptoJS.lib.WordArray.random(128/8);
                 const iv = CryptoJS.lib.WordArray.random(128/8);
                 
                 const llaveFuerte = CryptoJS.PBKDF2(p, salt, { keySize: 256/32, iterations: 10000 });
                 const maletinCifrado = CryptoJS.AES.encrypt(JSON.stringify(confInicial), llaveFuerte, { iv: iv }).toString();
                 
-                // Formato acorazado: salt::iv::criptograma
                 const payloadFinal = `${salt.toString()}::${iv.toString()}::${maletinCifrado}`;
                 
                 await this.supabase.from('perfiles').update({ maletin_encriptado: payloadFinal }).eq('id', this.usuarioLogueado.id);
@@ -550,7 +522,6 @@ export class Core {
                 this.notificar("Llaves de cifrado generadas con éxito", "🛡️");
             }
 
-            // --- 🛡️ DESENCRIPTADO DEL MALETÍN (PBKDF2 + IV Dinámico) ---
             try {
                 const partes = this.perfilDB.maletin_encriptado.split('::');
                 if (partes.length === 3) {
@@ -559,7 +530,6 @@ export class Core {
                     const bytes = CryptoJS.AES.decrypt(partes[2], llaveFuerte, { iv: ivExtraido });
                     this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
                 } else if (partes.length === 2) {
-                    // Soporte temporal para el formato sin IV (retrocompatibilidad)
                     const llaveFuerte = CryptoJS.PBKDF2(p, CryptoJS.enc.Hex.parse(partes[0]), { keySize: 256/32, iterations: 10000 });
                     const bytes = CryptoJS.AES.decrypt(partes[1], llaveFuerte);
                     this.conf = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
@@ -571,12 +541,10 @@ export class Core {
                 throw new Error("Desencriptación fallida. Contraseña inválida.");
             }
 
-            // 🚀 GUARDAMOS EN HARDWARE USANDO EL TOKEN DE SESIÓN
             this.guardarBovedaHardware(this.conf, tokenJWT);
             
             this.initSeguridadRoles();
 
-            // APLICAR UI
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
             
@@ -599,7 +567,6 @@ export class Core {
             this.logHUD("Login completado y Bóveda sellada.", "✅");
 
         } catch (error) {  
-            // ... (resto del catch se mantiene igual)
             this.sysLog('SEC', 'Login Error', error.message, 'err');
             this.logHUD(`[ERROR]: ${error.message}`, "error");
             document.getElementById('error-msg').innerText = "❌ " + error.message;
@@ -612,7 +579,6 @@ export class Core {
 
     async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
-            // Descargamos tu perfil de la base de datos
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
@@ -620,7 +586,6 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
             
-            // 🛡️ PARCHE E2EE: Leemos la memoria RAM del hardware, no la Base de Datos
             this.conf = this.abrirBovedaHardware(tokenJWT);
             if (!this.conf) {
                 this.sysLog('SEC', 'Vault', 'Bóveda física destruida o alterada. Abortando auto-login.', 'warn');
@@ -629,7 +594,6 @@ export class Core {
             
             this.initSeguridadRoles();
 
-            // Aplicamos UI
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || "USUARIO";
             if (this.perfilDB.avatar_url) {
@@ -691,13 +655,15 @@ export class Core {
 
             const brokerElegido = this.brokers[this.brIdx].h;
             
+            // 🚀 PARCHE CANALES: Enviamos al server el topic base actual
             this.ws.send(JSON.stringify({ 
                 accion: "cambiar_broker", 
                 host: brokerElegido,
-                auth_token: tokenJWT
+                auth_token: tokenJWT,
+                topic_base: this.conf.topic 
             }));
             
-            this.sysLog('NET', 'WS Open', 'Túnel establecido. Token enviado para validación.');
+            this.sysLog('NET', 'WS Open', 'Túnel establecido. Token y Topic enviados.');
         };
 
         this.ws.onmessage = (event) => {
@@ -718,12 +684,10 @@ export class Core {
                 this.hablarJARVIS(data.texto);
                 this.notificar(data.texto, "🗣️");
             } 
-            // 🚀 ESCUDO PROXY: Recibimos la respuesta de la IA desde Python
             else if (data.tipo === "ia_respuesta") {
                 this.desplegarPayloadCuantico(data.texto, data.orden, data.modo);
             }
         };
-
 
         this.ws.onclose = () => {
             this.sysLog('NET', 'WS Close', 'Túnel caído. Reintentando en 3s...', 'warn');
@@ -748,15 +712,11 @@ export class Core {
         }
         
         try {
-            // 🔍 DIAGNÓSTICO: Comprobamos qué pieza de la máquina de cifrado falla
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
             if (!this.conf) throw new Error("No hay maletín encriptado.");
             if (!this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
 
-            // 1. Creamos el paquete físico
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
-            
-            // 2. Encriptamos
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
             
             this.sysLog('MQTT', 'TX', `Enviando comando cifrado AES -> [${app}]`);
@@ -764,7 +724,6 @@ export class Core {
             
         } catch (error) {
             this.sysLog('SEC', 'Crypto Err', error.message, 'err');
-            // 🚨 Ahora la notificación nos dirá el error técnico real
             this.notificar(`Fallo E2EE: ${error.message}`, "❌");
         }
     }
@@ -801,12 +760,19 @@ export class Core {
             const item = document.createElement('div');
             item.className = `dropdown-item ${idx === this.brIdx ? 'selected' : ''}`;
             item.innerText = b.name;
-            item.onclick = () => {
+            item.onclick = async () => {
                 this.brIdx = idx; current.innerText = b.name; menu.classList.remove('open');
                 this.setupBrokerMenu(); this.notificar(`Enrutando servidor a ${b.name}...`, "🔀");
                 this.sysLog('NET', 'Cambio Broker', `Solicitando rotación hacia ${b.h}`);
+                
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(JSON.stringify({ accion: "cambiar_broker", host: b.h }));
+                    const { data: { session } } = await this.supabase.auth.getSession();
+                    this.ws.send(JSON.stringify({ 
+                        accion: "cambiar_broker", 
+                        host: b.h,
+                        auth_token: session ? session.access_token : null,
+                        topic_base: this.conf.topic // 🚀 Mantenemos la suscripción correcta al cambiar
+                    }));
                 }
             };
             menu.appendChild(item);
@@ -904,11 +870,10 @@ export class Core {
         document.body.setAttribute('data-estilo', datosActualizados.interfaz.estilo);
         
         const displayUser = document.getElementById('display-username');
-        // 🔒 Parche XSS: Evitar innerHTML si el nombre viene de un input de usuario. Usamos innerText que es seguro.
         if (displayUser) displayUser.innerText = datosActualizados.alias || datosActualizados.nombre || "USUARIO";
         if (datosActualizados.avatar_url) {
             const avatarImg = document.querySelector('#user-profile-menu img');
-            if (avatarImg) avatarImg.src = datosActualizados.avatar_url; // Modificar .src es seguro, no ejecuta scripts.
+            if (avatarImg) avatarImg.src = datosActualizados.avatar_url; 
         }
 
         const exito = await this.guardarPerfilEnNube(datosActualizados);
@@ -1038,7 +1003,6 @@ export class Core {
     // 🤝 BLOQUE 4: MOTOR SOCIAL (LA PLAZA)
     // ==========================================================
     
-    // 🔒 PARCHE DE SEGURIDAD XSS: Función para limpiar textos de usuarios maliciosos.
     escapeHTML(str) {
         if (!str) return "";
         return str.replace(/[&<>'"]/g, 
@@ -1071,10 +1035,7 @@ export class Core {
             usuarios.forEach(u => {
                 if (u.id === this.usuarioLogueado.id) return; 
 
-                // 🔒 PARCHE XSS: Limpiamos los datos que vienen de otros usuarios.
                 const alias = this.escapeHTML(u.alias || 'Usuario Anónimo');
-                
-                // Extraemos la URL y comprobamos que empiece por http para evitar inyección javascript: o data:
                 let avatarUrl = u.avatar_url;
                 if (avatarUrl && !avatarUrl.startsWith('http')) { avatarUrl = null; } 
 
@@ -1083,7 +1044,6 @@ export class Core {
                 const txtEstado = estaOnline ? 'Online' : 'Desconectado';
 
                 let avatarHtml = `<i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>`;
-                // Como filtramos la url antes, ya es seguro inyectarla.
                 if (avatarUrl) avatarHtml = `<img src="${this.escapeHTML(avatarUrl)}" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid ${colorEstado}; object-fit: cover;">`;
 
                 const conn = conexiones.find(c => c.solicitante_id === u.id || c.receptor_id === u.id);
@@ -1451,7 +1411,6 @@ export class Core {
         } catch(e) {}
     }
 
-            // 1. INYECTAMOS EL CSS Y PREPARAMOS LA COLA VISUAL
     initColaNotificaciones() {
         if (document.getElementById('toast-queue-container')) return;
         this.colaNotificaciones = [];
@@ -1460,18 +1419,12 @@ export class Core {
         const style = document.createElement('style');
         style.innerHTML = `
             #toast-queue-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; z-index: 9999; pointer-events: none; width: 90%; max-width: 500px; justify-content: center; }
-            
-            /* LA NUEVA COLA DE PELOTAS SOLAPADAS (MÁS JUNTAS) */
             #toast-stack { display: flex; flex-direction: row; align-items: center; padding-top: 2px; }
             .toast-ball { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; color: white; border: 2px solid rgba(20, 20, 20, 0.95); margin-right: -22px; box-shadow: -3px 0 8px rgba(0,0,0,0.3); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: pop-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: relative; }
-            .toast-ball:last-child { margin-right: 12px; } /* Espacio de respiración entre la bola líder y la isla */
-            
+            .toast-ball:last-child { margin-right: 12px; }
             @keyframes pop-in { 0% { opacity: 0; transform: scale(0) translateX(-10px); } 100% { opacity: 1; transform: scale(1) translateX(0); } }
-            
-            /* LA ISLA DINÁMICA QUE SE EXPANDE */
             .toast-island { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 0; display: flex; align-items: center; max-width: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, padding 0.4s; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5); min-height: 36px; }
             .toast-island.open { max-width: 100vw; max-height: 300px; padding: 10px 18px; opacity: 1; }
-            
             .toast-content { display: flex; align-items: center; gap: 10px; width: 100%; }
             .toast-icon-wrapper { width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.2); }
             .toast-text { font-size: 0.9rem; font-weight: 500; line-height: 1.3; overflow-wrap: break-word; word-break: break-word; text-align: left; }
@@ -1488,43 +1441,32 @@ export class Core {
         document.body.appendChild(container);
     }
 
-
-    // 2. MOTOR DE COLORES INTELIGENTE (Basado en el Emoji)
     obtenerColorIcono(icon) {
         if (!icon) return '#48484a';
-        if (icon.includes('✅') || icon.includes('🔋') || icon.includes('🌿')) return '#32d74b'; // Verde Éxito
-        if (icon.includes('❌') || icon.includes('🚨') || icon.includes('🛑') || icon.includes('🗑️')) return '#ff453a'; // Rojo Alerta
-        if (icon.includes('⚠️') || icon.includes('🧹') || icon.includes('⚡') || icon.includes('⏳')) return '#ff9f0a'; // Naranja Proceso
-        if (icon.includes('ℹ️') || icon.includes('🌐') || icon.includes('🔀') || icon.includes('🗣️') || icon.includes('📡') || icon.includes('🔎')) return '#0a84ff'; // Azul Info
-        if (icon.includes('🧠') || icon.includes('🤖') || icon.includes('🧬') || icon.includes('🎲') || icon.includes('🔮')) return '#bf5af2'; // Morado IA
-        return '#8e8e93'; // Gris por defecto
+        if (icon.includes('✅') || icon.includes('🔋') || icon.includes('🌿')) return '#32d74b'; 
+        if (icon.includes('❌') || icon.includes('🚨') || icon.includes('🛑') || icon.includes('🗑️')) return '#ff453a'; 
+        if (icon.includes('⚠️') || icon.includes('🧹') || icon.includes('⚡') || icon.includes('⏳')) return '#ff9f0a'; 
+        if (icon.includes('ℹ️') || icon.includes('🌐') || icon.includes('🔀') || icon.includes('🗣️') || icon.includes('📡') || icon.includes('🔎') || icon.includes('📻')) return '#0a84ff'; 
+        if (icon.includes('🧠') || icon.includes('🤖') || icon.includes('🧬') || icon.includes('🎲') || icon.includes('🔮')) return '#bf5af2'; 
+        return '#8e8e93'; 
     }
 
-        // 3. ACTUALIZADOR VISUAL DE LAS PELOTAS (INVERTIDO Y APILADO)
     actualizarBadgeCola() {
         const stack = document.getElementById('toast-stack');
         if (!stack) return;
         stack.innerHTML = '';
         
-        // 🧠 PARCHE DE DIRECCIÓN: Recorremos la cola al revés.
-        // i = length - 1 (la más nueva, a la izquierda, entra por debajo de todas)
-        // i = 0 (la más vieja, la siguiente en salir, a la derecha, por encima de todas)
         for (let i = this.colaNotificaciones.length - 1; i >= 0; i--) {
             const notif = this.colaNotificaciones[i];
             const ball = document.createElement('div');
             ball.className = 'toast-ball';
             ball.style.backgroundColor = notif.color;
-            
-            // Forzamos a que la index 0 tenga el z-index más alto (100)
             ball.style.zIndex = 100 - i; 
             ball.innerHTML = notif.icon;
-            
             stack.appendChild(ball);
         }
     }
 
-
-    // 4. RECEPCIÓN DE MENSAJES (MANTENIENDO EL ESCUDO ANTI-SPAM)
     notificar(msg, icon = "✅") {
         if (!this.colaNotificaciones) this.initColaNotificaciones();
         
@@ -1536,29 +1478,25 @@ export class Core {
         const color = this.obtenerColorIcono(icon);
         this.colaNotificaciones.push({msg: mensajeStr, icon, color});
         
-        this.actualizarBadgeCola(); // Aparece la pelota al instante
+        this.actualizarBadgeCola(); 
         this.procesarSiguienteNotificacion();
     }
 
-    // 5. ANIMACIÓN Y RENDERIZADO (MANTENIENDO EL BLINDAJE XSS)
     procesarSiguienteNotificacion() {
         if (this.notificacionActiva || this.colaNotificaciones.length === 0) return;
         
         this.notificacionActiva = true;
-        const actual = this.colaNotificaciones.shift(); // Sacamos la bola de la cola
+        const actual = this.colaNotificaciones.shift(); 
         this.mensajeActual = actual.msg;
         
-        this.actualizarBadgeCola(); // La bola desaparece de la cola visual
+        this.actualizarBadgeCola(); 
         
         const island = document.getElementById('toast-island');
         const iconWrapper = document.getElementById('toast-i');
         const textEl = document.getElementById('toast-t');
         
-        // El icono de la isla hereda el color de la pelota
         iconWrapper.style.backgroundColor = actual.color;
         iconWrapper.innerHTML = actual.icon;
-        
-        // 🛡️ PARCHE XSS ESTRICTO MANTENIDO
         textEl.innerHTML = this.escapeHTML(actual.msg); 
         
         island.classList.add('open');
@@ -1571,11 +1509,10 @@ export class Core {
             setTimeout(() => {
                 this.notificacionActiva = false;
                 this.mensajeActual = null;
-                this.procesarSiguienteNotificacion(); // Empujamos la siguiente bola si la hay
+                this.procesarSiguienteNotificacion(); 
             }, 400); 
         }, tiempoLectura); 
     }
-
 
     // ==========================================================
     // 🧠 BLOQUE 6: IA NATIVA, JARVIS Y LLM
@@ -1601,7 +1538,7 @@ export class Core {
         const utterance = new SpeechSynthesisUtterance(texto); utterance.lang = 'es-ES'; window.speechSynthesis.speak(utterance);
     }
 
-            async procesarComandoIA() {
+    async procesarComandoIA() {
         const input = document.getElementById('ai-input'); 
         const orden = input.value.trim(); 
         if(!orden) return;
@@ -1610,7 +1547,6 @@ export class Core {
         this.notificar("Procesando...", "🧠");
         this.sysLog('IA', 'Input', `Prompt recibido: "${orden}"`);
 
-        // Llamamos al motor central (que lee toda la casa antes de enviar)
         this.ejecutarInferencia(orden, "reactivo");
     }
 
@@ -1639,8 +1575,6 @@ export class Core {
         if (this.modoIALocal) {
             await this.procesarConWebLLM(promptSistema, orden, modo);
         } else {
-            // 🛡️ IA EN LA NUBE (PROXY CUÁNTICO INEXPUGNABLE)
-            // Ya NO exponemos las API Keys en el navegador. Enviamos todo a tu servidor de Render.
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
                 this.ws.send(JSON.stringify({ 
@@ -1671,7 +1605,6 @@ export class Core {
 
         this.esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // 🧠 LEEMOS EL MODELO ELEGIDO EN EL PERFIL DE SUPABASE
         const modeloElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.local) ? this.perfilDB.ia.local : 'smollm';
         
         try {
@@ -1680,7 +1613,6 @@ export class Core {
                 const versionIA = this.versiones["@mlc-ai/web-llm"];
                 const { CreateMLCEngine } = await import(`https://esm.run/@mlc-ai/web-llm@${versionIA}`);
                 
-                // 📚 DICCIONARIO DE MODELOS WEBGPU (PC - Alto Rendimiento)
                 const modelosPC = {
                     'smollm': "SmolLM-135M-Instruct-q4f16_1-MLC",
                     'qwen': "Qwen2-0.5B-Instruct-q4f16_1-MLC",
@@ -1709,7 +1641,6 @@ export class Core {
             } else {
                 this.sysLog('IA', 'Motor Local', `Arrancando WASM Móvil -> ${modeloElegido}`);
                 
-                // 🛡️ PROTECCIÓN ANTI-COLAPSO PARA MÓVILES
                 const modelosPesados = ['mistral', 'llama3', 'hermes', 'vicuna', 'wizardlm'];
                 if (modelosPesados.includes(modeloElegido)) {
                     throw new Error("Este modelo es demasiado pesado para el móvil. Usa uno < 3B.");
@@ -1724,7 +1655,6 @@ export class Core {
                     const textEl = document.getElementById('ia-dl-text'); 
                     if(textEl) textEl.innerText = "Iniciando motor WASM...";
                     
-                    // 📚 DICCIONARIO DE MODELOS WASM (MÓVIL - Eficiencia)
                     const modelosMovil = {
                         'smollm': 'Xenova/SmolLM-135M-Instruct',
                         'qwen': 'Xenova/Qwen1.5-0.5B-Chat',
@@ -1733,11 +1663,10 @@ export class Core {
                         'phi3': 'Xenova/Phi-3-mini-4k-instruct'
                     };
                     
-                    // Si eligen algo raro, volvemos al super-rápido Qwen 0.5B
                     const modeloWASM = modelosMovil[modeloElegido] || modelosMovil['qwen'];
 
                     this.localEngineWASM = await pipeline('text-generation', modeloWASM, {
-                        device: 'webgpu', // Fallback automático a WASM si no hay WebGPU en el móvil
+                        device: 'webgpu', 
                         progress_callback: (x) => { 
                             if (x.status === 'downloading' || x.status === 'progress') { 
                                 const tEl = document.getElementById('ia-dl-text'); 
@@ -1751,7 +1680,7 @@ export class Core {
                     this.sysLog('IA', 'WASM Err', err.message, 'err');
                     const textEl = document.getElementById('ia-dl-text'); 
                     if(textEl) { textEl.innerText = "Fallo de compatibilidad"; textEl.style.color = "#ff453a"; }
-                    throw err; // Re-lanzamos para que lo atrape el catch principal
+                    throw err; 
                 }
             }
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
@@ -1760,7 +1689,6 @@ export class Core {
             this.sysLog('IA', 'Precarga Fallida', e.message, 'err');
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
             
-            // Avisamos al usuario del error (ej: si intentó cargar Llama 3 en el móvil)
             this.notificar(`${e.message}`, "❌");
             return false;
         }
@@ -1827,7 +1755,6 @@ export class Core {
         if (this.centinelaActivo) { this.notificar("Centinela auditivo ya activo", "🛡️"); return; }
         try {
             this.notificar("Cargando red neuronal auditiva...", "⏳");
-            // 🛡️ PARCHE SUPPLY-CHAIN: Anclamos las versiones de IA
             if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs@4.17.0");
             const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands@0.5.4");
 
@@ -1893,8 +1820,6 @@ export class Core {
             } else if (app !== "Macros") { 
                 this.pub(app, accion, true); 
                 
-                // 🚀 PARCHE DE REDIBUJADO INSTANTÁNEO
-                // Como no hay hardware físico que nos devuelva el "Eco", forzamos a la tarjeta a actualizarse sola
                 const tarjeta = this.cards.find(c => c.id === app);
                 if (tarjeta && tarjeta.onData) tarjeta.onData(accion, app, this);
             }
@@ -1925,7 +1850,6 @@ export class Core {
         if (!esArranqueSilencioso) this.notificar("Buscando transmisiones en GitHub...", "📡");
         
         try {
-            // El '?t=...' evita que el navegador use un changelog viejo de la caché
             const res = await fetch(`changelog.json?t=${new Date().getTime()}`);
             if (!res.ok) throw new Error("Servidor de versiones inaccesible");
             
@@ -1935,7 +1859,6 @@ export class Core {
             if (nube.version !== versionLocal) {
                 this.sysLog('SYS', 'Update', `Nueva versión detectada: ${nube.version}`);
                 
-                // Rellenamos el Modal
                 document.getElementById('cl-version-badge').innerText = `${nube.version} (${nube.fecha})`;
                 document.getElementById('cl-title').innerText = nube.titulo;
                 
@@ -1948,7 +1871,6 @@ export class Core {
                     lista.appendChild(li);
                 });
 
-                // Mostramos el Modal
                 const modal = document.getElementById('changelog-modal');
                 modal.style.display = 'flex';
                 this.vibra("doble");
@@ -1958,7 +1880,6 @@ export class Core {
                     modal.style.display = 'none';
                     this.notificar(`Sistema actualizado a ${nube.version}`, "✅");
                     
-                    // Si la actualización es crítica, forzamos la purga del Service Worker
                     if (nube.forzar_recarga && 'serviceWorker' in navigator) {
                         navigator.serviceWorker.getRegistrations().then(registrations => {
                             for(let registration of registrations) { registration.update(); }
@@ -2031,7 +1952,6 @@ export class Core {
 
         let textoFinal = "";
 
-        // 👑 NIVEL GOD: Acceso Total (Traza, Payloads y Soluciones)
         if (this.rol === 'god') {
             textoFinal = `> ${msg}`;
             if (dataExtra) {
@@ -2042,12 +1962,10 @@ export class Core {
                 textoFinal += `\n   💡 FIX: ${solucion}`;
             }
         } 
-        // 👮‍♂️ NIVEL ADMIN: Diagnóstico sin datos sensibles
         else if (this.rol === 'admin') {
             if (tipo === 'out' || msg.includes('DATA:')) return; 
             textoFinal = `> ${msg}`;
         } 
-        // 👤 NIVEL GUEST: Ceguera técnica (solo errores ofuscados)
         else {
             if (tipo !== 'error' && tipo !== 'err') return; 
             const pseudoCodigo = Math.random().toString(36).substring(7).toUpperCase();
@@ -2063,7 +1981,6 @@ export class Core {
         
         hud.scrollTop = hud.scrollHeight;
 
-        // Auto-limpieza en DOM: No borramos logs de la variable real, pero sí del HTML para que no laguee el móvil (Max 100 líneas)
         const mensajes = hud.querySelectorAll('.hud-msg');
         if (mensajes.length > 100) mensajes[0].remove();
     }
@@ -2113,6 +2030,13 @@ export class Core {
         document.getElementById('btn-nav-nfc').onclick = () => this.leerNFC();
         document.getElementById('btn-nav-radar').onclick = () => this.iniciarRadarBluetooth();
         document.getElementById('btn-nav-terminal').onclick = () => { this.toggleHUD(); menu.classList.remove('open')};
+        
+        const btnCanales = document.getElementById('btn-nav-canales');
+        if (btnCanales) btnCanales.onclick = () => { 
+            document.getElementById('canales-view').style.display = 'block'; 
+            menu.classList.remove('open'); 
+            this.cargarCanales(); 
+        };
     }
 
     initMultijugador() {
@@ -2188,14 +2112,12 @@ export class Core {
             const promptCrudo = promptInput.value.trim(); 
             if(!currentBinding || !promptCrudo) return this.notificar("Falta el atajo o el texto", "⚠️");
             
-            // 🛡️ Sanitización estricta antes de renderizar
             const promptSeguro = this.escapeHTML(promptCrudo);
             
             btnCompile.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Compilando...`; this.vibra("tick");
             setTimeout(() => {
                 const codigoJSONGenerado = JSON.stringify({ "Led": "toggle", "Pomodoro": 25 }); if(emptyMsg) emptyMsg.style.display = 'none';
                 const li = document.createElement('li'); li.className = "macro-item cascade-in"; 
-                // Inyectamos promptSeguro en lugar de prompt
                 li.innerHTML = `<div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:monospace; font-weight:900; color:var(--primary); font-size:1.1rem;"><i class="fa-regular fa-keyboard"></i> ${currentBinding}</span><span style="font-size:0.85rem; color:var(--text-sec);">"${promptSeguro}"</span><span style="font-family:monospace; font-size:0.75rem; color:#32d74b;">> ${codigoJSONGenerado}</span></div><button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>`;
                 list.appendChild(li); promptInput.value = ""; displayKey.innerText = "Sin asignar"; currentBinding = ""; btnCompile.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar`; this.notificar("Atajo compilado con éxito", "✅");
             }, 1000);
@@ -2217,7 +2139,6 @@ export class Core {
         registrarEnDB(app, accion, valorExtra = null) {
         if (!this.db) return;
         
-        // 🛡️ PARCHE PROMPT INJECTION: Desactivamos posibles comandos ocultos
         const appLimpio = this.escapeHTML(String(app));
         const accionLimpio = this.escapeHTML(String(accion));
         const valorLimpio = valorExtra ? this.escapeHTML(String(valorExtra)) : null;
@@ -2291,5 +2212,143 @@ export class Core {
             this.sysLog('SEC', 'Aprobación Err', error.message, 'err');
             this.notificar("Fallo al autorizar usuario", "❌");
         }
+    }
+    
+    // ==========================================================
+    // 📻 BLOQUE 9: CANALES Y FRECUENCIAS (Sintonización Dinámica)
+    // ==========================================================
+
+    async cargarCanales() {
+        this.sysLog('NET', 'Canales', 'Buscando frecuencias disponibles...');
+        const lista = document.getElementById('lista-canales-publicos');
+        const btnCrear = document.getElementById('btn-crear-canal');
+        
+        if (!lista) return;
+        lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
+
+        if (this.tienePermiso('admin') && btnCrear) btnCrear.style.display = 'block';
+
+        try {
+            const { data, error } = await this.supabase.from('canales').select('*').order('created_at', { ascending: false });
+            if (error) throw error;
+
+            lista.innerHTML = '';
+            if (data.length === 0) {
+                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">No hay frecuencias activas. El éter está en silencio.</p>';
+                return;
+            }
+
+            data.forEach(canal => {
+                const isActivo = this.canalActivo && this.canalActivo.id === canal.id;
+                const badge = isActivo ? `<span style="background:#32d74b; color:black; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; margin-left:10px;">CONECTADO</span>` : '';
+                
+                lista.innerHTML += `
+                <div class="user-card glass-element cascade-in" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid ${isActivo ? '#32d74b' : 'var(--border)'};">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="background: rgba(10, 132, 255, 0.1); width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #0a84ff; font-size: 1.2rem; border: 1px solid rgba(10, 132, 255, 0.3);">
+                            <i class="fa-solid fa-tower-broadcast"></i>
+                        </div>
+                        <div style="display: flex; flex-direction: column; text-align: left;">
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${this.escapeHTML(canal.nombre)} ${badge}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-sec); font-family: monospace;">CH-${canal.id.substring(0,6).toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <button class="btn-action" onclick="window.App.unirseCanal('${canal.id}', '${this.escapeHTML(canal.nombre)}', '${this.escapeHTML(canal.topic_base)}', '${this.escapeHTML(canal.tk_compartido)}')" style="width: auto; background: ${isActivo ? 'transparent' : 'var(--primary)'}; border: ${isActivo ? '1px solid #32d74b' : 'none'}; color: ${isActivo ? '#32d74b' : 'white'}; padding: 8px 15px; font-size: 0.85rem; margin: 0;" ${isActivo ? 'disabled' : ''}>
+                        ${isActivo ? '<i class="fa-solid fa-check"></i>' : 'Sintonizar'}
+                    </button>
+                </div>`;
+            });
+        } catch (e) {
+            this.sysLog('NET', 'Canales Err', e.message, 'err');
+            lista.innerHTML = '<p style="color:#ff453a; text-align:center; font-size:0.9rem;">Error al interceptar frecuencias.</p>';
+        }
+    }
+
+    async crearCanal() {
+        if (!this.tienePermiso('admin')) return;
+        const nombre = prompt("Nombre de la nueva Frecuencia (Canal):");
+        if (!nombre) return;
+
+        this.notificar("Forjando canal cifrado...", "⚙️");
+        try {
+            // Criptografía única para este canal
+            const topicBase = `pico/ch_${Date.now()}/`;
+            const tkCompartido = CryptoJS.lib.WordArray.random(32).toString();
+
+            const { error } = await this.supabase.from('canales').insert({
+                nombre: nombre,
+                topic_base: topicBase,
+                tk_compartido: tkCompartido,
+                creador_id: this.usuarioLogueado.id
+            });
+
+            if (error) throw error;
+            this.notificar("Frecuencia establecida", "✅");
+            this.cargarCanales();
+        } catch (e) {
+            this.sysLog('NET', 'Crear Canal Err', e.message, 'err');
+            this.notificar("Fallo al crear la frecuencia", "❌");
+        }
+    }
+
+    async unirseCanal(id, nombre, topic, tk) {
+        this.sysLog('NET', 'Sintonizar', `Cambiando a frecuencia: ${nombre}`);
+        
+        // 1. Guardamos la configuración privada si es la primera vez que salimos
+        if (!this.confPrivada) {
+            this.confPrivada = { topic: this.conf.topic, tk: this.conf.tk };
+        }
+
+        // 2. Sobrescribimos el maletín de memoria con los datos del canal
+        this.conf.topic = topic;
+        this.conf.tk = tk;
+        this.canalActivo = { id, nombre };
+
+        // 3. Avisamos al servidor Python por el túnel para que cambie la suscripción MQTT
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: topic }));
+        }
+
+        // 4. Limpiamos las tarjetas actuales y actualizamos la Interfaz
+        document.getElementById('dashboard-grid').innerHTML = "";
+        this.renderGrid(); 
+        
+        document.getElementById('canal-activo-nombre').innerText = nombre;
+        document.getElementById('canal-activo-nombre').style.color = '#0a84ff';
+        document.getElementById('canal-activo-banner').style.borderColor = '#0a84ff';
+        document.getElementById('btn-salir-canal').style.display = 'block';
+        
+        this.notificar(`Sintonizado a: ${nombre}`, "📻");
+        this.vibra("doble");
+        this.cargarCanales(); 
+    }
+
+    async salirCanal() {
+        if (!this.confPrivada) return;
+
+        this.sysLog('NET', 'Sintonizar', 'Volviendo a Frecuencia Privada');
+        
+        // 1. Restauramos nuestro candado original
+        this.conf.topic = this.confPrivada.topic;
+        this.conf.tk = this.confPrivada.tk;
+        this.canalActivo = null;
+
+        // 2. Avisamos al servidor
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: this.conf.topic }));
+        }
+
+        // 3. Recargamos la interfaz
+        document.getElementById('dashboard-grid').innerHTML = "";
+        this.renderGrid(); 
+        
+        document.getElementById('canal-activo-nombre').innerText = 'Frecuencia Personal (Privada)';
+        document.getElementById('canal-activo-nombre').style.color = 'white';
+        document.getElementById('canal-activo-banner').style.borderColor = '#32d74b';
+        document.getElementById('btn-salir-canal').style.display = 'none';
+
+        this.notificar("Frecuencia Privada restaurada", "🔒");
+        this.vibra("tick");
+        this.cargarCanales();
     }
 }
