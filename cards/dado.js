@@ -6,7 +6,7 @@ export const DadoCard = {
         icono: "fa-solid fa-dice",
         color: "#8b5cf6",
         ejecutar: (core) => {
-            const caras = parseInt(localStorage.getItem('pico_dado_faces')) || 6;
+            const caras = parseInt(localStorage.getItem('pico_dado_faces' + core.conf.topic)) || 6;
             const t1 = Math.floor(Math.random() * caras) + 1;
             const t2 = Math.floor(Math.random() * caras) + 1;
             const mejor = Math.max(t1, t2);
@@ -47,7 +47,7 @@ export const DadoCard = {
     `,
     onInit: (core) => {
         document.getElementById('btn-dado').onclick = () => {
-            const caras = parseInt(localStorage.getItem('pico_dado_faces')) || 6;
+            const caras = parseInt(localStorage.getItem('pico_dado_faces' + core.conf.topic)) || 6;
             const resultado = Math.floor(Math.random() * caras) + 1;
             // 🚀 PARCHE: Ejecución local en lugar de cifrar directamente hacia fuera
             core.ejecutarComandoLocal('Dado', resultado);
@@ -75,9 +75,9 @@ export const DadoCard = {
         }
     },
     abrirAjustes: (core) => {
-        let faces = prompt("Número de caras del dado (Ej: 6, 12, 20):", localStorage.getItem('pico_dado_faces') || "6");
+        let faces = prompt("Número de caras del dado (Ej: 6, 12, 20):", localStorage.getItem('pico_dado_faces' + core.conf.topic) || "6");
         if(faces && !isNaN(faces)) {
-            localStorage.setItem('pico_dado_faces', faces);
+            localStorage.setItem('pico_dado_faces' + core.conf.topic, faces);
             core.notificar(`Dado configurado a D${faces}`, "🎲");
         }
     }
