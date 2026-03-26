@@ -2215,18 +2215,21 @@ export class Core {
     }
     
     // ==========================================================
-    // 📻 BLOQUE 9: CANALES Y FRECUENCIAS (Sintonización Dinámica)
+    // 📻 BLOQUE 9: CANALES (Sintonización Dinámica)
     // ==========================================================
 
     async cargarCanales() {
-        this.sysLog('NET', 'Canales', 'Buscando frecuencias disponibles...');
+        this.sysLog('NET', 'Canales', 'Buscando canales disponibles...');
         const lista = document.getElementById('lista-canales-publicos');
         const btnCrear = document.getElementById('btn-crear-canal');
         
         if (!lista) return;
         lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
 
-        if (this.tienePermiso('admin') && btnCrear) btnCrear.style.display = 'block';
+        // 🚀 PARCHE UI: Forzamos el display con !important para vencer al CSS oculto
+        if (this.tienePermiso('admin') && btnCrear) {
+            btnCrear.style.setProperty('display', 'block', 'important');
+        }
 
         try {
             const { data, error } = await this.supabase.from('canales').select('*').order('created_at', { ascending: false });
@@ -2234,7 +2237,7 @@ export class Core {
 
             lista.innerHTML = '';
             if (data.length === 0) {
-                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">No hay frecuencias activas. El éter está en silencio.</p>';
+                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">No hay canales activos.</p>';
                 return;
             }
 
@@ -2254,24 +2257,23 @@ export class Core {
                         </div>
                     </div>
                     <button class="btn-action" onclick="window.App.unirseCanal('${canal.id}', '${this.escapeHTML(canal.nombre)}', '${this.escapeHTML(canal.topic_base)}', '${this.escapeHTML(canal.tk_compartido)}')" style="width: auto; background: ${isActivo ? 'transparent' : 'var(--primary)'}; border: ${isActivo ? '1px solid #32d74b' : 'none'}; color: ${isActivo ? '#32d74b' : 'white'}; padding: 8px 15px; font-size: 0.85rem; margin: 0;" ${isActivo ? 'disabled' : ''}>
-                        ${isActivo ? '<i class="fa-solid fa-check"></i>' : 'Sintonizar'}
+                        ${isActivo ? '<i class="fa-solid fa-check"></i>' : 'Conectar'}
                     </button>
                 </div>`;
             });
         } catch (e) {
             this.sysLog('NET', 'Canales Err', e.message, 'err');
-            lista.innerHTML = '<p style="color:#ff453a; text-align:center; font-size:0.9rem;">Error al interceptar frecuencias.</p>';
+            lista.innerHTML = '<p style="color:#ff453a; text-align:center; font-size:0.9rem;">Error al cargar los canales.</p>';
         }
     }
 
     async crearCanal() {
         if (!this.tienePermiso('admin')) return;
-        const nombre = prompt("Nombre de la nueva Frecuencia (Canal):");
+        const nombre = prompt("Nombre del nuevo Canal:");
         if (!nombre) return;
 
-        this.notificar("Forjando canal cifrado...", "⚙️");
+        this.notificar("Creando canal cifrado...", "⚙️");
         try {
-            // Criptografía única para este canal
             const topicBase = `pico/ch_${Date.now()}/`;
             const tkCompartido = CryptoJS.lib.WordArray.random(32).toString();
 
@@ -2283,33 +2285,29 @@ export class Core {
             });
 
             if (error) throw error;
-            this.notificar("Frecuencia establecida", "✅");
+            this.notificar("Canal creado", "✅");
             this.cargarCanales();
         } catch (e) {
             this.sysLog('NET', 'Crear Canal Err', e.message, 'err');
-            this.notificar("Fallo al crear la frecuencia", "❌");
+            this.notificar("Fallo al crear el canal", "❌");
         }
     }
 
     async unirseCanal(id, nombre, topic, tk) {
-        this.sysLog('NET', 'Sintonizar', `Cambiando a frecuencia: ${nombre}`);
+        this.sysLog('NET', 'Sintonizar', `Conectando a canal: ${nombre}`);
         
-        // 1. Guardamos la configuración privada si es la primera vez que salimos
         if (!this.confPrivada) {
             this.confPrivada = { topic: this.conf.topic, tk: this.conf.tk };
         }
 
-        // 2. Sobrescribimos el maletín de memoria con los datos del canal
         this.conf.topic = topic;
         this.conf.tk = tk;
         this.canalActivo = { id, nombre };
 
-        // 3. Avisamos al servidor Python por el túnel para que cambie la suscripción MQTT
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: topic }));
         }
 
-        // 4. Limpiamos las tarjetas actuales y actualizamos la Interfaz
         document.getElementById('dashboard-grid').innerHTML = "";
         this.renderGrid(); 
         
@@ -2318,7 +2316,7 @@ export class Core {
         document.getElementById('canal-activo-banner').style.borderColor = '#0a84ff';
         document.getElementById('btn-salir-canal').style.display = 'block';
         
-        this.notificar(`Sintonizado a: ${nombre}`, "📻");
+        this.notificar(`Conectado a: ${nombre}`, "📻");
         this.vibra("doble");
         this.cargarCanales(); 
     }
@@ -2326,28 +2324,25 @@ export class Core {
     async salirCanal() {
         if (!this.confPrivada) return;
 
-        this.sysLog('NET', 'Sintonizar', 'Volviendo a Frecuencia Privada');
+        this.sysLog('NET', 'Sintonizar', 'Volviendo al Canal Privado');
         
-        // 1. Restauramos nuestro candado original
         this.conf.topic = this.confPrivada.topic;
         this.conf.tk = this.confPrivada.tk;
         this.canalActivo = null;
 
-        // 2. Avisamos al servidor
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ accion: "set_topic", topic_base: this.conf.topic }));
         }
 
-        // 3. Recargamos la interfaz
         document.getElementById('dashboard-grid').innerHTML = "";
         this.renderGrid(); 
         
-        document.getElementById('canal-activo-nombre').innerText = 'Frecuencia Personal (Privada)';
+        document.getElementById('canal-activo-nombre').innerText = 'Canal Privado';
         document.getElementById('canal-activo-nombre').style.color = 'white';
         document.getElementById('canal-activo-banner').style.borderColor = '#32d74b';
         document.getElementById('btn-salir-canal').style.display = 'none';
 
-        this.notificar("Frecuencia Privada restaurada", "🔒");
+        this.notificar("Canal Privado restaurado", "🔒");
         this.vibra("tick");
         this.cargarCanales();
     }
