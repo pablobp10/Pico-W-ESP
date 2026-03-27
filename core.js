@@ -973,6 +973,188 @@ export class Core {
         }
     }
 
+    // ==========================================================
+    // 🤝 BLOQUE 4: MOTOR SOCIAL (LA PLAZA)
+    // ==========================================================
+    
+    escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    async cargarPlazaPublica() {
+        const cReq = document.getElementById('plaza-section-requests');
+        const cFri = document.getElementById('plaza-section-friends');
+        const cOth = document.getElementById('plaza-section-others');
+
+        if (!cReq || !cFri || !cOth || !this.usuarioLogueado) return;
+        this.sysLog('SOC', 'Plaza', 'Escaneando radar social.');
+
+        cReq.innerHTML = `<h3 style="font-size: 0.8rem; color: #ff9f0a; border-bottom: 1px solid rgba(255, 159, 10, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-bell fa-shake"></i> SOLICITUDES ENTRANTES</h3>`;
+        cFri.innerHTML = `<h3 style="font-size: 0.8rem; color: var(--primary); border-bottom: 1px solid rgba(139, 92, 246, 0.3); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-user-group"></i> TUS CONEXIONES</h3>`;
+        cOth.innerHTML = `<h3 style="font-size: 0.8rem; color: var(--text-sec); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-globe"></i> COMUNIDAD PICO</h3>`;
+        
+        try {
+            const { data: usuarios, error: errU } = await this.supabase.from('plaza_publica').select('id, alias, avatar_url, estado_online');
+            if (errU) throw errU;
+
+            const { data: conexiones, error: errC } = await this.supabase.from('conexiones')
+                .select('*').or(`solicitante_id.eq.${this.usuarioLogueado.id},receptor_id.eq.${this.usuarioLogueado.id}`);
+            if (errC) throw errC;
+
+            let countReq = 0, countFri = 0, countOth = 0;
+            
+            usuarios.forEach(u => {
+                if (u.id === this.usuarioLogueado.id) return; 
+
+                const alias = this.escapeHTML(u.alias || 'Usuario Anónimo');
+                let avatarUrl = u.avatar_url;
+                if (avatarUrl && !avatarUrl.startsWith('http')) { avatarUrl = null; } 
+
+                const estaOnline = (u.estado_online === true || u.estado_online === 'online' || u.estado_online === 'true');
+                const colorEstado = estaOnline ? '#32d74b' : '#a1a1aa';
+                const txtEstado = estaOnline ? 'Online' : 'Desconectado';
+
+                let avatarHtml = `<i class="fa-solid fa-circle-user" style="font-size: 2.8rem; color: #a1a1aa;"></i>`;
+                if (avatarUrl) avatarHtml = `<img src="${this.escapeHTML(avatarUrl)}" style="width: 45px; height: 45px; border-radius: 50%; background: var(--card-bg); border: 2px solid ${colorEstado}; object-fit: cover;">`;
+
+                const conn = conexiones.find(c => c.solicitante_id === u.id || c.receptor_id === u.id);
+                
+                if (conn && conn.estado === 'pendiente' && conn.receptor_id === this.usuarioLogueado.id) {
+                    countReq++;
+                    cReq.innerHTML += `
+                    <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 159, 10, 0.4); background: rgba(255, 159, 10, 0.05);">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="position: relative;">
+                                ${avatarHtml}
+                                <span style="position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; background: ${colorEstado}; border-radius: 50%; border: 2px solid var(--bg);"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; text-align: left;">
+                                <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${alias}</span>
+                                <span style="font-size: 0.75rem; color: #ff9f0a; font-weight: bold;">Quiere conectar contigo</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-action btn-aceptar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(50, 215, 75, 0.2); color: #32d74b; border: 1px solid rgba(50, 215, 75, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-check"></i></button>
+                            <button class="btn-action btn-rechazar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(255, 69, 58, 0.2); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.5); width: 40px; height: 40px; border-radius: 10px; margin: 0; padding: 0; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>`;
+                }
+                else if (conn && conn.estado === 'aceptada') {
+                    countFri++;
+                    cFri.innerHTML += `
+                    <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(139, 92, 246, 0.2); ${!estaOnline ? 'opacity:0.6;' : ''}">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="position: relative;">
+                                ${avatarHtml}
+                                <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: ${colorEstado}; border-radius: 50%; border: 2px solid var(--bg); ${estaOnline ? 'box-shadow: 0 0 8px '+colorEstado+';' : ''}"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; text-align: left;">
+                                <span style="font-weight: 800; color: var(--text-main); font-size: 1rem;">${alias}</span>
+                                <span style="font-size: 0.75rem; color: ${colorEstado}; font-weight: bold;">${txtEstado}</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-action" onclick="window.App.compartirAcceso('${this.escapeHTML(u.id)}', '${alias}')" style="background: rgba(10, 132, 255, 0.15); color: #0a84ff; border: 1px solid rgba(10, 132, 255, 0.5); width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; border-radius: 8px;" title="Dar llaves de tu casa">
+                                <i class="fa-solid fa-key"></i> Llaves
+                            </button>
+                        </div>
+                    </div>`;
+                }
+                else {
+                    countOth++;
+                    const enviadaPorMi = (conn && conn.estado === 'pendiente' && conn.solicitante_id === this.usuarioLogueado.id);
+                    let botonHtml = enviadaPorMi
+                        ? `<button class="btn-action" disabled style="background: transparent; color: var(--text-sec); border: 1px solid rgba(255, 255, 255, 0.2); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: not-allowed;"><i class="fa-solid fa-clock"></i> Pendiente</button>`
+                        : `<button class="btn-action btn-conectar" data-id="${this.escapeHTML(u.id)}" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.4); width: auto; padding: 8px 15px; border-radius: 10px; margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer;"><i class="fa-solid fa-user-plus"></i> Conectar</button>`;
+
+                    cOth.innerHTML += `
+                    <div class="user-card glass-element" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.05); opacity: 0.7;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="position: relative;">
+                                ${avatarHtml}
+                                <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: ${colorEstado}; border-radius: 50%; border: 2px solid var(--bg);"></span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; text-align: left;">
+                                <span style="font-weight: bold; color: var(--text-main); font-size: 1rem;">${alias}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-sec);">${txtEstado}</span>
+                            </div>
+                        </div>
+                        ${botonHtml}
+                    </div>`;
+                }
+            });
+
+            if(countReq === 0) cReq.style.display = 'none'; else cReq.style.display = 'block';
+            if(countFri === 0) cFri.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No tienes conexiones aún.</p>`;
+            if(countOth === 0) cOth.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No hay más usuarios en la fortaleza.</p>`;
+
+            document.querySelectorAll('.btn-conectar').forEach(btn => btn.onclick = () => this.enviarSolicitudAmistad(btn.dataset.id));
+            document.querySelectorAll('.btn-aceptar').forEach(btn => btn.onclick = () => this.responderSolicitudAmistad(btn.dataset.id, 'aceptada'));
+            document.querySelectorAll('.btn-rechazar').forEach(btn => btn.onclick = () => this.responderSolicitudAmistad(btn.dataset.id, 'rechazada'));
+
+        } catch (err) {
+            this.sysLog('SOC', 'Plaza Error', err.message, 'err');
+            this.notificar("Error cargando el radar social", "❌");
+        }
+    }
+
+    async enviarSolicitudAmistad(receptorId) {
+        if(!this.usuarioLogueado) return;
+        this.sysLog('SOC', 'Tx Conn', `Enviando solicitud a ID: ${receptorId}`);
+        try {
+            const { error } = await this.supabase.from('conexiones').insert({ solicitante_id: this.usuarioLogueado.id, receptor_id: receptorId });
+            if (error) throw error;
+            this.notificar("Solicitud enviada a la red", "📡"); this.vibra("tick"); this.cargarPlazaPublica();
+        } catch(e) { this.sysLog('SOC', 'Tx Error', e.message, 'err'); this.notificar("Error al enviar solicitud", "❌"); }
+    }
+
+    async responderSolicitudAmistad(solicitanteId, accion) {
+        if(!this.usuarioLogueado) return;
+        this.sysLog('SOC', 'Rx Conn', `Respondiendo ${accion.toUpperCase()} a ID: ${solicitanteId}`);
+        try {
+            if (accion === 'aceptada') {
+                const { error } = await this.supabase.from('conexiones').update({ estado: 'aceptada' }).match({ solicitante_id: solicitanteId, receptor_id: this.usuarioLogueado.id });
+                if (error) throw error;
+                this.notificar("Nueva conexión establecida", "🤝"); this.vibra("doble");
+            } else {
+                const { error } = await this.supabase.from('conexiones').delete().match({ solicitante_id: solicitanteId, receptor_id: this.usuarioLogueado.id });
+                if (error) throw error;
+                this.notificar("Solicitud rechazada", "🗑️");
+            }
+            this.cargarPlazaPublica();
+        } catch(e) { this.sysLog('SOC', 'Rx Error', e.message, 'err'); this.notificar("Error al procesar", "❌"); }
+    }
+
+    async compartirAcceso(invitadoId, alias) {
+        if (!confirm(`¿Quieres dar a ${alias} acceso a tu Frecuencia Privada?\n\nPodrá ver tus sensores y controlar el hardware.`)) return;
+        
+        this.notificar("Forjando invitación cifrada...", "⚙️");
+        this.sysLog('SEC', 'Accesos', `Concediendo llaves a: ${alias}`);
+        
+        try {
+            const { error } = await this.supabase.from('accesos_hogares').insert({
+                hogar_id: this.miHogarId,
+                invitado_id: invitadoId
+            });
+
+            if (error) {
+                // Código 23505 es Unique Violation en PostgreSQL
+                if (error.code === '23505') throw new Error("Ya tiene las llaves");
+                throw error;
+            }
+            
+            this.notificar(`Llaves entregadas a ${alias}`, "✅");
+            this.vibra("doble");
+            
+        } catch (e) {
+            this.sysLog('SEC', 'Accesos Err', e.message, 'err');
+            this.notificar(e.message.includes("Ya tiene") ? "Ese usuario ya tiene acceso" : "Fallo al compartir llaves", "❌");
+        }
+    }
+    
     renderGrid() {
         let order = this.perfilDB?.tarjetas?.orden || JSON.parse(localStorage.getItem('gridOrder')) || [];
         let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
