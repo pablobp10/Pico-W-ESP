@@ -213,7 +213,26 @@ export class Core {
         } else {
             this.initSeguridadRoles();
         }
-
+        
+        const loginTitle = document.querySelector('.login-box h2');
+        if (loginTitle) {
+            let tapCount = 0;
+            let tapTimer;
+            loginTitle.onclick = () => {
+                tapCount++;
+                clearTimeout(tapTimer);
+                if (tapCount >= 5) {
+                    if(confirm("💣 ALERTA CRÍTICA: ¿Purgar toda la memoria local y cachés?")) {
+                        localStorage.clear(); sessionStorage.clear();
+                        if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+                        caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+                        window.location.reload();
+                    }
+                }
+                tapTimer = setTimeout(() => tapCount = 0, 2000); // Resetea el contador si pausas
+            };
+        }
+        
         this.filtroActual = 'all';
         this.initTheme();
         this.renderGrid(); 
