@@ -2052,6 +2052,7 @@ export class Core {
         if (!lista) return;
         lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
 
+        // 🚀 PARCHE UI: Forzamos el display con !important para vencer al CSS oculto
         if (this.tienePermiso('admin') && btnCrear) {
             btnCrear.style.setProperty('display', 'block', 'important');
         }
@@ -2067,9 +2068,12 @@ export class Core {
                 if (casasInvitado) canalesAcceso = canalesAcceso.concat(casasInvitado);
             }
 
+            // 🚀 PARCHE UX: Filtramos tu propio canal principal para que no salga en la lista
+            canalesAcceso = canalesAcceso.filter(canal => canal.id !== this.miHogarId);
+
             lista.innerHTML = '';
             if (canalesAcceso.length === 0) {
-                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">No hay canales activos.</p>';
+                lista.innerHTML = '<p style="color:var(--text-sec); text-align:center; font-size:0.9rem;">No hay canales externos disponibles.</p>';
                 return;
             }
 
