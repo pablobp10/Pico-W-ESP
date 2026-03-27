@@ -40,7 +40,7 @@ export class Core {
         this.confPrivada = null;
         this.canalActivo = null;
         this.perfilDB = null; 
-        this.miHogarId = null;
+        this.miHogarId = null; // 🚀 Vital para apuntar a la base de datos
         this.rol = "guest";
         this.editMode = false;
         
@@ -336,12 +336,14 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
+            // 🚀 MIGRACIÓN A TABLA HOGARES: Las llaves y el ID se asocian aquí
             const { data: miHogar } = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
             if (!miHogar) {
                 const nuevoTopic = `pico/ch_${Date.now()}/`;
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
-                await this.supabase.from('hogares').insert({ owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave });
+                const res = await this.supabase.from('hogares').insert({ owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave }).select().single();
                 this.conf = { topic: nuevoTopic, tk: nuevaClave };
+                this.miHogarId = res.data.id;
             } else {
                 this.conf = { topic: miHogar.topic_base, tk: miHogar.pico_tk };
                 this.miHogarId = miHogar.id;
@@ -378,6 +380,7 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
+            // 🚀 Recuperar el ID del Hogar
             const { data: miHogar } = await this.supabase.from('hogares').select('id').eq('owner_id', this.usuarioLogueado.id).single();
             if (miHogar) this.miHogarId = miHogar.id;
             
@@ -409,7 +412,9 @@ export class Core {
             this.canalActivo = { id: cData.id, nombre: cData.nombre };
             setTimeout(() => {
                 const nom = document.getElementById('canal-activo-nombre');
-                if(nom) nom.innerText = cData.nombre;
+                if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
+                const ban = document.getElementById('canal-activo-banner');
+                if(ban) ban.style.borderColor = '#0a84ff';
                 const btn = document.getElementById('btn-salir-canal');
                 if(btn) btn.style.display = 'block';
             }, 500);
@@ -421,6 +426,7 @@ export class Core {
         if(this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
         if(this.supabase) this.supabase.auth.signOut();
         document.getElementById('login-screen').style.display = 'flex'; 
+        document.getElementById('side-menu').classList.remove('open');
     }
 
     // ==========================================================
@@ -504,7 +510,7 @@ export class Core {
 
         if (this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
 
-        this.sysLog('NET', 'Sintonizando', `Escuchando telemetría del canal: ${hogarTargetId.substring(0,8)}`);
+        this.sysLog('NET', 'Sintonizando', `Escuchando telemetría de Canal: ${hogarTargetId.substring(0,8)}`);
 
         this.suscripcionRealtime = this.supabase.channel('custom-all-channel')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_hogares', filter: `hogar_id=eq.${hogarTargetId}` }, (payload) => {
@@ -518,6 +524,9 @@ export class Core {
                 });
             })
             .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    this.sysLog('NET', 'Enlace OK', 'Sintonizado a la frecuencia de la DB.');
+                }
                 if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
                     this.setNetworkStatus(false);
                     if (dot) dot.className = "dot red";
@@ -536,6 +545,9 @@ export class Core {
             return this.notificar("Sin conexión. Orden en cola", "❌");
         }
         try {
+            if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
+            if (!this.conf || !this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
+
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
             
@@ -688,7 +700,17 @@ export class Core {
     // 🧠 BLOQUE 5: IA NATIVA Y JARVIS
     // ==========================================================
 
-    initVozJARVIS() {}
+    initVozJARVIS() {
+        const btnVoz = document.querySelector('.fa-robot'); const input = document.getElementById('ai-input');
+        if (!btnVoz || (!window.SpeechRecognition && !window.webkitSpeechRecognition)) return;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition(); recognition.lang = 'es-ES'; recognition.continuous = false; recognition.interimResults = false;
+        btnVoz.style.cursor = "pointer";
+        btnVoz.onclick = () => { recognition.start(); btnVoz.style.color = "#ff453a"; btnVoz.classList.add("fa-beat-fade"); input.placeholder = "Escuchando..."; this.vibra("tick"); };
+        recognition.onresult = (event) => { input.value = event.results[0][0].transcript; btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade"); this.procesarComandoIA(); };
+        recognition.onerror = () => { btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade"); };
+    }
+    
     iniciarAgenteProactivo() {}
     initInterruptorIA() {}
     procesarComandoIA() { this.notificar("Procesamiento IA temporalmente inactivo.", "🤖"); }
@@ -791,7 +813,7 @@ export class Core {
             }
 
             lista.innerHTML = '';
-            if (canalesAcceso.length === 0) return lista.innerHTML = '<p style="color:var(--text-sec); text-align:center;">El éter está vacío.</p>';
+            if (canalesAcceso.length === 0) return (lista.innerHTML = '<p style="color:var(--text-sec); text-align:center;">El éter está vacío.</p>');
 
             canalesAcceso.forEach(canal => {
                 const isActivo = this.canalActivo && this.canalActivo.id === canal.id;
