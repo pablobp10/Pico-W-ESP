@@ -37,13 +37,13 @@ export class Core {
             PlantaCard, EnergiaCard, SintetizadorCard, OCRCard, ConscienciaCard
         ];
         this.conf = null;
-        this.confPrivada = null; // 🚀 Almacena la llave E2EE personal cuando visitas un Canal
-        this.canalActivo = null; // 🚀 Almacena los datos del canal actual
+        this.confPrivada = null; 
+        this.canalActivo = null; 
         this.perfilDB = null; 
-        this.miHogarId = null; // 🚀 Vital para apuntar a la base de datos
+        this.miHogarId = null; 
         this.rol = "guest";
         this.editMode = false;
-        this.suscripcionRealtime = null; // 🚀 Sustituto del WebSocket
+        this.suscripcionRealtime = null;
         
         // 🚀 CONEXIÓN A LA NUBE SUPABASE
         const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co';
@@ -285,12 +285,31 @@ export class Core {
             });
         }
         
-        // 🚀 ENGANCHE BOTONES CANAL (UI)
         const btnSalirCanal = document.getElementById('btn-salir-canal');
         if (btnSalirCanal) btnSalirCanal.onclick = () => this.salirCanal();
         
         const btnCrearCanal = document.getElementById('btn-crear-canal');
         if (btnCrearCanal) btnCrearCanal.onclick = () => this.crearCanal();
+
+        document.querySelectorAll('.btn-reveal-cred').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const icon = btn.querySelector('i');
+                if(input.type === 'password') { input.type = 'text'; icon.className = 'fa-solid fa-eye-slash'; } 
+                else { input.type = 'password'; icon.className = 'fa-solid fa-eye'; }
+            };
+        });
+
+        document.querySelectorAll('.btn-copy-cred').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                navigator.clipboard.writeText(input.value).then(() => { this.notificar("Copiado al portapapeles", "✅"); });
+            };
+        });
 
         document.getElementById('btn-edit').onclick = () => this.toggleEdit();
         document.getElementById('btn-theme').onclick = () => this.toggleTheme();
@@ -356,17 +375,14 @@ export class Core {
     guardarBovedaHardware(confData, tokenJWT) {
         if (!tokenJWT) return;
         const huella = this.generarHuellaDispositivo(tokenJWT);
-        
-        // 🛡️ PARCHE CRIPTOGRÁFICO: Bóveda Local con PBKDF2 y Vector Dinámico (IV)
         const salt = CryptoJS.lib.WordArray.random(128/8);
         const iv = CryptoJS.lib.WordArray.random(128/8);
         const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
-        
         const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), llaveFuerte, { iv: iv }).toString();
         const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
         
         localStorage.setItem('pico_hardware_vault', payloadFinal);
-        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2 y Token de Sesión.');
+        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2.');
     }
 
     abrirBovedaHardware(tokenJWT) {
@@ -378,7 +394,6 @@ export class Core {
             const partes = payload.split('::');
             
             if (partes.length === 3) {
-                // Formato Acorazado Nuevo
                 const salt = CryptoJS.enc.Hex.parse(partes[0]);
                 const iv = CryptoJS.enc.Hex.parse(partes[1]);
                 const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
@@ -387,53 +402,32 @@ export class Core {
                 if (!descifrado) return null;
                 return JSON.parse(descifrado);
             } else {
-                // Retrocompatibilidad por si aún queda la bóveda antigua en memoria
                 const bytes = CryptoJS.AES.decrypt(payload, huella);
                 const descifrado = bytes.toString(CryptoJS.enc.Utf8);
                 if (!descifrado) return null;
                 return JSON.parse(descifrado);
             }
         } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o manipulada.', 'err');
+            this.sysLog('SEC', 'Vault Err', 'Caché de bóveda corrompida o caducada.', 'warn');
             return null;
         }
     }
     
     generarHuellaDispositivo(tokenJWT = null) {
-        const n = navigator;
-        const s = screen;
-        
-        const componentes = [
-            n.userAgent,                                      
-            s.width + "x" + s.height + "x" + s.colorDepth,    
-            tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login-state"
-        ];
-        
+        const n = navigator; const s = screen;
+        const componentes = [ n.userAgent, s.width + "x" + s.height + "x" + s.colorDepth, tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login-state" ];
         const stringBase = componentes.join("||");
         let hash = 5381;
-        for (let i = 0; i < stringBase.length; i++) {
-            hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
-        }
+        for (let i = 0; i < stringBase.length; i++) hash = ((hash << 5) + hash) + stringBase.charCodeAt(i);
         return "fp-" + Math.abs(hash).toString(16);
     }
    
     obtenerNombreDispositivo(huella) {
-        const ua = navigator.userAgent;
-        let navegador = "Navegador Desconocido";
-        let so = "Dispositivo Desconocido";
-
-        if (ua.includes("Firefox")) navegador = "Firefox";
-        else if (ua.includes("OPR") || ua.includes("Opera")) navegador = "Opera";
-        else if (ua.includes("Edg")) navegador = "Edge";
-        else if (ua.includes("Chrome")) navegador = "Chrome";
-        else if (ua.includes("Safari")) navegador = "Safari";
-
-        if (ua.includes("Win")) so = "Windows";
-        else if (ua.includes("Mac")) so = "Mac";
-        else if (ua.includes("Linux")) so = "Linux";
-        else if (ua.includes("Android")) so = "Android";
-        else if (ua.includes("like Mac")) so = "iOS";
-
+        const ua = navigator.userAgent; let navegador = "Navegador Desconocido"; let so = "Dispositivo Desconocido";
+        if (ua.includes("Firefox")) navegador = "Firefox"; else if (ua.includes("OPR") || ua.includes("Opera")) navegador = "Opera";
+        else if (ua.includes("Edg")) navegador = "Edge"; else if (ua.includes("Chrome")) navegador = "Chrome"; else if (ua.includes("Safari")) navegador = "Safari";
+        if (ua.includes("Win")) so = "Windows"; else if (ua.includes("Mac")) so = "Mac"; else if (ua.includes("Linux")) so = "Linux";
+        else if (ua.includes("Android")) so = "Android"; else if (ua.includes("like Mac")) so = "iOS";
         const identificadorUnico = huella ? huella.substring(huella.length - 4) : "0000";
         return `${navegador} en ${so} (${identificadorUnico})`;
     }
@@ -497,7 +491,6 @@ export class Core {
             this.usuarioLogueado = data.user;
             
             const tokenJWT = data.session.access_token;
-            this.sysLog('SEC', 'Login OK', 'Token JWT adquirido correctamente.', 'info');
 
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
             if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
@@ -506,24 +499,30 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 MIGRACIÓN A TABLA HOGARES: Las llaves y el ID se asocian aquí
-            const { data: miHogar } = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
-            if (!miHogar) {
+            // 🚀 MIGRACIÓN SEGURA: Recuperamos o insertamos el Hogar blindando contra errores nulos
+            const resHogar = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
+            
+            if (resHogar.error || !resHogar.data) {
                 this.sysLog('SEC', 'Init', 'Forjando nuevo Hogar (Canal) y Llaves de Hardware...');
                 const nuevoTopic = `pico/ch_${Date.now()}/`;
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
-                const res = await this.supabase.from('hogares').insert({ owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave }).select().single();
+                
+                const insercion = await this.supabase.from('hogares').insert({
+                    owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave
+                }).select().single();
+                
+                if (insercion.error || !insercion.data) throw new Error("Fallo al forjar hogar base en DB.");
+                
                 this.conf = { topic: nuevoTopic, tk: nuevaClave };
-                this.miHogarId = res.data.id;
+                this.miHogarId = insercion.data.id;
                 this.notificar("Frecuencia base construida", "📻");
             } else {
-                this.conf = { topic: miHogar.topic_base, tk: miHogar.pico_tk };
-                this.miHogarId = miHogar.id;
+                this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
+                this.miHogarId = resHogar.data.id;
             }
 
             this.guardarBovedaHardware(this.conf, tokenJWT);
             this.initSeguridadRoles();
-            
             this.restaurarEstadoCanal();
 
             const displayUser = document.getElementById('display-username');
@@ -567,14 +566,18 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 Recuperar el ID del Hogar
-            const { data: miHogar } = await this.supabase.from('hogares').select('id').eq('owner_id', this.usuarioLogueado.id).single();
-            if (miHogar) this.miHogarId = miHogar.id;
+            // 🚀 PARCHE AUTOREPARADOR: Recuperamos ID y Llaves directas de Supabase siempre
+            const resHogar = await this.supabase.from('hogares').select('id, topic_base, pico_tk').eq('owner_id', this.usuarioLogueado.id).single();
+            if (resHogar.error || !resHogar.data) throw new Error("Hogar maestro no encontrado en base de datos.");
             
+            this.miHogarId = resHogar.data.id;
             this.conf = this.abrirBovedaHardware(tokenJWT);
-            if (!this.conf) {
-                this.sysLog('SEC', 'Vault', 'Bóveda física destruida o alterada. Abortando auto-login.', 'warn');
-                throw new Error("Cambio de hardware o caché purgada. Inicia sesión manualmente.");
+            
+            // Si la caché local se limpió (F5 o purga), la reconstruimos automáticamente
+            if (!this.conf || !this.conf.tk) {
+                this.sysLog('SEC', 'Vault', 'Recuperando bóveda criptográfica perdida desde la Nube...', 'warn');
+                this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
+                this.guardarBovedaHardware(this.conf, tokenJWT);
             }
             
             this.initSeguridadRoles();
@@ -605,35 +608,41 @@ export class Core {
     restaurarEstadoCanal() {
         const canalGuardado = sessionStorage.getItem('pico_canal_activo');
         if (canalGuardado) {
-            const cData = JSON.parse(canalGuardado);
-            this.confPrivada = cData.privada;
-            this.conf.topic = cData.topic;
-            this.conf.tk = cData.tk;
-            this.canalActivo = { id: cData.id, nombre: cData.nombre };
-            
-            setTimeout(() => {
-                const nom = document.getElementById('canal-activo-nombre');
-                const ban = document.getElementById('canal-activo-banner');
-                const btn = document.getElementById('btn-salir-canal');
-                if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
-                if(ban) ban.style.borderColor = '#0a84ff';
-                if(btn) btn.style.display = 'block';
-            }, 500);
+            try {
+                const cData = JSON.parse(canalGuardado);
+                this.confPrivada = cData.privada;
+                this.conf.topic = cData.topic;
+                this.conf.tk = cData.tk;
+                this.canalActivo = { id: cData.id, nombre: cData.nombre };
+                
+                setTimeout(() => {
+                    const nom = document.getElementById('canal-activo-nombre');
+                    const ban = document.getElementById('canal-activo-banner');
+                    const btn = document.getElementById('btn-salir-canal');
+                    if(nom) { nom.innerText = cData.nombre; nom.style.color = '#0a84ff'; }
+                    if(ban) ban.style.borderColor = '#0a84ff';
+                    if(btn) btn.style.display = 'block';
+                }, 500);
+            } catch(e) { sessionStorage.removeItem('pico_canal_activo'); }
         }
     }
 
     cerrarSesion() {
         this.sysLog('SEC', 'Logout', 'Limpiando llaves y cerrando sesión.');
         sessionStorage.removeItem('pico_sesion_ok');
-        if(this.suscripcionRealtime) this.supabase.removeChannel(this.suscripcionRealtime);
-        if(this.supabase) this.supabase.auth.signOut();
+        if (this.suscripcionRealtime) { this.supabase.removeChannel(this.suscripcionRealtime); this.suscripcionRealtime = null; }
+        if (this.supabase) this.supabase.auth.signOut();
 
         document.getElementById('pass-input').value = "";
         const loginScreen = document.getElementById('login-screen');
         if(loginScreen) { loginScreen.style.display = 'flex'; loginScreen.style.opacity = '1'; loginScreen.style.pointerEvents = 'auto'; }
         
-        document.getElementById('side-menu').classList.remove('open');
-        document.getElementById('settings-menu')?.classList.remove('open');
+        const sideMenu = document.getElementById('side-menu');
+        if (sideMenu) sideMenu.classList.remove('open');
+        
+        const settingsMenu = document.getElementById('settings-menu');
+        if (settingsMenu) settingsMenu.classList.remove('open');
+        
         this.notificar("Sesión cerrada", "🔒");
     }
 
@@ -652,8 +661,8 @@ export class Core {
 
             this.perfilDB = { ...this.perfilDB, ...datos };
             localStorage.setItem('pico_perfil_cache', JSON.stringify(this.perfilDB));
-            localStorage.setItem('pico_last_sync', data.updated_at); 
-            this.sysLog('DB', 'Update OK', 'Caché local sincronizada con sello de tiempo.', 'info', data.updated_at);
+            if(data) localStorage.setItem('pico_last_sync', data.updated_at); 
+            this.sysLog('DB', 'Update OK', 'Caché local sincronizada con sello de tiempo.');
             return true;
         } catch (err) {
             this.sysLog('DB', 'Update FAIL', err.message, 'err');
@@ -737,12 +746,12 @@ export class Core {
             document.getElementById('label-estilo').innerText = nombresTemas[estiloActual] || 'PICO OS (CRISTAL)';
         }
 
-        // 🚀 INYECCIÓN DE HARDWARE
+        // 🚀 INYECCIÓN DE HARDWARE REAL
         const hwTopic = document.getElementById('hw-topic-input');
         const hwTk = document.getElementById('hw-tk-input');
         if(hwTopic && hwTk) {
-            hwTopic.value = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : '');
-            hwTk.value = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : '');
+            hwTopic.value = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : 'Error - Recarga F5');
+            hwTk.value = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : 'Error - Recarga F5');
         }
 
         modal.style.display = 'flex';
@@ -807,7 +816,10 @@ export class Core {
         if (dot) dot.className = "dot green";
 
         const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
-        if (!hogarTargetId) return;
+        if (!hogarTargetId) {
+            this.sysLog('NET', 'Abort', 'ID de Hogar no establecido. Abortando Sintonización.', 'warn');
+            return;
+        }
 
         if (this.suscripcionRealtime) {
             this.supabase.removeChannel(this.suscripcionRealtime);
@@ -858,7 +870,13 @@ export class Core {
         
         try {
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
-            if (!this.conf || !this.conf.tk) throw new Error("Falta la clave secreta PICO_TK.");
+            
+            // 🛡️ PARCHE DE SUPERVIVENCIA: Si tk es nulo, detenemos el flujo antes del desastre
+            if (!this.conf || !this.conf.tk) {
+                this.sysLog('SEC', 'TX Err', 'Falta clave PICO_TK en memoria. Forzando relogueo.', 'err');
+                this.cerrarSesion();
+                return this.notificar("Bóveda corrompida. Vuelve a iniciar sesión.", "❌");
+            }
 
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
@@ -1388,7 +1406,6 @@ export class Core {
         if (this.modoIALocal) {
             await this.procesarConWebLLM(promptSistema, orden, modo);
         } else {
-            // 🚀 PARCHE AI NUBE: Usar Edge Functions de Supabase en vez de WebSockets
             if (navigator.onLine) {
                 const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
                 try {
@@ -1580,7 +1597,6 @@ export class Core {
             if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs@4.17.0");
             const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands@0.5.4");
 
-
             this.recognizer = speechCommands.create("BROWSER_FFT");
             await this.recognizer.ensureModelLoaded();
             const palabras = this.recognizer.wordLabels();
@@ -1613,6 +1629,7 @@ export class Core {
     }
 
     activarModoNube(btn) { if(!btn) btn = document.getElementById('btn-ia-mode'); this.modoIALocal = false; btn.innerHTML = '<i class="fa-solid fa-cloud"></i>'; btn.style.color = 'var(--text-sec)'; this.notificar("Modo IA Nube activado", "☁️"); }
+    
     async gestionarFalloIA(origenFallo) {
         const btn = document.getElementById('btn-ia-mode');
         if (origenFallo === 'nube') {
@@ -1623,8 +1640,8 @@ export class Core {
             }
         } else if (origenFallo === 'local') { this.notificar("Local colapsado. Evacuando a Nube...", "⚠️"); this.activarModoNube(btn); }
     }
+    
     detenerReintento() { if (this.reintentoNubeActivo) { clearInterval(this.reintentoNubeActivo); this.reintentoNubeActivo = null; } }
-
 
     // ==========================================================
     // ⚙️ BLOQUE 7: MISCELÁNEA, HARDWARE Y DB
@@ -1958,7 +1975,7 @@ export class Core {
         });
     }
 
-        registrarEnDB(app, accion, valorExtra = null) {
+    registrarEnDB(app, accion, valorExtra = null) {
         if (!this.db) return;
         
         const appLimpio = this.escapeHTML(String(app));
@@ -1977,7 +1994,6 @@ export class Core {
             timestamp: Date.now() 
         });
     }
-
 
     consultarHabitosDB(horaActual) {
         return new Promise((resolve) => {
@@ -2133,6 +2149,7 @@ export class Core {
         this.conf.tk = tk;
         this.canalActivo = { id, nombre };
 
+        // 🚀 PARCHE AMNESIA: Guardamos el estado del canal activo en la sesión
         sessionStorage.setItem('pico_canal_activo', JSON.stringify({
             id, nombre, topic, tk, privada: this.confPrivada
         }));
@@ -2160,6 +2177,7 @@ export class Core {
         this.conf.tk = this.confPrivada.tk;
         this.canalActivo = null;
 
+        // 🚀 PARCHE AMNESIA: Borramos el rastro del canal al salir
         sessionStorage.removeItem('pico_canal_activo');
 
         document.getElementById('dashboard-grid').innerHTML = "";
