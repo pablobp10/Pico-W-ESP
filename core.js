@@ -37,15 +37,14 @@ export class Core {
             PlantaCard, EnergiaCard, SintetizadorCard, OCRCard, ConscienciaCard
         ];
         this.conf = null;
-        this.confPrivada = null; 
-        this.canalActivo = null; 
+        this.confPrivada = null;
+        this.canalActivo = null;
         this.perfilDB = null; 
         this.miHogarId = null; 
         this.rol = "guest";
         this.editMode = false;
         this.suscripcionRealtime = null; 
         
-        // 🚀 CONEXIÓN A LA NUBE SUPABASE
         const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
         this.supabase = createClient(supabaseUrl, supabaseKey);
@@ -64,10 +63,6 @@ export class Core {
         this.arranqueSeguro();
     }
 
-    // ==========================================================
-    // 🛡️ BLOQUE 0: NÚCLEO, SEGURIDAD Y DEPURACIÓN EXTREMA
-    // ==========================================================
-    
     initSeguridadRoles() {
         if (!window._consolaOriginal) {
             window._consolaOriginal = { log: console.log, warn: console.warn, error: console.error, info: console.info };
@@ -79,13 +74,14 @@ export class Core {
             console.error = window._consolaOriginal.error;
             console.info = window._consolaOriginal.info;
 
-            if (!document.getElementById('eruda-script')) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (!document.getElementById('eruda-script') && isMobile) {
                 const script = document.createElement('script');
                 script.id = 'eruda-script';
                 script.src = "https://cdn.jsdelivr.net/npm/eruda";
                 script.onload = () => { 
                     eruda.init(); 
-                    this.sysLog('SEC', 'Inyección', 'Terminal Eruda (GOD MODE) en línea.', 'info'); 
+                    this.sysLog('SEC', 'Inyección', 'Terminal Eruda en línea.', 'info'); 
                 };
                 document.head.appendChild(script);
             }
@@ -95,9 +91,7 @@ export class Core {
             console.info = ofuscador;
             console.warn = ofuscador;
             console.error = (...args) => {
-                if (this.rol === 'admin') {
-                    window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada. Reporte al GOD.");
-                }
+                if (this.rol === 'admin') window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada.");
             };
         }
     }
@@ -209,30 +203,11 @@ export class Core {
                         document.body.setAttribute('data-estilo', 'pico');
                     }
                 }
-            } catch (e) { this.sysLog('SYS', 'Caché', 'Caché local corrupta, esperando a DB.', 'warn', e); }
+            } catch (e) { this.sysLog('SYS', 'Caché', 'Caché local corrupta.', 'warn', e); }
         } else {
             this.initSeguridadRoles();
         }
-        
-        const loginTitle = document.querySelector('.login-box h2');
-        if (loginTitle) {
-            let tapCount = 0;
-            let tapTimer;
-            loginTitle.onclick = () => {
-                tapCount++;
-                clearTimeout(tapTimer);
-                if (tapCount >= 5) {
-                    if(confirm("💣 ALERTA CRÍTICA: ¿Purgar toda la memoria local y cachés?")) {
-                        localStorage.clear(); sessionStorage.clear();
-                        if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
-                        caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
-                        window.location.reload();
-                    }
-                }
-                tapTimer = setTimeout(() => tapCount = 0, 2000); // Resetea el contador si pausas
-            };
-        }
-        
+
         this.filtroActual = 'all';
         this.initTheme();
         this.renderGrid(); 
@@ -250,10 +225,11 @@ export class Core {
         this.initSubidaAvatares();
         this.initColaNotificaciones();
 
+        const brokerTrigger = document.getElementById('broker-trigger');
+        if (brokerTrigger) brokerTrigger.style.display = 'none';
+
         document.getElementById('btn-login').onclick = () => this.login();
         document.getElementById('pass-input').onkeypress = (e) => { if(e.key==='Enter') this.login(); };
-        const btnHuella = document.getElementById('btn-huella');
-        if(btnHuella) btnHuella.onclick = (e) => { e.preventDefault(); this.manejarHuella(); };
         
         const linkRegister = document.getElementById('link-toggle-register');
         const btnRegisterSubmit = document.getElementById('btn-register-submit');
@@ -269,13 +245,11 @@ export class Core {
                     pass2Input.style.display = 'block';
                     btnRegisterSubmit.style.display = 'block';
                     btnLogin.style.display = 'none';
-                    if (btnHuella) btnHuella.style.display = 'none';
                     linkRegister.innerText = "Ya tengo cuenta (Iniciar sesión)";
                 } else {
                     pass2Input.style.display = 'none';
                     btnRegisterSubmit.style.display = 'none';
                     btnLogin.style.display = 'block';
-                    if (btnHuella) btnHuella.style.display = 'block';
                     linkRegister.innerText = "Crear usuario nuevo";
                 }
             };
@@ -383,27 +357,19 @@ export class Core {
         
         window.addEventListener('online', () => this.setNetworkStatus(true));
         window.addEventListener('offline', () => this.setNetworkStatus(false));
-        this.sincronizarColaOffline();
-        setTimeout(() => this.comprobarActualizaciones(true), 3000);
     }
-
-    // ==========================================================
-    // 🔐 BLOQUE 1: IDENTIDAD, AUTENTICACIÓN Y SEGURIDAD DB
-    // ==========================================================
 
     guardarBovedaHardware(confData, tokenJWT) {
         if (!tokenJWT) return;
         const huella = this.generarHuellaDispositivo(tokenJWT);
-        
         const salt = CryptoJS.lib.WordArray.random(128/8);
         const iv = CryptoJS.lib.WordArray.random(128/8);
         const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
-        
         const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), llaveFuerte, { iv: iv }).toString();
         const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
         
         localStorage.setItem('pico_hardware_vault', payloadFinal);
-        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2.');
+        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2 y Token de Sesión.');
     }
 
     abrirBovedaHardware(tokenJWT) {
@@ -429,13 +395,14 @@ export class Core {
                 return JSON.parse(descifrado);
             }
         } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Caché de bóveda corrompida o caducada.', 'warn');
+            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o manipulada.', 'warn');
             return null;
         }
     }
     
     generarHuellaDispositivo(tokenJWT = null) {
-        const n = navigator; const s = screen;
+        const n = navigator;
+        const s = screen;
         const componentes = [ n.userAgent, s.width + "x" + s.height + "x" + s.colorDepth, tokenJWT ? tokenJWT.substring(tokenJWT.length - 32) : "pre-login-state" ];
         const stringBase = componentes.join("||");
         let hash = 5381;
@@ -487,7 +454,6 @@ export class Core {
         const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
 
         this.logHUD("Iniciando secuencia de Login...", "info");
-        this.sysLog('SEC', 'Login', `Llamada a Edge Function iniciada`, 'info', { email: emailAuth });
 
         try {
             const deviceId = this.generarHuellaDispositivo(); 
@@ -505,7 +471,7 @@ export class Core {
             });
             
             const rawText = await req.text();
-            if (!req.ok) throw new Error(`Servidor rechazó la petición: ${rawText}`);
+            if (!req.ok) throw new Error(`Credenciales inválidas`);
             
             const data = JSON.parse(rawText);
             await this.supabase.auth.setSession(data.session);
@@ -520,30 +486,27 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 PARCHE AUTO-HEAL: Detectar llaves nulas y reparar DB
-            let resHogar = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
+            const resHogar = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).limit(1);
+            let hogarData = resHogar.data && resHogar.data.length > 0 ? resHogar.data[0] : null;
             
-            if (!resHogar.data || !resHogar.data.pico_tk || resHogar.data.pico_tk.length < 10) {
-                this.sysLog('SEC', 'Auto-Heal', 'Llaves corruptas o ausentes en DB. Reparando...');
-                const nuevoTopic = resHogar.data?.topic_base || `pico/ch_${Date.now()}/`;
+            if (!hogarData) {
+                this.sysLog('SEC', 'Init', 'Forjando nuevo Hogar (Canal) y Llaves de Hardware...');
+                const nuevoTopic = `pico/ch_${Date.now()}/`;
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
                 
-                if (resHogar.data && resHogar.data.id) {
-                    await this.supabase.from('hogares').update({ pico_tk: nuevaClave, topic_base: nuevoTopic }).eq('id', resHogar.data.id);
-                    resHogar.data.pico_tk = nuevaClave;
-                    resHogar.data.topic_base = nuevoTopic;
-                } else {
-                    const insercion = await this.supabase.from('hogares').insert({ 
-                        owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave 
-                    }).select().single(); 
-                    if (insercion.error) throw new Error("Bloqueo DB: " + insercion.error.message);
-                    resHogar = insercion;
-                }
-                this.notificar("Nuevas llaves forjadas", "🗝️");
-            }
+                const insercion = await this.supabase.from('hogares').insert({ 
+                    owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave 
+                }).select(); 
 
-            this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
-            this.miHogarId = resHogar.data.id;
+                if (insercion.error) throw new Error("Bloqueo DB: " + insercion.error.message);
+                
+                this.conf = { topic: nuevoTopic, tk: nuevaClave };
+                this.miHogarId = insercion.data[0].id;
+                this.notificar("Frecuencia base construida", "📻");
+            } else {
+                this.conf = { topic: hogarData.topic_base, tk: hogarData.pico_tk };
+                this.miHogarId = hogarData.id;
+            }
 
             this.guardarBovedaHardware(this.conf, tokenJWT);
             this.initSeguridadRoles();
@@ -551,7 +514,6 @@ export class Core {
 
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
-            
             if (this.perfilDB.avatar_url) {
                 const iconoMenu = document.querySelector('#user-profile-menu i');
                 if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
@@ -561,23 +523,21 @@ export class Core {
             localStorage.setItem("u", u); 
             
             document.getElementById('login-screen').style.display = 'none';
-            if(this.rol === 'admin' || this.rol === 'god') {
-                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
-            }
+            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
+            
+            this.sincronizarColaOffline();
+            setTimeout(() => this.comprobarActualizaciones(true), 3000);
+            
             this.logHUD("Login completado y Bóveda sellada.", "✅");
+            this.notificar("Acceso concedido", "✅");
 
         } catch (error) {  
-            this.sysLog('SEC', 'Login Error', error.message, 'err');
-            this.logHUD(`[ERROR]: ${error.message}`, "error");
             document.getElementById('error-msg').innerText = "❌ " + error.message;
             document.getElementById('error-msg').style.display = 'block'; 
-            
-            const loginBox = document.querySelector('.login-box');
-            if (loginBox) { loginBox.classList.remove('error-shake'); void loginBox.offsetWidth; loginBox.classList.add('error-shake'); }
         }
     }
 
@@ -590,29 +550,28 @@ export class Core {
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 PARCHE AUTO-HEAL PARA AUTOLOGIN
-            let resHogar = await this.supabase.from('hogares').select('id, topic_base, pico_tk').eq('owner_id', this.usuarioLogueado.id).single();
+            const resHogar = await this.supabase.from('hogares').select('id, topic_base, pico_tk').eq('owner_id', this.usuarioLogueado.id).limit(1);
+            let hogarData = resHogar.data && resHogar.data.length > 0 ? resHogar.data[0] : null;
             
-            if (!resHogar.data || !resHogar.data.pico_tk || resHogar.data.pico_tk.length < 10) {
+            if (!hogarData || !hogarData.pico_tk || hogarData.pico_tk.length < 10) {
                 this.sysLog('SEC', 'Auto-Heal', 'Llave maestra no detectada en DB. Reparando...');
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
-                const nuevoTopic = resHogar.data?.topic_base || `pico/ch_${Date.now()}/`;
+                const nuevoTopic = hogarData?.topic_base || `pico/ch_${Date.now()}/`;
                 
-                if (resHogar.data && resHogar.data.id) {
-                     await this.supabase.from('hogares').update({ pico_tk: nuevaClave, topic_base: nuevoTopic }).eq('id', resHogar.data.id);
-                     resHogar.data.pico_tk = nuevaClave;
+                if (hogarData && hogarData.id) {
+                     await this.supabase.from('hogares').update({ pico_tk: nuevaClave, topic_base: nuevoTopic }).eq('id', hogarData.id);
+                     hogarData.pico_tk = nuevaClave;
                 } else {
                     throw new Error("El hogar maestro no existe. Reloguea para crearlo.");
                 }
             }
 
-            this.miHogarId = resHogar.data.id;
+            this.miHogarId = hogarData.id;
             this.conf = this.abrirBovedaHardware(tokenJWT);
             
-            // 🛡️ PARCHE AMNESIA
             if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
                 this.sysLog('SEC', 'AutoLogin', 'Bóveda local vacía. Reconstruyendo desde Supabase...', 'warn');
-                this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
+                this.conf = { topic: hogarData.topic_base, tk: hogarData.pico_tk };
                 this.guardarBovedaHardware(this.conf, tokenJWT);
             }
             
@@ -626,13 +585,15 @@ export class Core {
                 if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.escapeHTML(this.perfilDB.avatar_url)}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
             }
 
-            if(this.rol === 'admin' || this.rol === 'god') {
-                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
-            }
+            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
+            
+            this.sincronizarColaOffline();
+            setTimeout(() => this.comprobarActualizaciones(true), 3000);
+            
             this.notificar("Acceso concedido", "🔐");
             
         } catch (error) {
@@ -681,10 +642,6 @@ export class Core {
         
         this.notificar("Sesión cerrada", "🔒");
     }
-
-    // ==========================================================
-    // 💾 BLOQUE 2: AUTO-GUARDADO Y AJUSTES DE PERFIL
-    // ==========================================================
 
     async guardarPerfilEnNube(datos) {
         if(!this.usuarioLogueado) return false;
@@ -782,7 +739,6 @@ export class Core {
             document.getElementById('label-estilo').innerText = nombresTemas[estiloActual] || 'PICO OS (CRISTAL)';
         }
 
-        // 🚀 INYECCIÓN DE HARDWARE REAL
         const hwTopic = document.getElementById('hw-topic-input');
         const hwTk = document.getElementById('hw-tk-input');
         if(hwTopic && hwTk) {
@@ -840,10 +796,6 @@ export class Core {
             }
         };
     }
-
-    // ==========================================================
-    // 🌐 BLOQUE 3: RED (SUPABASE REALTIME Y WEBHOOKS)
-    // ==========================================================
 
     async conectar() {
         if (!this.conf) return;
@@ -907,11 +859,10 @@ export class Core {
         try {
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
             
-            // 🛡️ PARCHE DE SUPERVIVENCIA: Si tk es nulo, desconecta suavemente en vez de petar
+            // 🛡️ PARCHE CONDICIÓN DE CARRERA: Encolar en lugar de forzar cierre de sesión
             if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
-                this.sysLog('SEC', 'TX Err', 'Falta clave PICO_TK en memoria. Forzando relogueo.', 'err');
-                this.notificar("Bóveda corrompida. Reparando...", "⚠️");
-                setTimeout(() => this.cerrarSesion(), 1500);
+                this.sysLog('SEC', 'TX Info', 'Clave pendiente en memoria. Encolando orden.', 'warn');
+                this.colaOffline.push({app, c});
                 return;
             }
 
@@ -982,12 +933,14 @@ export class Core {
 
     updatePicoStatus(val) {
         const container = document.getElementById('pico-status-container');
+        const brokerTrigger = document.getElementById('broker-trigger');
         if (!container) return;
         const isOnline = val === "ONLINE" || val === "KEEPALIVE" || (val && (val.sistema === "ONLINE" || val.t !== undefined));
         clearTimeout(this.picoWatchdog);
         
         container.innerHTML = "";
         if (isOnline) {
+            if (brokerTrigger) brokerTrigger.style.display = 'flex';
             this.picoWatchdog = setTimeout(() => {
                 this.sysLog('SYS', 'Watchdog', 'Timeout. La Pico ha muerto. Forzando OFFLINE.', 'err');
                 this.updatePicoStatus("OFFLINE"); 
@@ -1015,13 +968,11 @@ export class Core {
                     <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">${ramPercent}%</span>
                 </div>`;
         } else {
+            if (brokerTrigger) brokerTrigger.style.display = 'none';
             container.innerHTML = `<div class="pico-info-pill" style="border-color:var(--text-sec); opacity:0.7"><span class="dot red"></span><span style="font-weight:600; color:var(--text-sec);">Offline</span></div>`;
         }
     }
 
-    // ==========================================================
-    // 🎨 BLOQUE 4: RENDERIZADO Y NOTIFICACIONES
-    // ==========================================================
     renderGrid() {
         let order = this.perfilDB?.tarjetas?.orden || JSON.parse(localStorage.getItem('gridOrder')) || [];
         let savedSizes = this.perfilDB?.tarjetas?.tamanos || JSON.parse(localStorage.getItem('pico_card_sizes')) || {};
@@ -2101,7 +2052,6 @@ export class Core {
         if (!lista) return;
         lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
 
-        // 🚀 PARCHE UI: Forzamos el display con !important para vencer al CSS oculto
         if (this.tienePermiso('admin') && btnCrear) {
             btnCrear.style.setProperty('display', 'block', 'important');
         }
