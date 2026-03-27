@@ -42,7 +42,7 @@
         <div class="header-left">
             <h1 class="pico-os-title" style="cursor: pointer;">Pico OS</h1>
             
-            <div class="broker-wrapper" id="broker-trigger">
+            <div class="broker-wrapper" id="broker-trigger" style="display: none;">
                 <span id="mqtt-dot" class="dot red"></span>
                 <span id="current-broker-name">Offline</span>
                 <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; opacity:0.5"></i>
@@ -387,16 +387,9 @@
         }
 
         function selectModalOption(dropId, inputId, labelId, valor, texto) {
-            // 1. Cambiamos el texto visual
             document.getElementById(labelId).innerText = texto;
-            
-            // 2. Guardamos el valor técnico
             document.getElementById(inputId).value = valor;
-            
-            // 3. Cerramos el menú
             document.getElementById(dropId).classList.remove('open');
-            
-            // 🚀 4. DISPARAMOS EL AUTO-GUARDADO (LA MAGIA)
             if (window.App) window.App.autoGuardarPerfil();
         }
 
