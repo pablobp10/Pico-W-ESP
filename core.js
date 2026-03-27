@@ -43,7 +43,7 @@ export class Core {
         this.miHogarId = null; 
         this.rol = "guest";
         this.editMode = false;
-        this.suscripcionRealtime = null;
+        this.suscripcionRealtime = null; 
         
         // 🚀 CONEXIÓN A LA NUBE SUPABASE
         const supabaseUrl = 'https://piruxdxdvynacdtjbjux.supabase.co';
@@ -375,9 +375,11 @@ export class Core {
     guardarBovedaHardware(confData, tokenJWT) {
         if (!tokenJWT) return;
         const huella = this.generarHuellaDispositivo(tokenJWT);
+        
         const salt = CryptoJS.lib.WordArray.random(128/8);
         const iv = CryptoJS.lib.WordArray.random(128/8);
         const llaveFuerte = CryptoJS.PBKDF2(huella, salt, { keySize: 256/32, iterations: 5000 });
+        
         const cifrado = CryptoJS.AES.encrypt(JSON.stringify(confData), llaveFuerte, { iv: iv }).toString();
         const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
         
@@ -464,54 +466,65 @@ export class Core {
         const u = document.getElementById('user-input').value.trim();
         const p = document.getElementById('pass-input').value.trim();
         const emailAuth = u.includes('@') ? u : `${u}@pico.os`;
-        this.notificar("Iniciando acceso seguro...", "⏳");
+
+        this.logHUD("Iniciando secuencia de Login...", "info");
+        this.sysLog('SEC', 'Login', `Llamada a Edge Function iniciada`, 'info', { email: emailAuth });
 
         try {
             const deviceId = this.generarHuellaDispositivo(); 
+            const esMovilReal = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            this.esMovil = esMovilReal; 
             const deviceName = this.obtenerNombreDispositivo(deviceId);
-            const req = await fetch('https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro', {
+
+            const functionUrl = 'https://piruxdxdvynacdtjbjux.supabase.co/functions/v1/login-seguro';
+            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcnV4ZHhkdnluYWNkdGpianV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNjc3MDAsImV4cCI6MjA4ODg0MzcwMH0.iLBhbFRInA21_QLNJp57qQ7SJPPivq4c_XzUywBum6w';
+
+            const req = await fetch(functionUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.supabase.supabaseKey}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}` },
                 body: JSON.stringify({ email: emailAuth, password: p, device_id: deviceId, device_name: deviceName })
             });
             
-            if (!req.ok) throw new Error(`Credenciales inválidas`);
-            const data = await req.json();
+            const rawText = await req.text();
+            if (!req.ok) throw new Error(`Servidor rechazó la petición: ${rawText}`);
+            
+            const data = JSON.parse(rawText);
             await this.supabase.auth.setSession(data.session);
             this.usuarioLogueado = data.user;
+            
             const tokenJWT = data.session.access_token;
 
-            const { data: perfilNube } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
+            const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
+            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
+
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 MIGRACIÓN A TABLA HOGARES (CON CAZADOR DE ERRORES Y SIN .single() PARA EVITAR BLOQUEOS RLS)
-            const resHogar = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
+            // 🚀 PARCHE AUTO-HEAL: Detectar llaves nulas y reparar DB
+            let resHogar = await this.supabase.from('hogares').select('*').eq('owner_id', this.usuarioLogueado.id).single();
             
-            if (!resHogar.data) {
-                const nuevoTopic = `pico/ch_${Date.now()}/`;
+            if (!resHogar.data || !resHogar.data.pico_tk || resHogar.data.pico_tk.length < 10) {
+                this.sysLog('SEC', 'Auto-Heal', 'Llaves corruptas o ausentes en DB. Reparando...');
+                const nuevoTopic = resHogar.data?.topic_base || `pico/ch_${Date.now()}/`;
                 const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
                 
-                const insercion = await this.supabase.from('hogares').insert({ 
-                    owner_id: this.usuarioLogueado.id, 
-                    nombre: "Frecuencia Privada", 
-                    topic_base: nuevoTopic, 
-                    pico_tk: nuevaClave 
-                }).select(); 
-
-                // 🛑 CAZADOR DE ERRORES: Si Supabase lo rechaza, saldrá un popup enorme
-                if (insercion.error) {
-                    alert("⛔ ERROR CRÍTICO SUPABASE:\n" + insercion.error.message + "\n\n(Revisa las políticas RLS de la tabla 'hogares')");
-                    throw new Error("Rechazo DB: " + insercion.error.message);
+                if (resHogar.data && resHogar.data.id) {
+                    await this.supabase.from('hogares').update({ pico_tk: nuevaClave, topic_base: nuevoTopic }).eq('id', resHogar.data.id);
+                    resHogar.data.pico_tk = nuevaClave;
+                    resHogar.data.topic_base = nuevoTopic;
+                } else {
+                    const insercion = await this.supabase.from('hogares').insert({ 
+                        owner_id: this.usuarioLogueado.id, nombre: "Frecuencia Privada", topic_base: nuevoTopic, pico_tk: nuevaClave 
+                    }).select().single(); 
+                    if (insercion.error) throw new Error("Bloqueo DB: " + insercion.error.message);
+                    resHogar = insercion;
                 }
-
-                this.conf = { topic: nuevoTopic, tk: nuevaClave };
-                this.miHogarId = insercion.data[0].id;
-                this.notificar("Frecuencia base construida", "📻");
-            } else {
-                this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
-                this.miHogarId = resHogar.data.id;
+                this.notificar("Nuevas llaves forjadas", "🗝️");
             }
+
+            this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
+            this.miHogarId = resHogar.data.id;
 
             this.guardarBovedaHardware(this.conf, tokenJWT);
             this.initSeguridadRoles();
@@ -519,6 +532,7 @@ export class Core {
 
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || u.split('@')[0];
+            
             if (this.perfilDB.avatar_url) {
                 const iconoMenu = document.querySelector('#user-profile-menu i');
                 if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.perfilDB.avatar_url}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
@@ -528,38 +542,56 @@ export class Core {
             localStorage.setItem("u", u); 
             
             document.getElementById('login-screen').style.display = 'none';
-            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            if(this.rol === 'admin' || this.rol === 'god') {
+                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            }
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
-            this.notificar("Acceso concedido", "✅");
+            this.logHUD("Login completado y Bóveda sellada.", "✅");
+
         } catch (error) {  
+            this.sysLog('SEC', 'Login Error', error.message, 'err');
+            this.logHUD(`[ERROR]: ${error.message}`, "error");
             document.getElementById('error-msg').innerText = "❌ " + error.message;
             document.getElementById('error-msg').style.display = 'block'; 
+            
+            const loginBox = document.querySelector('.login-box');
+            if (loginBox) { loginBox.classList.remove('error-shake'); void loginBox.offsetWidth; loginBox.classList.add('error-shake'); }
         }
     }
 
     async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
-            const { data: perfilNube, error: errorPerfil } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
-            if (errorPerfil) throw new Error("Perfil no encontrado.");
-            
+            const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
+            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
+
             this.perfilDB = perfilNube;
             this.rol = this.perfilDB.rol;
 
-            // 🚀 Recuperar el ID del Hogar directamente de la Nube
-            const resHogar = await this.supabase.from('hogares').select('id, topic_base, pico_tk').eq('owner_id', this.usuarioLogueado.id).single();
+            // 🚀 PARCHE AUTO-HEAL PARA AUTOLOGIN
+            let resHogar = await this.supabase.from('hogares').select('id, topic_base, pico_tk').eq('owner_id', this.usuarioLogueado.id).single();
             
-            if (!resHogar.data) {
-                throw new Error("Hogar no encontrado. Relogueo requerido para forjarlo.");
+            if (!resHogar.data || !resHogar.data.pico_tk || resHogar.data.pico_tk.length < 10) {
+                this.sysLog('SEC', 'Auto-Heal', 'Llave maestra no detectada en DB. Reparando...');
+                const nuevaClave = CryptoJS.lib.WordArray.random(32).toString();
+                const nuevoTopic = resHogar.data?.topic_base || `pico/ch_${Date.now()}/`;
+                
+                if (resHogar.data && resHogar.data.id) {
+                     await this.supabase.from('hogares').update({ pico_tk: nuevaClave, topic_base: nuevoTopic }).eq('id', resHogar.data.id);
+                     resHogar.data.pico_tk = nuevaClave;
+                } else {
+                    throw new Error("El hogar maestro no existe. Reloguea para crearlo.");
+                }
             }
 
             this.miHogarId = resHogar.data.id;
             this.conf = this.abrirBovedaHardware(tokenJWT);
             
-            // 🛡️ PARCHE AMNESIA: Si la caché local se limpió, la reconstruimos con los datos de Supabase sin crashear
-            if (!this.conf || !this.conf.tk) {
+            // 🛡️ PARCHE AMNESIA
+            if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
                 this.sysLog('SEC', 'AutoLogin', 'Bóveda local vacía. Reconstruyendo desde Supabase...', 'warn');
                 this.conf = { topic: resHogar.data.topic_base, tk: resHogar.data.pico_tk };
                 this.guardarBovedaHardware(this.conf, tokenJWT);
@@ -570,16 +602,23 @@ export class Core {
 
             const displayUser = document.getElementById('display-username');
             if (displayUser) displayUser.innerText = this.perfilDB.alias || this.perfilDB.nombre || "USUARIO";
-            
-            if(this.rol === 'admin' || this.rol === 'god') document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            if (this.perfilDB.avatar_url) {
+                const iconoMenu = document.querySelector('#user-profile-menu i');
+                if(iconoMenu) iconoMenu.outerHTML = `<img src="${this.escapeHTML(this.perfilDB.avatar_url)}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 10px; object-fit: cover;">`;
+            }
+
+            if(this.rol === 'admin' || this.rol === 'god') {
+                document.querySelectorAll('.admin-only').forEach(e => e.style.setProperty('display', 'block', 'important'));
+            }
             
             this.renderGrid();
             this.conectar();
             this.comprobarSolicitudesPendientes();
-            this.notificar("Sesión restaurada", "🔐");
-        } catch (error) { 
-            this.sysLog('SEC', 'AutoLogin Err', error.message, 'err');
-            this.cerrarSesion(); 
+            this.notificar("Acceso concedido", "🔐");
+            
+        } catch (error) {
+            this.sysLog('SEC', 'AutoLogin Error', error.message, 'err');
+            this.cerrarSesion();
         }
     }
 
@@ -728,8 +767,8 @@ export class Core {
         const hwTopic = document.getElementById('hw-topic-input');
         const hwTk = document.getElementById('hw-tk-input');
         if(hwTopic && hwTk) {
-            hwTopic.value = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : 'Error - Recarga F5');
-            hwTk.value = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : 'Error - Recarga F5');
+            hwTopic.value = this.confPrivada ? this.confPrivada.topic : (this.conf ? this.conf.topic : 'Error - Reconstruyendo');
+            hwTk.value = this.confPrivada ? this.confPrivada.tk : (this.conf ? this.conf.tk : 'Error - Reconstruyendo');
         }
 
         modal.style.display = 'flex';
@@ -849,11 +888,12 @@ export class Core {
         try {
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
             
-            // 🛡️ PARCHE DE SUPERVIVENCIA: Si tk es nulo, detenemos el flujo antes del desastre
-            if (!this.conf || !this.conf.tk) {
+            // 🛡️ PARCHE DE SUPERVIVENCIA: Si tk es nulo, desconecta suavemente en vez de petar
+            if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
                 this.sysLog('SEC', 'TX Err', 'Falta clave PICO_TK en memoria. Forzando relogueo.', 'err');
-                this.cerrarSesion();
-                return this.notificar("Bóveda corrompida. Vuelve a iniciar sesión.", "❌");
+                this.notificar("Bóveda corrompida. Reparando...", "⚠️");
+                setTimeout(() => this.cerrarSesion(), 1500);
+                return;
             }
 
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
@@ -2127,7 +2167,6 @@ export class Core {
         this.conf.tk = tk;
         this.canalActivo = { id, nombre };
 
-        // 🚀 PARCHE AMNESIA: Guardamos el estado del canal activo en la sesión
         sessionStorage.setItem('pico_canal_activo', JSON.stringify({
             id, nombre, topic, tk, privada: this.confPrivada
         }));
@@ -2155,7 +2194,6 @@ export class Core {
         this.conf.tk = this.confPrivada.tk;
         this.canalActivo = null;
 
-        // 🚀 PARCHE AMNESIA: Borramos el rastro del canal al salir
         sessionStorage.removeItem('pico_canal_activo');
 
         document.getElementById('dashboard-grid').innerHTML = "";
