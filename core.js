@@ -81,7 +81,7 @@ export class Core {
                 script.src = "https://cdn.jsdelivr.net/npm/eruda";
                 script.onload = () => { 
                     eruda.init(); 
-                    this.sysLog('SEC', 'Inyección', 'Terminal Eruda en línea.', 'info'); 
+                    this.sysLog('SEC', 'Inyecci贸n', 'Terminal Eruda en l铆nea.', 'info'); 
                 };
                 document.head.appendChild(script);
             }
@@ -91,7 +91,7 @@ export class Core {
             console.info = ofuscador;
             console.warn = ofuscador;
             console.error = (...args) => {
-                if (this.rol === 'admin') window._consolaOriginal.warn("⚠️ [SISTEMA] Alerta de seguridad interceptada.");
+                if (this.rol === 'admin') window._consolaOriginal.warn("鈿狅笍 [SISTEMA] Alerta de seguridad interceptada.");
             };
         }
     }
@@ -112,7 +112,7 @@ export class Core {
                 catch(e) { log("[Payload Complejo/Binario]", dataExtra); } 
             }
             if ((tipo === 'error' || tipo === 'err') && solucion) {
-                log(`%c💡 FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: inherit; font-weight: normal;`);
+                log(`%c馃挕 FIX: %c${solucion}`, `color: #32d74b; font-weight: bold;`, `color: inherit; font-weight: normal;`);
             }
         }
         this.logHUD(`[${modulo.toUpperCase()}] ${accion}: ${mensaje}`, tipo, dataExtra, solucion);
@@ -127,17 +127,17 @@ export class Core {
 
     escapeHTML(str) {
         if (!str) return "";
-        return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        return str.replace(/[&<>'"]/g, tag => ({ '&': '&', '<': '<', '>': '>', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
     async arranqueSeguro() {
-        this.sysLog('SYS', 'Boot', 'Secuencia de ignición iniciada.');
+        this.sysLog('SYS', 'Boot', 'Secuencia de ignici贸n iniciada.');
         await this.inicializarModulos();
         this.init(); 
     }
 
     async inicializarModulos() {
-        this.sysLog('SYS', 'Modulos', 'Comprobando librerías en caché...');
+        this.sysLog('SYS', 'Modulos', 'Comprobando librer铆as en cach茅...');
         this.versiones = JSON.parse(localStorage.getItem('pico_libs_versions')) || {
             "@mlc-ai/web-llm": "0.2.81", "paho-mqtt": "1.0.1", "crypto-js": "4.2.0", "sortable": "1.15.0"
         };
@@ -155,7 +155,7 @@ export class Core {
                         script.onload = resolve; script.onerror = reject;
                         document.head.appendChild(script);
                     });
-                    this.sysLog('SYS', 'Inyección', `Módulo cargado: ${nombre}`);
+                    this.sysLog('SYS', 'Inyecci贸n', `M贸dulo cargado: ${nombre}`);
                 } catch(e) {
                     this.sysLog('SYS', 'Error Fatal', `Fallo al montar ${nombre}`, 'err');
                 }
@@ -180,7 +180,7 @@ export class Core {
         }
         if (hayNovedades) {
             localStorage.setItem('pico_libs_versions', JSON.stringify(nuevasVersiones));
-            this.notificar("Actualización interna lista (Se aplicará al recargar)", "🔄");
+            this.notificar("Actualizaci贸n interna lista (Se aplicar谩 al recargar)", "馃攧");
         }
     }
 
@@ -203,7 +203,7 @@ export class Core {
                         document.body.setAttribute('data-estilo', 'pico');
                     }
                 }
-            } catch (e) { this.sysLog('SYS', 'Caché', 'Caché local corrupta.', 'warn', e); }
+            } catch (e) { this.sysLog('SYS', 'Cach茅', 'Cach茅 local corrupta.', 'warn', e); }
         } else {
             this.initSeguridadRoles();
         }
@@ -245,7 +245,7 @@ export class Core {
                     pass2Input.style.display = 'block';
                     btnRegisterSubmit.style.display = 'block';
                     btnLogin.style.display = 'none';
-                    linkRegister.innerText = "Ya tengo cuenta (Iniciar sesión)";
+                    linkRegister.innerText = "Ya tengo cuenta (Iniciar sesi贸n)";
                 } else {
                     pass2Input.style.display = 'none';
                     btnRegisterSubmit.style.display = 'none';
@@ -300,7 +300,7 @@ export class Core {
                 e.preventDefault();
                 const targetId = btn.getAttribute('data-target');
                 const input = document.getElementById(targetId);
-                navigator.clipboard.writeText(input.value).then(() => { this.notificar("Copiado al portapapeles", "✅"); });
+                navigator.clipboard.writeText(input.value).then(() => { this.notificar("Copiado al portapapeles", "鉁�"); });
             };
         });
 
@@ -339,7 +339,7 @@ export class Core {
 
         this.supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                this.sysLog('SEC', 'AutoLogin', 'Sesión segura recuperada. Saltando pantalla de login.');
+                this.sysLog('SEC', 'AutoLogin', 'Sesi贸n segura recuperada. Saltando pantalla de login.');
                 this.usuarioLogueado = session.user;
                 if (loginScreen) loginScreen.style.display = 'none';
                 this.cargarDatosDespuesDeLogin(session.access_token);
@@ -369,7 +369,7 @@ export class Core {
         const payloadFinal = `${salt.toString()}::${iv.toString()}::${cifrado}`;
         
         localStorage.setItem('pico_hardware_vault', payloadFinal);
-        this.sysLog('SEC', 'Vault', 'Bóveda local sellada con PBKDF2 y Token de Sesión.');
+        this.sysLog('SEC', 'Vault', 'B贸veda local sellada con PBKDF2 y Token de Sesi贸n.');
     }
 
     abrirBovedaHardware(tokenJWT) {
@@ -395,7 +395,7 @@ export class Core {
                 return JSON.parse(descifrado);
             }
         } catch (e) {
-            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesión caducada o manipulada.', 'warn');
+            this.sysLog('SEC', 'Vault Err', 'Intento de apertura con sesi贸n caducada o manipulada.', 'warn');
             return null;
         }
     }
@@ -421,10 +421,10 @@ export class Core {
     }
     
     async registrarUsuario(u, p1, p2) {
-        if (!u) return this.notificar("Falta el correo electrónico", "❌");
-        if (!u.includes('@') || !u.includes('.')) return this.notificar("Debes usar un correo real válido", "⚠️");
-        if (p1 !== p2) return this.notificar("Las contraseñas no coinciden", "❌");
-        if (p1.length < 6) return this.notificar("Mínimo 6 caracteres", "⚠️");
+        if (!u) return this.notificar("Falta el correo electr贸nico", "鉂�");
+        if (!u.includes('@') || !u.includes('.')) return this.notificar("Debes usar un correo real v谩lido", "鈿狅笍");
+        if (p1 !== p2) return this.notificar("Las contrase帽as no coinciden", "鉂�");
+        if (p1.length < 6) return this.notificar("M铆nimo 6 caracteres", "鈿狅笍");
         
         this.sysLog('SEC', 'Registro', `Intentando crear usuario: ${u}`);
         const btn = document.getElementById('btn-register-submit');
@@ -434,15 +434,15 @@ export class Core {
             const { error } = await this.supabase.auth.signUp({ email: u.trim(), password: p1 });
             if (error) throw error;
             
-            this.sysLog('SEC', 'Registro', 'Éxito. Correo de confirmación enviado.');
-            this.notificar("Revisa tu correo para confirmar la cuenta.", "📩");
+            this.sysLog('SEC', 'Registro', '脡xito. Correo de confirmaci贸n enviado.');
+            this.notificar("Revisa tu correo para confirmar la cuenta.", "馃摡");
             
             document.getElementById('link-toggle-register').click();
             document.getElementById('user-input').value = ""; document.getElementById('pass-input').value = ""; document.getElementById('pass2-input').value = "";
         } catch (error) {
             this.sysLog('SEC', 'Registro Fail', error.message, 'err');
-            if (error.message.includes("already registered")) this.notificar("Ese correo ya está registrado", "⚠️");
-            else this.notificar("Fallo al registrar", "❌");
+            if (error.message.includes("already registered")) this.notificar("Ese correo ya est谩 registrado", "鈿狅笍");
+            else this.notificar("Fallo al registrar", "鉂�");
         } finally {
             btn.innerHTML = 'ENVIAR SOLICITUD';
         }
@@ -471,7 +471,7 @@ export class Core {
             });
             
             const rawText = await req.text();
-            if (!req.ok) throw new Error(`Credenciales inválidas`);
+            if (!req.ok) throw new Error(`Credenciales inv谩lidas`);
             
             const data = JSON.parse(rawText);
             await this.supabase.auth.setSession(data.session);
@@ -480,7 +480,7 @@ export class Core {
             const tokenJWT = data.session.access_token;
 
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
-            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta est谩 en revisi贸n.");
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
 
             this.perfilDB = perfilNube;
@@ -502,7 +502,7 @@ export class Core {
                 
                 this.conf = { topic: nuevoTopic, tk: nuevaClave };
                 this.miHogarId = insercion.data[0].id;
-                this.notificar("Frecuencia base construida", "📻");
+                this.notificar("Frecuencia base construida", "馃摶");
             } else {
                 this.conf = { topic: hogarData.topic_base, tk: hogarData.pico_tk };
                 this.miHogarId = hogarData.id;
@@ -532,11 +532,11 @@ export class Core {
             this.sincronizarColaOffline();
             setTimeout(() => this.comprobarActualizaciones(true), 3000);
             
-            this.logHUD("Login completado y Bóveda sellada.", "✅");
-            this.notificar("Acceso concedido", "✅");
+            this.logHUD("Login completado y B贸veda sellada.", "鉁�");
+            this.notificar("Acceso concedido", "鉁�");
 
         } catch (error) {  
-            document.getElementById('error-msg').innerText = "❌ " + error.message;
+            document.getElementById('error-msg').innerText = "鉂� " + error.message;
             document.getElementById('error-msg').style.display = 'block'; 
         }
     }
@@ -544,7 +544,7 @@ export class Core {
     async cargarDatosDespuesDeLogin(tokenJWT) {
         try {
             const { data: perfilNube, error: dbError } = await this.supabase.from('perfiles').select('*').eq('id', this.usuarioLogueado.id).single();
-            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta está en revisión.");
+            if (perfilNube?.rol === 'pendiente') throw new Error("Tu cuenta est谩 en revisi贸n.");
             if (dbError || !perfilNube) throw new Error("Perfil DB no encontrado.");
 
             this.perfilDB = perfilNube;
@@ -570,7 +570,7 @@ export class Core {
             this.conf = this.abrirBovedaHardware(tokenJWT);
             
             if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
-                this.sysLog('SEC', 'AutoLogin', 'Bóveda local vacía. Reconstruyendo desde Supabase...', 'warn');
+                this.sysLog('SEC', 'AutoLogin', 'B贸veda local vac铆a. Reconstruyendo desde Supabase...', 'warn');
                 this.conf = { topic: hogarData.topic_base, tk: hogarData.pico_tk };
                 this.guardarBovedaHardware(this.conf, tokenJWT);
             }
@@ -594,7 +594,7 @@ export class Core {
             this.sincronizarColaOffline();
             setTimeout(() => this.comprobarActualizaciones(true), 3000);
             
-            this.notificar("Acceso concedido", "🔐");
+            this.notificar("Acceso concedido", "馃攼");
             
         } catch (error) {
             this.sysLog('SEC', 'AutoLogin Error', error.message, 'err');
@@ -625,7 +625,7 @@ export class Core {
     }
 
     cerrarSesion() {
-        this.sysLog('SEC', 'Logout', 'Limpiando llaves y cerrando sesión.');
+        this.sysLog('SEC', 'Logout', 'Limpiando llaves y cerrando sesi贸n.');
         sessionStorage.removeItem('pico_sesion_ok');
         if (this.suscripcionRealtime) { this.supabase.removeChannel(this.suscripcionRealtime); this.suscripcionRealtime = null; }
         if (this.supabase) this.supabase.auth.signOut();
@@ -640,7 +640,7 @@ export class Core {
         const settingsMenu = document.getElementById('settings-menu');
         if (settingsMenu) settingsMenu.classList.remove('open');
         
-        this.notificar("Sesión cerrada", "🔒");
+        this.notificar("Sesi贸n cerrada", "馃敀");
     }
 
     async guardarPerfilEnNube(datos) {
@@ -655,7 +655,7 @@ export class Core {
             this.perfilDB = { ...this.perfilDB, ...datos };
             localStorage.setItem('pico_perfil_cache', JSON.stringify(this.perfilDB));
             if(data) localStorage.setItem('pico_last_sync', data.updated_at); 
-            this.sysLog('DB', 'Update OK', 'Caché local sincronizada con sello de tiempo.');
+            this.sysLog('DB', 'Update OK', 'Cach茅 local sincronizada con sello de tiempo.');
             return true;
         } catch (err) {
             this.sysLog('DB', 'Update FAIL', err.message, 'err');
@@ -695,7 +695,7 @@ export class Core {
         }
 
         const exito = await this.guardarPerfilEnNube(datosActualizados);
-        if(!exito) this.notificar("Guardado offline. Se subirá al recuperar conexión.", "⚠️");
+        if(!exito) this.notificar("Guardado offline. Se subir谩 al recuperar conexi贸n.", "鈿狅笍");
     }
 
     abrirAjustesUsuario() {
@@ -708,13 +708,13 @@ export class Core {
         if(document.getElementById('input-perfil-nombre')) document.getElementById('input-perfil-nombre').value = p.nombre || '';
         if(document.getElementById('input-perfil-alias')) document.getElementById('input-perfil-alias').value = p.alias || '';
         if(document.getElementById('select-perfil-idioma')) document.getElementById('select-perfil-idioma').value = p.idioma || 'es-ES';
-        if(document.getElementById('label-idioma')) document.getElementById('label-idioma').innerText = p.idioma === 'en-US' ? 'English' : 'Español';
+        if(document.getElementById('label-idioma')) document.getElementById('label-idioma').innerText = p.idioma === 'en-US' ? 'English' : 'Espa帽ol';
         
         const ia = p.ia || { nube: 'groq', local: 'smollm' };
         if(document.getElementById('select-ia-nube')) document.getElementById('select-ia-nube').value = ia.nube || 'groq';
         if(document.getElementById('label-ianube')) {
-            const nombresNube = { 'groq': 'GROQ (ULTRA RÁPIDO)', 'google': 'GOOGLE (EQUILIBRADO)', 'openrouter': 'OPENROUTER (LLAMA 3 LIBRE)' };
-            document.getElementById('label-ianube').innerText = nombresNube[ia.nube] || 'GROQ (ULTRA RÁPIDO)';
+            const nombresNube = { 'groq': 'GROQ (ULTRA R脕PIDO)', 'google': 'GOOGLE (EQUILIBRADO)', 'openrouter': 'OPENROUTER (LLAMA 3 LIBRE)' };
+            document.getElementById('label-ianube').innerText = nombresNube[ia.nube] || 'GROQ (ULTRA R脕PIDO)';
         }
 
         if(document.getElementById('select-ia-local')) document.getElementById('select-ia-local').value = ia.local || 'smollm';
@@ -722,7 +722,7 @@ export class Core {
             const nombresLocal = { 
                 'smollm': 'SMOLLM (135M)', 'qwen': 'QWEN 1.5 (0.5B)', 'tinyllama': 'TINYLLAMA (1.1B)',
                 'gemma': 'GEMMA 2 (2B)', 'phi3': 'PHI-3 MINI (3.8B)', 'mistral': 'MISTRAL (7B)',
-                'llama3': 'LLAMA 3 (8B)', 'hermes': 'NOUS HERMES (LLAMA)', 'vicuna': 'VICUNA (7B)', 'wizardlm': 'WIZARDLM (MATES/CÓDIGO)'
+                'llama3': 'LLAMA 3 (8B)', 'hermes': 'NOUS HERMES (LLAMA)', 'vicuna': 'VICUNA (7B)', 'wizardlm': 'WIZARDLM (MATES/C脫DIGO)'
             };
             document.getElementById('label-ialocal').innerText = nombresLocal[ia.local] || 'SMOLLM (135M)';
         }
@@ -772,7 +772,7 @@ export class Core {
 
             const iconoOriginal = btnUpload.innerHTML;
             btnUpload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            this.notificar("Subiendo imagen al servidor...", "⏳");
+            this.notificar("Subiendo imagen al servidor...", "鈴�");
             this.sysLog('NET', 'Storage', `Subiendo archivo: ${file.name}`);
 
             try {
@@ -784,13 +784,13 @@ export class Core {
 
                 const { data: publicUrlData } = this.supabase.storage.from('avatars').getPublicUrl(fileName);
                 urlInput.value = publicUrlData.publicUrl;
-                this.notificar("¡Imagen subida!", "✅");
-                this.sysLog('NET', 'Storage OK', `URL Pública: ${publicUrlData.publicUrl}`);
+                this.notificar("隆Imagen subida!", "鉁�");
+                this.sysLog('NET', 'Storage OK', `URL P煤blica: ${publicUrlData.publicUrl}`);
                 
                 this.autoGuardarPerfil(); 
             } catch (err) {
                 this.sysLog('NET', 'Storage Error', err.message, 'err');
-                this.notificar("Error al subir la imagen", "❌");
+                this.notificar("Error al subir la imagen", "鉂�");
             } finally {
                 btnUpload.innerHTML = iconoOriginal; fileInput.value = ''; 
             }
@@ -805,7 +805,7 @@ export class Core {
 
         const hogarTargetId = this.canalActivo ? this.canalActivo.id : this.miHogarId;
         if (!hogarTargetId) {
-            this.sysLog('NET', 'Abort', 'ID de Hogar no establecido. Abortando Sintonización.', 'warn');
+            this.sysLog('NET', 'Abort', 'ID de Hogar no establecido. Abortando Sintonizaci贸n.', 'warn');
             return;
         }
 
@@ -813,7 +813,7 @@ export class Core {
             this.supabase.removeChannel(this.suscripcionRealtime);
         }
 
-        this.sysLog('NET', 'Sintonizando', `Escuchando telemetría de Canal: ${hogarTargetId.substring(0,8)}`);
+        this.sysLog('NET', 'Sintonizando', `Escuchando telemetr铆a de Canal: ${hogarTargetId.substring(0,8)}`);
 
         this.suscripcionRealtime = this.supabase.channel('custom-all-channel')
             .on(
@@ -853,16 +853,16 @@ export class Core {
         if (!navigator.onLine) {
             this.colaOffline.push({app, c});
             this.sysLog('NET', 'Cola', `Offline. Encolando comando para ${app}.`, 'warn');
-            return this.notificar("Sin conexión. Orden en cola", "❌");
+            return this.notificar("Sin conexi贸n. Orden en cola", "鉂�");
         }
         
         try {
-            if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
+            if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no carg贸.");
             
-            // 🛡️ PARCHE CONDICIÓN DE CARRERA
+            // 馃洝锔� PARCHE CONDICI脫N DE CARRERA
             if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
                 this.sysLog('SEC', 'TX Info', 'Clave pendiente al despertar. Descartando orden fantasma.', 'warn');
-                return; // 👈 Ya NO lo metemos en la colaOffline para evitar el bucle infinito
+                return; // 馃憟 Ya NO lo metemos en la colaOffline para evitar el bucle infinito
             }
 
 
@@ -883,17 +883,17 @@ export class Core {
             });
 
             if (error) throw error;
-            this.sysLog('DB', 'TX', `Comando inyectado con éxito`);
+            this.sysLog('DB', 'TX', `Comando inyectado con 茅xito`);
             
         } catch (error) {
             this.sysLog('SEC', 'TX Err', error.message, 'err');
-            this.notificar(`Fallo E2EE: ${error.message}`, "❌");
+            this.notificar(`Fallo E2EE: ${error.message}`, "鉂�");
         }
     }
 
     sincronizarColaOffline() {
         if (this.colaOffline.length > 0 && navigator.onLine) {
-            this.notificar(`Sincronizando ${this.colaOffline.length} comandos pendientes...`, "🔄");
+            this.notificar(`Sincronizando ${this.colaOffline.length} comandos pendientes...`, "馃攧");
             this.sysLog('NET', 'Sync', `Vaciando cola offline (${this.colaOffline.length} items)`);
             this.colaOffline.forEach((orden, i) => {
                 setTimeout(() => this.cmd(orden.app, orden.c), i * 200);
@@ -904,11 +904,16 @@ export class Core {
 
     setNetworkStatus(isOnline) {
         if(isOnline) {
-            if(this._wasOffline) { this.notificar("Conexión Recuperada", "🌐"); this._wasOffline = false; }
+            if(this._wasOffline) { 
+                // Silenciamos la notificación visual de reconexión
+                this.sysLog('NET', 'Info', 'Conexión recuperada en silencio tras micro-corte.'); 
+                this._wasOffline = false; 
+            }
             this.sincronizarColaOffline();
         } else {
-            this.notificar("Sin conexión a la red", "⚠️");
-            this.vibra("error"); this._wasOffline = true;
+            // Silenciamos la desconexión
+            this.sysLog('NET', 'Info', 'Micro-corte de red (Navegador en suspensión).');
+            this._wasOffline = true;
         }
     }
 
@@ -924,8 +929,8 @@ export class Core {
             item.innerText = b.name;
             item.onclick = () => {
                 this.brIdx = idx; current.innerText = b.name; menu.classList.remove('open');
-                this.setupBrokerMenu(); this.notificar(`Enrutando servidor a ${b.name}...`, "🔀");
-                this.sysLog('NET', 'Cambio Broker', `Solicitando rotación hacia ${b.h} en el próximo comando.`);
+                this.setupBrokerMenu(); this.notificar(`Enrutando servidor a ${b.name}...`, "馃攢");
+                this.sysLog('NET', 'Cambio Broker', `Solicitando rotaci贸n hacia ${b.h} en el pr贸ximo comando.`);
             };
             menu.appendChild(item);
         });
@@ -953,7 +958,7 @@ export class Core {
             let ramColor = ramPercent > 85 ? "#ff453a" : (ramPercent > 60 ? "#ff9f0a" : "var(--text-sec)");
 
             let tBruto = (val && val.t !== undefined) ? val.t : ((val && val.temp) ? val.temp : "");
-            let tempTxt = tBruto !== "" ? this.escapeHTML(String(tBruto)) + "°C" : "";
+            let tempTxt = tBruto !== "" ? this.escapeHTML(String(tBruto)) + "掳C" : "";
             
             let rssiBruto = (val && val.rssi) ? val.rssi : -60;
             let rssi = this.escapeHTML(String(rssiBruto));
@@ -961,10 +966,10 @@ export class Core {
             
             container.innerHTML = `
                 <div class="pico-info-pill">
-                    <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">●</span>
+                    <span style="color:#32d74b; font-weight:bold; font-size:0.8rem">鈼�</span>
                     <span style="font-weight:600; color:var(--text-main); margin-right:5px">Online</span>
                     ${tempTxt ? `<span style="border-left:1px solid var(--border); padding-left:6px; margin-right:6px; font-size:0.8rem" title="CPU Temp"><i class="fa-solid fa-temperature-half"></i> ${tempTxt}</span>` : ''}
-                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Señal: ${rssi} dBm"><i class="fa-solid fa-wifi"></i></span>
+                    <span style="border-left:1px solid var(--border); padding-left:6px; color:${wifiColor}" title="Se帽al: ${rssi} dBm"><i class="fa-solid fa-wifi"></i></span>
                     <span style="border-left:1px solid var(--border); padding-left:6px; margin-left:6px; font-weight:600; font-size:0.8rem; color:${ramColor}" title="RAM Usada">${ramPercent}%</span>
                 </div>`;
         } else {
@@ -974,13 +979,13 @@ export class Core {
     }
 
     // ==========================================================
-    // 🤝 BLOQUE 4: MOTOR SOCIAL (LA PLAZA)
+    // 馃 BLOQUE 4: MOTOR SOCIAL (LA PLAZA)
     // ==========================================================
     
     escapeHTML(str) {
         if (!str) return "";
         return str.replace(/[&<>'"]/g, 
-            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            tag => ({ '&': '&', '<': '<', '>': '>', "'": '&#39;', '"': '&quot;' }[tag] || tag)
         );
     }
 
@@ -1009,7 +1014,7 @@ export class Core {
             usuarios.forEach(u => {
                 if (u.id === this.usuarioLogueado.id) return; 
 
-                const alias = this.escapeHTML(u.alias || 'Usuario Anónimo');
+                const alias = this.escapeHTML(u.alias || 'Usuario An贸nimo');
                 let avatarUrl = u.avatar_url;
                 if (avatarUrl && !avatarUrl.startsWith('http')) { avatarUrl = null; } 
 
@@ -1088,8 +1093,8 @@ export class Core {
             });
 
             if(countReq === 0) cReq.style.display = 'none'; else cReq.style.display = 'block';
-            if(countFri === 0) cFri.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No tienes conexiones aún.</p>`;
-            if(countOth === 0) cOth.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No hay más usuarios en la fortaleza.</p>`;
+            if(countFri === 0) cFri.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No tienes conexiones a煤n.</p>`;
+            if(countOth === 0) cOth.innerHTML += `<p style="color:var(--text-sec);font-size:0.85rem;text-align:center;">No hay m谩s usuarios en la fortaleza.</p>`;
 
             document.querySelectorAll('.btn-conectar').forEach(btn => btn.onclick = () => this.enviarSolicitudAmistad(btn.dataset.id));
             document.querySelectorAll('.btn-aceptar').forEach(btn => btn.onclick = () => this.responderSolicitudAmistad(btn.dataset.id, 'aceptada'));
@@ -1097,7 +1102,7 @@ export class Core {
 
         } catch (err) {
             this.sysLog('SOC', 'Plaza Error', err.message, 'err');
-            this.notificar("Error cargando el radar social", "❌");
+            this.notificar("Error cargando el radar social", "鉂�");
         }
     }
 
@@ -1107,8 +1112,8 @@ export class Core {
         try {
             const { error } = await this.supabase.from('conexiones').insert({ solicitante_id: this.usuarioLogueado.id, receptor_id: receptorId });
             if (error) throw error;
-            this.notificar("Solicitud enviada a la red", "📡"); this.vibra("tick"); this.cargarPlazaPublica();
-        } catch(e) { this.sysLog('SOC', 'Tx Error', e.message, 'err'); this.notificar("Error al enviar solicitud", "❌"); }
+            this.notificar("Solicitud enviada a la red", "馃摗"); this.vibra("tick"); this.cargarPlazaPublica();
+        } catch(e) { this.sysLog('SOC', 'Tx Error', e.message, 'err'); this.notificar("Error al enviar solicitud", "鉂�"); }
     }
 
     async responderSolicitudAmistad(solicitanteId, accion) {
@@ -1118,20 +1123,20 @@ export class Core {
             if (accion === 'aceptada') {
                 const { error } = await this.supabase.from('conexiones').update({ estado: 'aceptada' }).match({ solicitante_id: solicitanteId, receptor_id: this.usuarioLogueado.id });
                 if (error) throw error;
-                this.notificar("Nueva conexión establecida", "🤝"); this.vibra("doble");
+                this.notificar("Nueva conexi贸n establecida", "馃"); this.vibra("doble");
             } else {
                 const { error } = await this.supabase.from('conexiones').delete().match({ solicitante_id: solicitanteId, receptor_id: this.usuarioLogueado.id });
                 if (error) throw error;
-                this.notificar("Solicitud rechazada", "🗑️");
+                this.notificar("Solicitud rechazada", "馃棏锔�");
             }
             this.cargarPlazaPublica();
-        } catch(e) { this.sysLog('SOC', 'Rx Error', e.message, 'err'); this.notificar("Error al procesar", "❌"); }
+        } catch(e) { this.sysLog('SOC', 'Rx Error', e.message, 'err'); this.notificar("Error al procesar", "鉂�"); }
     }
 
     async compartirAcceso(invitadoId, alias) {
-        if (!confirm(`¿Quieres dar a ${alias} acceso a tu Frecuencia Privada?\n\nPodrá ver tus sensores y controlar el hardware.`)) return;
+        if (!confirm(`驴Quieres dar a ${alias} acceso a tu Frecuencia Privada?\n\nPodr谩 ver tus sensores y controlar el hardware.`)) return;
         
-        this.notificar("Forjando invitación cifrada...", "⚙️");
+        this.notificar("Forjando invitaci贸n cifrada...", "鈿欙笍");
         this.sysLog('SEC', 'Accesos', `Concediendo llaves a: ${alias}`);
         
         try {
@@ -1141,17 +1146,17 @@ export class Core {
             });
 
             if (error) {
-                // Código 23505 es Unique Violation en PostgreSQL
+                // C贸digo 23505 es Unique Violation en PostgreSQL
                 if (error.code === '23505') throw new Error("Ya tiene las llaves");
                 throw error;
             }
             
-            this.notificar(`Llaves entregadas a ${alias}`, "✅");
+            this.notificar(`Llaves entregadas a ${alias}`, "鉁�");
             this.vibra("doble");
             
         } catch (e) {
             this.sysLog('SEC', 'Accesos Err', e.message, 'err');
-            this.notificar(e.message.includes("Ya tiene") ? "Ese usuario ya tiene acceso" : "Fallo al compartir llaves", "❌");
+            this.notificar(e.message.includes("Ya tiene") ? "Ese usuario ya tiene acceso" : "Fallo al compartir llaves", "鉂�");
         }
     }
     
@@ -1210,7 +1215,7 @@ export class Core {
             cardMenu.innerHTML = `
                 ${btnCustomHtml}
                 <button class="btn-c-ajustes" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Ajustes"><i class="fa-solid fa-gear"></i></button>
-                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Cambiar Tamaño"><i class="fa-solid fa-expand"></i></button>
+                <button class="btn-c-tamano" style="background:none; border:none; color:#0a84ff; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Cambiar Tama帽o"><i class="fa-solid fa-expand"></i></button>
                 <button class="btn-c-cerrar" style="background:none; border:none; color:#ff453a; font-size:1.8rem; cursor:pointer; transition:0.2s;" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
             `;
 
@@ -1246,7 +1251,7 @@ export class Core {
             cardMenu.querySelector('.btn-c-cerrar').onclick = (e) => { e.stopPropagation(); cerrarIris(); };
             cardMenu.querySelector('.btn-c-ajustes').onclick = (e) => {
                 e.stopPropagation(); cerrarIris();
-                if (card.abrirAjustes) card.abrirAjustes(this); else this.notificar(`Esta tarjeta no tiene ajustes`, "ℹ️");
+                if (card.abrirAjustes) card.abrirAjustes(this); else this.notificar(`Esta tarjeta no tiene ajustes`, "鈩癸笍");
             };
             cardMenu.querySelector('.btn-c-tamano').onclick = (e) => {
                 e.stopPropagation();
@@ -1295,7 +1300,7 @@ export class Core {
                     <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px; pointer-events:none;"><i class="fa-solid fa-arrows-left-right"></i> ANCHO</div>
                     <div class="radial-viewport" id="viewport-ancho" style="width: 60px;"><div class="radial-cylinder" id="cylinder-ancho">${colAncho.html}</div></div>
                 </div>
-                <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px; z-index:100; pointer-events:none;">×</div>
+                <div style="font-size:1.5rem; color:var(--text-sec); font-weight:bold; margin-top:20px; z-index:100; pointer-events:none;">脳</div>
                 <div style="display:flex; flex-direction:column; align-items:center;">
                     <div style="font-size:0.7rem; color:var(--text-sec); margin-bottom:5px; pointer-events:none;"><i class="fa-solid fa-arrows-up-down"></i> ALTO</div>
                     <div class="radial-viewport" id="viewport-alto" style="width: 60px;"><div class="radial-cylinder" id="cylinder-alto">${colAlto.html}</div></div>
@@ -1444,11 +1449,11 @@ export class Core {
 
     obtenerColorIcono(icon) {
         if (!icon) return '#48484a';
-        if (icon.includes('✅') || icon.includes('🔋') || icon.includes('🌿')) return '#32d74b'; 
-        if (icon.includes('❌') || icon.includes('🚨') || icon.includes('🛑') || icon.includes('🗑️')) return '#ff453a'; 
-        if (icon.includes('⚠️') || icon.includes('🧹') || icon.includes('⚡') || icon.includes('⏳')) return '#ff9f0a'; 
-        if (icon.includes('ℹ️') || icon.includes('🌐') || icon.includes('🔀') || icon.includes('🗣️') || icon.includes('📡') || icon.includes('🔎') || icon.includes('📻')) return '#0a84ff'; 
-        if (icon.includes('🧠') || icon.includes('🤖') || icon.includes('🧬') || icon.includes('🎲') || icon.includes('🔮')) return '#bf5af2'; 
+        if (icon.includes('鉁�') || icon.includes('馃攱') || icon.includes('馃尶')) return '#32d74b'; 
+        if (icon.includes('鉂�') || icon.includes('馃毃') || icon.includes('馃洃') || icon.includes('馃棏锔�')) return '#ff453a'; 
+        if (icon.includes('鈿狅笍') || icon.includes('馃Ч') || icon.includes('鈿�') || icon.includes('鈴�')) return '#ff9f0a'; 
+        if (icon.includes('鈩癸笍') || icon.includes('馃寪') || icon.includes('馃攢') || icon.includes('馃棧锔�') || icon.includes('馃摗') || icon.includes('馃攷') || icon.includes('馃摶')) return '#0a84ff'; 
+        if (icon.includes('馃') || icon.includes('馃') || icon.includes('馃К') || icon.includes('馃幉') || icon.includes('馃敭')) return '#bf5af2'; 
         return '#8e8e93'; 
     }
 
@@ -1468,7 +1473,7 @@ export class Core {
         }
     }
 
-    notificar(msg, icon = "✅") {
+    notificar(msg, icon = "鉁�") {
         if (!this.colaNotificaciones) this.initColaNotificaciones();
         
         const mensajeStr = String(msg || "");
@@ -1516,7 +1521,7 @@ export class Core {
     }
 
     // ==========================================================
-    // 🧠 BLOQUE 6: IA NATIVA, JARVIS Y LLM
+    // 馃 BLOQUE 6: IA NATIVA, JARVIS Y LLM
     // ==========================================================
 
     initVozJARVIS() {
@@ -1527,9 +1532,9 @@ export class Core {
         const recognition = new SpeechRecognition(); recognition.lang = 'es-ES'; recognition.continuous = false; recognition.interimResults = false;
 
         btnVoz.style.cursor = "pointer";
-        btnVoz.onclick = () => { recognition.start(); btnVoz.style.color = "#ff453a"; btnVoz.classList.add("fa-beat-fade"); input.placeholder = "Escuchando órdenes..."; this.vibra("tick"); };
+        btnVoz.onclick = () => { recognition.start(); btnVoz.style.color = "#ff453a"; btnVoz.classList.add("fa-beat-fade"); input.placeholder = "Escuchando 贸rdenes..."; this.vibra("tick"); };
         recognition.onresult = (event) => { input.value = event.results[0][0].transcript; btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade"); input.placeholder = "Ej: Apaga la luz..."; this.vibra("doble"); setTimeout(() => this.procesarComandoIA(), 500); };
-        recognition.onerror = () => { btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade"); input.placeholder = "Fallo acústico. Escribe..."; };
+        recognition.onerror = () => { btnVoz.style.color = "var(--primary)"; btnVoz.classList.remove("fa-beat-fade"); input.placeholder = "Fallo ac煤stico. Escribe..."; };
     }
 
     hablarJARVIS(texto) {
@@ -1545,25 +1550,25 @@ export class Core {
         if(!orden) return;
         
         input.value = ""; 
-        this.notificar("Procesando...", "🧠");
+        this.notificar("Procesando...", "馃");
         this.sysLog('IA', 'Input', `Prompt recibido: "${orden}"`);
 
         this.ejecutarInferencia(orden, "reactivo");
     }
 
     iniciarAgenteProactivo() {
-        this.notificar("Agente Autónomo en línea", "🛡️");
+        this.notificar("Agente Aut贸nomo en l铆nea", "馃洝锔�");
         setInterval(() => {
-            this.sysLog('IA', 'Proactivo', 'Ejecutando escaneo silencioso de telemetría.');
-            this.ejecutarInferencia("Analiza el estado actual de la casa. Si detectas alguna anomalía de seguridad, un gasto excesivo, o un clima que requiera acción, actúa. Si todo está bien, no hagas nada y mantén 'comandos' vacío y 'voz' nulo.", "proactivo");
+            this.sysLog('IA', 'Proactivo', 'Ejecutando escaneo silencioso de telemetr铆a.');
+            this.ejecutarInferencia("Analiza el estado actual de la casa. Si detectas alguna anomal铆a de seguridad, un gasto excesivo, o un clima que requiera acci贸n, act煤a. Si todo est谩 bien, no hagas nada y mant茅n 'comandos' vac铆o y 'voz' nulo.", "proactivo");
         }, 600000);
     }
 
     async ejecutarInferencia(orden, modo = "reactivo") {
         const statusEl = document.querySelector('.pico-info-pill');
         const picoStatus = (statusEl && statusEl.innerText.includes('Online')) ? 'ONLINE (Conectada)' : 'OFFLINE (Desconectada)';
-        let contextoFisico = `--- TELEMETRÍA FÍSICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
-        document.querySelectorAll('.card').forEach(card => { contextoFisico += `- Módulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`; });
+        let contextoFisico = `--- TELEMETR脥A F脥SICA ACTUAL (ESTADO PICO: ${picoStatus}) ---\n`;
+        document.querySelectorAll('.card').forEach(card => { contextoFisico += `- M贸dulo [${card.dataset.id}]: ${card.querySelector('.val-text')?.innerText || "Activo"}\n`; });
         contextoFisico += `- Reloj: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}\n`;
         
         let memoriaProfunda = "";
@@ -1578,25 +1583,36 @@ export class Core {
         } else {
             if (navigator.onLine) {
                 const proveedorElegido = (this.perfilDB && this.perfilDB.ia && this.perfilDB.ia.nube) ? this.perfilDB.ia.nube : "groq";
-                try {
-                    const { data, error } = await this.supabase.functions.invoke('ia-proxy', {
-                        body: { proveedor: proveedorElegido, prompt_sistema: promptSistema, prompt_humano: orden, modo: modo }
+                                try {
+                    // 🔥 Apuntamos directo al Búnker en Render
+                    const req = await fetch('https://pablobp10-github-io.onrender.com/api/ia', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            proveedor: proveedorElegido, 
+                            prompt_sistema: promptSistema, 
+                            prompt_humano: orden, 
+                            modo: modo 
+                        })
                     });
-                    if (error) throw error;
+                    
+                    if (!req.ok) throw new Error("Render no responde");
+                    const data = await req.json();
+                    
                     if (data && data.texto) {
                         this.desplegarPayloadCuantico(data.texto, orden, modo);
                     }
                 } catch (err) {
-                    this.sysLog('IA', 'Nube Err', 'Edge Function falló. Fallback a Local.', 'warn');
+                    this.sysLog('IA', 'Nube Err', 'Edge Function fall贸. Fallback a Local.', 'warn');
                     if(modo === "reactivo") {
-                        this.notificar("Nube caída. Intentando IA Local...", "🔋");
+                        this.notificar("Nube ca铆da. Intentando IA Local...", "馃攱");
                         await this.procesarConWebLLM(promptSistema, orden, modo);
                     }
                 }
             } else {
-                this.notificar("Sin conexión a la red", "❌");
+                this.notificar("Sin conexi贸n a la red", "鉂�");
                 if(modo === "reactivo") {
-                    this.notificar("Offline. Intentando IA Local...", "🔋");
+                    this.notificar("Offline. Intentando IA Local...", "馃攱");
                     await this.procesarConWebLLM(promptSistema, orden, modo);
                 }
             }
@@ -1609,7 +1625,7 @@ export class Core {
         let toastDl = document.getElementById('toast-ia-dl');
         if (!toastDl) {
             const container = document.getElementById('toast-area') || document.body;
-            container.insertAdjacentHTML('beforeend', `<div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">⏳ <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Montando IA en VRAM...</span><div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;"><div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div></div></div>`);
+            container.insertAdjacentHTML('beforeend', `<div class="toast" id="toast-ia-dl" style="border:1px solid var(--primary); animation: slideIn 0.3s forwards;">鈴� <span id="ia-dl-text" style="margin-left:8px; font-weight:bold;">Montando IA en VRAM...</span><div style="width:100%; background:var(--bg); height:6px; margin-top:10px; border-radius:3px; overflow:hidden;"><div id="ia-dl-bar" style="width:0%; background:#32d74b; height:100%; transition:width 0.2s linear;"></div></div></div>`);
         }
 
         this.esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1648,11 +1664,11 @@ export class Core {
                     chatOpts: { context_window_size: 2048 } 
                 });
             } else {
-                this.sysLog('IA', 'Motor Local', `Arrancando WASM Móvil -> ${modeloElegido}`);
+                this.sysLog('IA', 'Motor Local', `Arrancando WASM M贸vil -> ${modeloElegido}`);
                 
                 const modelosPesados = ['mistral', 'llama3', 'hermes', 'vicuna', 'wizardlm'];
                 if (modelosPesados.includes(modeloElegido)) {
-                    throw new Error("Este modelo es demasiado pesado para el móvil. Usa uno < 3B.");
+                    throw new Error("Este modelo es demasiado pesado para el m贸vil. Usa uno < 3B.");
                 }
 
                 try {
@@ -1698,7 +1714,7 @@ export class Core {
             this.sysLog('IA', 'Precarga Fallida', e.message, 'err');
             if(document.getElementById('toast-ia-dl')) document.getElementById('toast-ia-dl').remove();
             
-            this.notificar(`${e.message}`, "❌");
+            this.notificar(`${e.message}`, "鉂�");
             return false;
         }
     }
@@ -1716,15 +1732,15 @@ export class Core {
             } 
             else if (this.esMovil && this.localEngineWASM) {
                 await new Promise(resolve => setTimeout(resolve, 800));
-                const promptMovil = `<|im_start|>system\n${promptSistema}\nATENCIÓN: Tu única salida debe ser exclusivamente un bloque JSON válido. Nada de texto extra.<|im_end|>\n<|im_start|>user\n${orden}<|im_end|>\n<|im_start|>assistant\n`;
+                const promptMovil = `<|im_start|>system\n${promptSistema}\nATENCI脫N: Tu 煤nica salida debe ser exclusivamente un bloque JSON v谩lido. Nada de texto extra.<|im_end|>\n<|im_start|>user\n${orden}<|im_end|>\n<|im_start|>assistant\n`;
                 const respuesta = await this.localEngineWASM(promptMovil, { max_new_tokens: 200, temperature: 0.1, repetition_penalty: 1.1, do_sample: false });
                 let outputStr = respuesta[0].generated_text.replace(promptMovil, "").trim();
-                const jsonMatch = outputStr.match(/\{[\s\S]*\}/); if (jsonMatch) textoCrudo = jsonMatch[0]; else throw new Error("El motor móvil no devolvió JSON");
-            } else { throw new Error("Ningún motor local inicializado"); }
+                const jsonMatch = outputStr.match(/\{[\s\S]*\}/); if (jsonMatch) textoCrudo = jsonMatch[0]; else throw new Error("El motor m贸vil no devolvi贸 JSON");
+            } else { throw new Error("Ning煤n motor local inicializado"); }
 
             this.sysLog('IA', 'Respuesta Local', textoCrudo);
             this.desplegarPayloadCuantico(textoCrudo, orden, modo);
-        } catch(e) { this.sysLog('IA', 'Colapso Local', e.message, 'err'); this.notificar("Colapso lógico en IA Local", "❌"); }
+        } catch(e) { this.sysLog('IA', 'Colapso Local', e.message, 'err'); this.notificar("Colapso l贸gico en IA Local", "鉂�"); }
     }
 
     desplegarPayloadCuantico(textoCrudo, orden, modo) {
@@ -1737,7 +1753,7 @@ export class Core {
                     const esComandoWeb = this.ejecutarComandoLocal(app, accion);
                     if (!esComandoWeb) { this.cmd(app, accion); this.registrarEnDB(app, accion); }
                 }
-            } else if (modo === "reactivo") { this.notificar("Análisis completado. Sin acciones.", "🤖"); }
+            } else if (modo === "reactivo") { this.notificar("An谩lisis completado. Sin acciones.", "馃"); }
 
             if (payload.ui_acciones && payload.ui_acciones.length > 0) {
                 payload.ui_acciones.forEach(acc => {
@@ -1748,40 +1764,40 @@ export class Core {
             }
             
             if (payload.voz && payload.voz !== "null" && !this.iaSilenciada) {
-                let icono = "🗣️"; if(payload.estado_emocional === 'alerta') icono = "🚨"; if(payload.estado_emocional === 'ironico') icono = "😏";
+                let icono = "馃棧锔�"; if(payload.estado_emocional === 'alerta') icono = "馃毃"; if(payload.estado_emocional === 'ironico') icono = "馃槒";
                 if(modo === "reactivo" || payload.estado_emocional === 'alerta') { this.notificar(payload.voz, icono); this.hablarJARVIS(payload.voz); }
             }
 
             if(modo === "reactivo") {
                 this.historialIA = this.historialIA || [];
-                this.historialIA.push({ u: orden, a: payload.voz || "Silencio táctico." });
+                this.historialIA.push({ u: orden, a: payload.voz || "Silencio t谩ctico." });
                 if (this.historialIA.length > 4) this.historialIA.shift();
             }
-        } catch (e) { this.sysLog('IA', 'Parse Error', e.message, 'err'); this.notificar("Sinapsis colapsada", "⚠️"); }
+        } catch (e) { this.sysLog('IA', 'Parse Error', e.message, 'err'); this.notificar("Sinapsis colapsada", "鈿狅笍"); }
     }
 
     async iniciarCentinelaAudio() {
-        if (this.centinelaActivo) { this.notificar("Centinela auditivo ya activo", "🛡️"); return; }
+        if (this.centinelaActivo) { this.notificar("Centinela auditivo ya activo", "馃洝锔�"); return; }
         try {
-            this.notificar("Cargando red neuronal auditiva...", "⏳");
+            this.notificar("Cargando red neuronal auditiva...", "鈴�");
             if (!this.tf) this.tf = await import("https://esm.run/@tensorflow/tfjs@4.17.0");
             const speechCommands = await import("https://esm.run/@tensorflow-models/speech-commands@0.5.4");
 
             this.recognizer = speechCommands.create("BROWSER_FFT");
             await this.recognizer.ensureModelLoaded();
             const palabras = this.recognizer.wordLabels();
-            this.sysLog('AUDIO', 'Mic', 'Motor TFJS cargado. Oído biónico activo.');
+            this.sysLog('AUDIO', 'Mic', 'Motor TFJS cargado. O铆do bi贸nico activo.');
 
             this.recognizer.listen(result => {
                 const maxScore = Math.max(...result.scores); const maxScoreIndex = Array.from(result.scores).indexOf(maxScore);
                 const palabraDetectada = palabras[maxScoreIndex];
                 if (maxScore > 0.85 && palabraDetectada === "go") { this.vibra("doble"); this.hablarJARVIS("A la escucha."); }
             }, { probabilityThreshold: 0.85, invokeCallbackOnNoiseAndUnknown: false, overlapFactor: 0.5 });
-            this.centinelaActivo = true; this.notificar("Oído biónico online", "🎙️");
-        } catch (error) { this.sysLog('AUDIO', 'Mic Err', error.message, 'err'); this.notificar("Fallo de micrófono", "❌"); document.getElementById('sw-jarvis').checked = false; }
+            this.centinelaActivo = true; this.notificar("O铆do bi贸nico online", "馃帣锔�");
+        } catch (error) { this.sysLog('AUDIO', 'Mic Err', error.message, 'err'); this.notificar("Fallo de micr贸fono", "鉂�"); document.getElementById('sw-jarvis').checked = false; }
     }
     
-    detenerCentinelaAudio() { if (this.recognizer && this.centinelaActivo) { this.recognizer.stopListening(); this.centinelaActivo = false; this.notificar("Centinela auditivo en reposo", "🛑"); } }
+    detenerCentinelaAudio() { if (this.recognizer && this.centinelaActivo) { this.recognizer.stopListening(); this.centinelaActivo = false; this.notificar("Centinela auditivo en reposo", "馃洃"); } }
 
     initInterruptorIA() {
         const aiInput = document.getElementById('ai-input'); if (!aiInput || document.getElementById('btn-ia-mode')) return;
@@ -1792,29 +1808,29 @@ export class Core {
     }
 
     async activarModoLocal(btn) {
-        if(!btn) btn = document.getElementById('btn-ia-mode'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; this.notificar("Arrancando turbinas locales...", "⚙️");
+        if(!btn) btn = document.getElementById('btn-ia-mode'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; this.notificar("Arrancando turbinas locales...", "鈿欙笍");
         const exito = await this.precargarMotorLocal();
-        if (exito) { this.modoIALocal = true; btn.innerHTML = '<i class="fa-solid fa-microchip"></i>'; btn.style.color = '#32d74b'; this.notificar("IA Local al mando", "🔒"); return true; } 
-        else { this.notificar("Hardware incompatible", "⚠️"); this.activarModoNube(btn); return false; }
+        if (exito) { this.modoIALocal = true; btn.innerHTML = '<i class="fa-solid fa-microchip"></i>'; btn.style.color = '#32d74b'; this.notificar("IA Local al mando", "馃敀"); return true; } 
+        else { this.notificar("Hardware incompatible", "鈿狅笍"); this.activarModoNube(btn); return false; }
     }
 
-    activarModoNube(btn) { if(!btn) btn = document.getElementById('btn-ia-mode'); this.modoIALocal = false; btn.innerHTML = '<i class="fa-solid fa-cloud"></i>'; btn.style.color = 'var(--text-sec)'; this.notificar("Modo IA Nube activado", "☁️"); }
+    activarModoNube(btn) { if(!btn) btn = document.getElementById('btn-ia-mode'); this.modoIALocal = false; btn.innerHTML = '<i class="fa-solid fa-cloud"></i>'; btn.style.color = 'var(--text-sec)'; this.notificar("Modo IA Nube activado", "鈽侊笍"); }
     
     async gestionarFalloIA(origenFallo) {
         const btn = document.getElementById('btn-ia-mode');
         if (origenFallo === 'nube') {
-            this.notificar("Nube caída. Desplegando IA Local...", "⚠️"); const exitoLocal = await this.activarModoLocal(btn);
+            this.notificar("Nube ca铆da. Desplegando IA Local...", "鈿狅笍"); const exitoLocal = await this.activarModoLocal(btn);
             if (!exitoLocal) {
-                this.notificar("Apagón total IA. Reintentando...", "🚨"); btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ff453a;"></i>';
-                if (!this.reintentoNubeActivo) { this.reintentoNubeActivo = setInterval(() => { this.notificar("Reintentando Nube...", "🔄"); this.activarModoNube(btn); }, 60000); }
+                this.notificar("Apag贸n total IA. Reintentando...", "馃毃"); btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ff453a;"></i>';
+                if (!this.reintentoNubeActivo) { this.reintentoNubeActivo = setInterval(() => { this.notificar("Reintentando Nube...", "馃攧"); this.activarModoNube(btn); }, 60000); }
             }
-        } else if (origenFallo === 'local') { this.notificar("Local colapsado. Evacuando a Nube...", "⚠️"); this.activarModoNube(btn); }
+        } else if (origenFallo === 'local') { this.notificar("Local colapsado. Evacuando a Nube...", "鈿狅笍"); this.activarModoNube(btn); }
     }
     
     detenerReintento() { if (this.reintentoNubeActivo) { clearInterval(this.reintentoNubeActivo); this.reintentoNubeActivo = null; } }
 
     // ==========================================================
-    // ⚙️ BLOQUE 7: MISCELÁNEA, HARDWARE Y DB
+    // 鈿欙笍 BLOQUE 7: MISCEL脕NEA, HARDWARE Y DB
     // ==========================================================
 
     ejecutarComandoLocal(app, accion) {
@@ -1848,15 +1864,15 @@ export class Core {
             case "Filtro": this.filtroActual = accion; this.renderGrid(); document.querySelectorAll('.filter-pill').forEach(b => { b.classList.remove('active'); if (b.dataset.filter === accion) b.classList.add('active'); }); break;
             case "Consola": const hud = document.getElementById('hud-console'); if (accion === "on" && (!hud || !hud.classList.contains('active'))) this.toggleHUD(); else if (accion === "off" && hud && hud.classList.contains('active')) this.toggleHUD(); else if (accion === "toggle") this.toggleHUD(); break;
             case "Sesion": if (accion === "logout") this.cerrarSesion(); break;
-            case "VozIA": this.iaSilenciada = (accion === "mute"); if (this.iaSilenciada) this.notificar("Voz JARVIS off", "🔇"); else this.notificar("Voz JARVIS on", "🔊"); break;
-            case "Consciencia": const modos = { 'logico': { nombre: 'LÓGICO'}, 'ironico': { nombre: 'IRÓNICO' }, 'defensa': { nombre: 'DEFENSA'}, 'zen': { nombre: 'MODO ZEN'} }; if(modos[accion]) { localStorage.setItem('pico_ai_modo', accion); this.notificar(`Modo: ${modos[accion].nombre}`, "🧬"); this.pub('Sistema/Consciencia', accion, true); } break;
-            case "IA": if (accion === "clear" || accion === "limpiar") { window.iaMensajes = []; const chatBox = document.getElementById('chat-history'); if (chatBox) chatBox.innerHTML = '<div style="text-align:center; color:var(--text-sec); margin-top:10px;">Memoria purgada.</div>'; this.notificar("Memoria IA reiniciada", "🧠"); } break;
+            case "VozIA": this.iaSilenciada = (accion === "mute"); if (this.iaSilenciada) this.notificar("Voz JARVIS off", "馃攪"); else this.notificar("Voz JARVIS on", "馃攰"); break;
+            case "Consciencia": const modos = { 'logico': { nombre: 'L脫GICO'}, 'ironico': { nombre: 'IR脫NICO' }, 'defensa': { nombre: 'DEFENSA'}, 'zen': { nombre: 'MODO ZEN'} }; if(modos[accion]) { localStorage.setItem('pico_ai_modo', accion); this.notificar(`Modo: ${modos[accion].nombre}`, "馃К"); this.pub('Sistema/Consciencia', accion, true); } break;
+            case "IA": if (accion === "clear" || accion === "limpiar") { window.iaMensajes = []; const chatBox = document.getElementById('chat-history'); if (chatBox) chatBox.innerHTML = '<div style="text-align:center; color:var(--text-sec); margin-top:10px;">Memoria purgada.</div>'; this.notificar("Memoria IA reiniciada", "馃"); } break;
         }
         return true;
     }
 
     async comprobarActualizaciones(esArranqueSilencioso = false) {
-        if (!esArranqueSilencioso) this.notificar("Buscando transmisiones en GitHub...", "📡");
+        if (!esArranqueSilencioso) this.notificar("Buscando transmisiones en GitHub...", "馃摗");
         
         try {
             const res = await fetch(`changelog.json?t=${new Date().getTime()}`);
@@ -1866,7 +1882,7 @@ export class Core {
             const versionLocal = localStorage.getItem('pico_version') || 'v1.0.0';
 
             if (nube.version !== versionLocal) {
-                this.sysLog('SYS', 'Update', `Nueva versión detectada: ${nube.version}`);
+                this.sysLog('SYS', 'Update', `Nueva versi贸n detectada: ${nube.version}`);
                 
                 document.getElementById('cl-version-badge').innerText = `${nube.version} (${nube.fecha})`;
                 document.getElementById('cl-title').innerText = nube.titulo;
@@ -1887,7 +1903,7 @@ export class Core {
                 document.getElementById('btn-close-changelog').onclick = () => {
                     localStorage.setItem('pico_version', nube.version);
                     modal.style.display = 'none';
-                    this.notificar(`Sistema actualizado a ${nube.version}`, "✅");
+                    this.notificar(`Sistema actualizado a ${nube.version}`, "鉁�");
                     
                     if (nube.forzar_recarga && 'serviceWorker' in navigator) {
                         navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -1896,11 +1912,11 @@ export class Core {
                     }
                 };
             } else {
-                if (!esArranqueSilencioso) this.notificar("El sistema ya está en la última versión", "✅");
+                if (!esArranqueSilencioso) this.notificar("El sistema ya est谩 en la 煤ltima versi贸n", "鉁�");
             }
         } catch (error) {
             this.sysLog('SYS', 'Update Err', error.message, 'warn');
-            if (!esArranqueSilencioso) this.notificar("Fallo al contactar con la central", "❌");
+            if (!esArranqueSilencioso) this.notificar("Fallo al contactar con la central", "鉂�");
         }
     }
     
@@ -1909,9 +1925,9 @@ export class Core {
         if (tarjeta && tarjeta.undo) {
             const toastId = Math.random().toString(36).substr(2,9); const container = document.getElementById('toast-area');
             const toast = document.createElement('div'); toast.className = "toast"; toast.style.position = "relative"; toast.style.overflow = "hidden";
-            toast.innerHTML = `⏳ <span style="margin-left:8px">Orden a ${app} en espera...</span><button class="toast-undo-btn" id="undo-${toastId}">DESHACER</button><div class="toast-progress"></div>`; container.appendChild(toast);
+            toast.innerHTML = `鈴� <span style="margin-left:8px">Orden a ${app} en espera...</span><button class="toast-undo-btn" id="undo-${toastId}">DESHACER</button><div class="toast-progress"></div>`; container.appendChild(toast);
             const timerId = setTimeout(() => { this.cmd(app, comando); toast.remove(); }, tiempoGracia);
-            document.getElementById(`undo-${toastId}`).onclick = () => { clearTimeout(timerId); toast.remove(); this.notificar(`Acción cancelada`, "🛑"); };
+            document.getElementById(`undo-${toastId}`).onclick = () => { clearTimeout(timerId); toast.remove(); this.notificar(`Acci贸n cancelada`, "馃洃"); };
         } else { this.cmd(app, comando); }
     }
 
@@ -1933,12 +1949,12 @@ export class Core {
             document.body.appendChild(hud); 
             
             const btnPurgar = document.createElement('button');
-            btnPurgar.innerHTML = "💣 PURGAR MEMORIA";
+            btnPurgar.innerHTML = "馃挘 PURGAR MEMORIA";
             btnPurgar.style.cssText = "position: absolute; top: 10px; right: 10px; background:#ff9f0a; color:white; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer; z-index: 1000;";
             
             btnPurgar.onclick = () => {
-                if(confirm('¿⚠️ ALERTA GOD: Formatear toda la memoria local, perfiles, cachés y service workers?')) {
-                    this.sysLog('SEC', 'PURGA', 'Iniciando autodestrucción de caché...', 'warn');
+                if(confirm('驴鈿狅笍 ALERTA GOD: Formatear toda la memoria local, perfiles, cach茅s y service workers?')) {
+                    this.sysLog('SEC', 'PURGA', 'Iniciando autodestrucci贸n de cach茅...', 'warn');
                     localStorage.clear(); 
                     sessionStorage.clear();
                     if('serviceWorker' in navigator) {
@@ -1950,7 +1966,7 @@ export class Core {
             };
             hud.appendChild(btnPurgar);
 
-            this.logHUD("INTERCEPTANDO TRÁFICO MQTT..."); 
+            this.logHUD("INTERCEPTANDO TR脕FICO MQTT..."); 
         }
         hud.classList.toggle('active');
     }
@@ -1965,10 +1981,10 @@ export class Core {
             textoFinal = `> ${msg}`;
             if (dataExtra) {
                 const dataStr = typeof dataExtra === 'object' ? JSON.stringify(dataExtra) : dataExtra;
-                textoFinal += `\n   📦 DATA: ${dataStr}`;
+                textoFinal += `\n   馃摝 DATA: ${dataStr}`;
             }
             if ((tipo === 'error' || tipo === 'err') && solucion) {
-                textoFinal += `\n   💡 FIX: ${solucion}`;
+                textoFinal += `\n   馃挕 FIX: ${solucion}`;
             }
         } 
         else if (this.rol === 'admin') {
@@ -1978,7 +1994,7 @@ export class Core {
         else {
             if (tipo !== 'error' && tipo !== 'err') return; 
             const pseudoCodigo = Math.random().toString(36).substring(7).toUpperCase();
-            textoFinal = `> ⚠️ Error de sistema interceptado. (Código: ${pseudoCodigo}). Notifique al administrador.`;
+            textoFinal = `> 鈿狅笍 Error de sistema interceptado. (C贸digo: ${pseudoCodigo}). Notifique al administrador.`;
         }
 
         if (!textoFinal) return;
@@ -2020,13 +2036,13 @@ export class Core {
     }
 
     async abrirPiP(app) {
-        if (!('documentPictureInPicture' in window)) return this.notificar("Tu navegador no soporta PiP", "❌");
+        if (!('documentPictureInPicture' in window)) return this.notificar("Tu navegador no soporta PiP", "鉂�");
         const tarjeta = this.cards.find(c => c.id === app); if(!tarjeta || !tarjeta.pip) return;
         try {
             const pipWindow = await documentPictureInPicture.requestWindow({ width: 250, height: 250 });
             const style = document.createElement('style'); style.textContent = `body { background: #1c1c1e; color: white; display: flex; align-items: center; justify-content: center; font-family: sans-serif; height: 100vh; margin: 0; } .val-text { font-size: 3rem; font-weight: bold; }`;
             pipWindow.document.head.appendChild(style); pipWindow.document.body.innerHTML = `<div style="text-align:center"><div style="color:#8e8e93">${app.toUpperCase()}</div><div class="val-text" id="pip-val">...</div></div>`;
-            this.notificar(`${app} extraído a PiP`, "🪟");
+            this.notificar(`${app} extra铆do a PiP`, "馃獰");
         } catch(e) { this.sysLog('UI', 'PiP Err', e.message, 'err'); }
     }
 
@@ -2051,22 +2067,22 @@ export class Core {
     initMultijugador() {
         window.simularPresencia = (appId) => {
             const card = document.getElementById(`card-${appId}`); if(!card) return;
-            card.classList.add('multiplayer-active'); this.notificar(`Otro usuario usa ${appId}`, "👥");
+            card.classList.add('multiplayer-active'); this.notificar(`Otro usuario usa ${appId}`, "馃懃");
             setTimeout(() => card.classList.remove('multiplayer-active'), 3000);
         };
     }
 
     async leerNFC() {
-        if (!("NDEFReader" in window)) return this.notificar("Dispositivo sin NFC compatible", "❌");
+        if (!("NDEFReader" in window)) return this.notificar("Dispositivo sin NFC compatible", "鉂�");
         try {
-            const ndef = new NDEFReader(); await ndef.scan(); this.notificar("Acerca el NFC...", "📡"); this.vibra("doble");
-            ndef.addEventListener("reading", ({ message, serialNumber }) => { this.vibra("tick"); this.notificar(`NFC: ${serialNumber}`, "✅"); this.logHUD(`NFC: ${serialNumber}`); });
-        } catch (error) { this.notificar("Error lector NFC", "❌"); this.sysLog('HW', 'NFC Err', error.message, 'err'); }
+            const ndef = new NDEFReader(); await ndef.scan(); this.notificar("Acerca el NFC...", "馃摗"); this.vibra("doble");
+            ndef.addEventListener("reading", ({ message, serialNumber }) => { this.vibra("tick"); this.notificar(`NFC: ${serialNumber}`, "鉁�"); this.logHUD(`NFC: ${serialNumber}`); });
+        } catch (error) { this.notificar("Error lector NFC", "鉂�"); this.sysLog('HW', 'NFC Err', error.message, 'err'); }
     }
 
     async iniciarRadarBluetooth() {
-        if (!navigator.bluetooth) return this.notificar("Bluetooth Web no soportado", "❌");
-        try { this.notificar("Escaneando balizas...", "🔎"); const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true }); this.vibra("tick"); this.notificar(`Baliza: ${device.name || 'Desconocido'}`, "✅"); } 
+        if (!navigator.bluetooth) return this.notificar("Bluetooth Web no soportado", "鉂�");
+        try { this.notificar("Escaneando balizas...", "馃攷"); const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true }); this.vibra("tick"); this.notificar(`Baliza: ${device.name || 'Desconocido'}`, "鉁�"); } 
         catch(e) { this.sysLog('HW', 'BT', 'Radar cancelado o fallido', 'warn'); }
     }
 
@@ -2090,7 +2106,7 @@ export class Core {
         grid.addEventListener('touchstart', (e) => { isDrawing = true; paintCell(e.target); }, {passive: false});
         grid.addEventListener('touchmove', (e) => { if(!isDrawing) return; e.preventDefault(); const touch = e.touches[0]; const element = document.elementFromPoint(touch.clientX, touch.clientY); paintCell(element); }, {passive: false});
         document.addEventListener('touchend', () => isDrawing = false);
-        btnClear.onclick = () => { if(confirm("¿Borrar plano?")) { savedMap = Array(totalCells).fill(''); localStorage.setItem('miPlanoTiles', JSON.stringify(savedMap)); document.querySelectorAll('.grid-cell').forEach(c => c.className = 'grid-cell'); this.vibra("doble"); } };
+        btnClear.onclick = () => { if(confirm("驴Borrar plano?")) { savedMap = Array(totalCells).fill(''); localStorage.setItem('miPlanoTiles', JSON.stringify(savedMap)); document.querySelectorAll('.grid-cell').forEach(c => c.className = 'grid-cell'); this.vibra("doble"); } };
     }
 
     initPlanoDraggable() {
@@ -2119,7 +2135,7 @@ export class Core {
         };
         btnCompile.onclick = async () => {
             const promptCrudo = promptInput.value.trim(); 
-            if(!currentBinding || !promptCrudo) return this.notificar("Falta el atajo o el texto", "⚠️");
+            if(!currentBinding || !promptCrudo) return this.notificar("Falta el atajo o el texto", "鈿狅笍");
             
             const promptSeguro = this.escapeHTML(promptCrudo);
             
@@ -2128,7 +2144,7 @@ export class Core {
                 const codigoJSONGenerado = JSON.stringify({ "Led": "toggle", "Pomodoro": 25 }); if(emptyMsg) emptyMsg.style.display = 'none';
                 const li = document.createElement('li'); li.className = "macro-item cascade-in"; 
                 li.innerHTML = `<div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:monospace; font-weight:900; color:var(--primary); font-size:1.1rem;"><i class="fa-regular fa-keyboard"></i> ${currentBinding}</span><span style="font-size:0.85rem; color:var(--text-sec);">"${promptSeguro}"</span><span style="font-family:monospace; font-size:0.75rem; color:#32d74b;">> ${codigoJSONGenerado}</span></div><button class="btn-del" onclick="this.parentElement.remove(); window.App.vibra('doble');"><i class="fa-solid fa-trash"></i></button>`;
-                list.appendChild(li); promptInput.value = ""; displayKey.innerText = "Sin asignar"; currentBinding = ""; btnCompile.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar`; this.notificar("Atajo compilado con éxito", "✅");
+                list.appendChild(li); promptInput.value = ""; displayKey.innerText = "Sin asignar"; currentBinding = ""; btnCompile.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Compilar y Guardar`; this.notificar("Atajo compilado con 茅xito", "鉁�");
             }, 1000);
         };
     }
@@ -2167,7 +2183,7 @@ export class Core {
 
     consultarHabitosDB(horaActual) {
         return new Promise((resolve) => {
-            if (!this.db) return resolve("Sin datos históricos.");
+            if (!this.db) return resolve("Sin datos hist贸ricos.");
             const transaccion = this.db.transaction(['habitos'], 'readonly'); const store = transaccion.objectStore('habitos'); const index = store.index('hora');
             const request = index.getAll(IDBKeyRange.only(horaActual));
             request.onsuccess = () => {
@@ -2179,7 +2195,7 @@ export class Core {
     }
 
     // ==========================================================
-    // ⚔️ BLOQUE 8: CONTROL DE ACCESOS Y FORJA (GOD MODE ONLY)
+    // 鈿旓笍 BLOQUE 8: CONTROL DE ACCESOS Y FORJA (GOD MODE ONLY)
     // ==========================================================
 
     async comprobarSolicitudesPendientes() {
@@ -2189,7 +2205,7 @@ export class Core {
             if (data && data.length > 0) {
                 this.sysLog('SEC', 'Radar', `Detectadas ${data.length} solicitudes pendientes.`);
                 setTimeout(() => {
-                    this.notificar(`${data.length} solicitud(es) de acceso. Abre la consola HUD.`, "🔔"); this.vibra("doble");
+                    this.notificar(`${data.length} solicitud(es) de acceso. Abre la consola HUD.`, "馃敂"); this.vibra("doble");
                     const hud = document.getElementById('hud-console');
                     if (hud) {
                         const btnId = `btn-approve-${data[0].id}`;
@@ -2202,28 +2218,28 @@ export class Core {
     }
 
     async ejecutarForjaAutomatica(userId) {
-        this.sysLog('SEC', 'Aprobación', `Otorgando acceso a UserID: ${userId}`);
+        this.sysLog('SEC', 'Aprobaci贸n', `Otorgando acceso a UserID: ${userId}`);
         
         try {
-            this.notificar("Aprobando acceso en la base de datos...", "⏳");
+            this.notificar("Aprobando acceso en la base de datos...", "鈴�");
             
             const { error } = await this.supabase.from('perfiles')
                 .update({ rol: 'guest', updated_at: new Date() }).eq('id', userId);
             
             if (error) throw error;
             
-            this.sysLog('SEC', 'Aprobación OK', 'Usuario verificado. Esperando su primer login.');
-            this.notificar("Usuario autorizado en el sistema", "✅");
-            this.logHUD(`USUARIO APROBADO: Al iniciar sesión, su propio equipo forjará las llaves E2EE.`, "out");
+            this.sysLog('SEC', 'Aprobaci贸n OK', 'Usuario verificado. Esperando su primer login.');
+            this.notificar("Usuario autorizado en el sistema", "鉁�");
+            this.logHUD(`USUARIO APROBADO: Al iniciar sesi贸n, su propio equipo forjar谩 las llaves E2EE.`, "out");
             
         } catch (error) {
-            this.sysLog('SEC', 'Aprobación Err', error.message, 'err');
-            this.notificar("Fallo al autorizar usuario", "❌");
+            this.sysLog('SEC', 'Aprobaci贸n Err', error.message, 'err');
+            this.notificar("Fallo al autorizar usuario", "鉂�");
         }
     }
     
     // ==========================================================
-    // 📻 BLOQUE 9: CANALES (Sintonización Dinámica)
+    // 馃摶 BLOQUE 9: CANALES (Sintonizaci贸n Din谩mica)
     // ==========================================================
 
     async cargarCanales() {
@@ -2234,7 +2250,7 @@ export class Core {
         if (!lista) return;
         lista.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin" style="color:var(--primary); font-size:2rem;"></i></div>';
 
-        // 🚀 PARCHE UI: Forzamos el display con !important para vencer al CSS oculto
+        // 馃殌 PARCHE UI: Forzamos el display con !important para vencer al CSS oculto
         if (this.tienePermiso('admin') && btnCrear) {
             btnCrear.style.setProperty('display', 'block', 'important');
         }
@@ -2250,7 +2266,7 @@ export class Core {
                 if (casasInvitado) canalesAcceso = canalesAcceso.concat(casasInvitado);
             }
 
-            // 🚀 PARCHE UX: Filtramos tu propio canal principal para que no salga en la lista
+            // 馃殌 PARCHE UX: Filtramos tu propio canal principal para que no salga en la lista
             canalesAcceso = canalesAcceso.filter(canal => canal.id !== this.miHogarId);
 
             lista.innerHTML = '';
@@ -2290,7 +2306,7 @@ export class Core {
         const nombre = prompt("Nombre del nuevo Canal:");
         if (!nombre) return;
 
-        this.notificar("Creando canal cifrado...", "⚙️");
+        this.notificar("Creando canal cifrado...", "鈿欙笍");
         try {
             const topicBase = `pico/ch_${Date.now()}/`;
             const tkCompartido = CryptoJS.lib.WordArray.random(32).toString();
@@ -2303,11 +2319,11 @@ export class Core {
             });
 
             if (error) throw error;
-            this.notificar("Canal creado", "✅");
+            this.notificar("Canal creado", "鉁�");
             this.cargarCanales();
         } catch (e) {
             this.sysLog('NET', 'Crear Canal Err', e.message, 'err');
-            this.notificar("Fallo al crear el canal", "❌");
+            this.notificar("Fallo al crear el canal", "鉂�");
         }
     }
 
@@ -2335,7 +2351,7 @@ export class Core {
         document.getElementById('canal-activo-banner').style.borderColor = '#0a84ff';
         document.getElementById('btn-salir-canal').style.display = 'block';
         
-        this.notificar(`Conectado a: ${nombre}`, "📻");
+        this.notificar(`Conectado a: ${nombre}`, "馃摶");
         this.vibra("doble");
         this.cargarCanales(); 
     }
@@ -2360,7 +2376,7 @@ export class Core {
         document.getElementById('canal-activo-banner').style.borderColor = '#32d74b';
         document.getElementById('btn-salir-canal').style.display = 'none';
 
-        this.notificar("Canal Privado restaurado", "🔒");
+        this.notificar("Canal Privado restaurado", "馃敀");
         this.vibra("tick");
         this.cargarCanales();
     }
