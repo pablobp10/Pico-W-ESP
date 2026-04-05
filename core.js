@@ -1671,8 +1671,9 @@ export class Core {
                     throw new Error("Este modelo es demasiado pesado para el m贸vil. Usa uno < 3B.");
                 }
 
-                try {
-                    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers');
+                                try {
+                    // 🔥 Volvemos a tu motor original y estable
+                    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
                     env.allowLocalModels = false; 
                     env.useBrowserCache = true; 
                     env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
@@ -1681,7 +1682,9 @@ export class Core {
                     if(textEl) textEl.innerText = "Iniciando motor WASM...";
                     
                     const modelosMovil = {
-                        'smollm': 'onnx-community/SmolLM-135M-Instruct-ONNX',
+                        // 🛡️ Esquivamos el archivo corrupto de SmolLM. 
+                        // Usamos Qwen 0.5B de Xenova: Es el más pequeño, rápido y seguro para Opera.
+                        'smollm': 'Xenova/Qwen1.5-0.5B-Chat',
                         'qwen': 'Xenova/Qwen1.5-0.5B-Chat',
                         'tinyllama': 'Xenova/TinyLlama-1.1B-Chat-v1.0',
                         'gemma': 'Xenova/gemma-2b-it',
