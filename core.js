@@ -859,12 +859,12 @@ export class Core {
         try {
             if (typeof CryptoJS === 'undefined') throw new Error("CryptoJS no cargó.");
             
-            // 🛡️ PARCHE CONDICIÓN DE CARRERA: Encolar en lugar de forzar cierre de sesión
+            // 🛡️ PARCHE CONDICIÓN DE CARRERA
             if (!this.conf || !this.conf.tk || this.conf.tk.length < 10) {
-                this.sysLog('SEC', 'TX Info', 'Clave pendiente en memoria. Encolando orden.', 'warn');
-                this.colaOffline.push({app, c});
-                return;
+                this.sysLog('SEC', 'TX Info', 'Clave pendiente al despertar. Descartando orden fantasma.', 'warn');
+                return; // 👈 Ya NO lo metemos en la colaOffline para evitar el bucle infinito
             }
+
 
             const paqueteFisico = JSON.stringify({ c: c, n: Date.now() });
             const paqueteCifrado = CryptoJS.AES.encrypt(paqueteFisico, this.conf.tk).toString();
@@ -1665,7 +1665,7 @@ export class Core {
                     if(textEl) textEl.innerText = "Iniciando motor WASM...";
                     
                     const modelosMovil = {
-                        'smollm': 'Xenova/SmolLM-135M-Instruct',
+                        'smollm': 'onnx-community/SmolLM-135M-Instruct',
                         'qwen': 'Xenova/Qwen1.5-0.5B-Chat',
                         'tinyllama': 'Xenova/TinyLlama-1.1B-Chat-v1.0',
                         'gemma': 'Xenova/gemma-2b-it',
