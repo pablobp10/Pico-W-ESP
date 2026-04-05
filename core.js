@@ -1665,7 +1665,7 @@ export class Core {
                     if(textEl) textEl.innerText = "Iniciando motor WASM...";
                     
                     const modelosMovil = {
-                        'smollm': 'onnx-community/SmolLM-135M-Instruct',
+                        'smollm': 'onnx-community/SmolLM-135M-Instruct-ONNX',
                         'qwen': 'Xenova/Qwen1.5-0.5B-Chat',
                         'tinyllama': 'Xenova/TinyLlama-1.1B-Chat-v1.0',
                         'gemma': 'Xenova/gemma-2b-it',
