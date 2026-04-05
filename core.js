@@ -1656,7 +1656,7 @@ export class Core {
                 }
 
                 try {
-                    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0');
+                    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers');
                     env.allowLocalModels = false; 
                     env.useBrowserCache = true; 
                     env.backends.onnx.wasm.numThreads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
